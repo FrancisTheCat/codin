@@ -1,0 +1,141 @@
+#include "codin.h"
+
+internal Allocator_Error string_delete(String s, Allocator allocator) {
+  return mem_free((rawptr)s.data, s.len, allocator);
+}
+
+internal isize cstring_len(cstring s) {
+  if (!s) {
+    return 0;
+  }
+  isize len = 0;
+  for (; *s; s += 1) {
+    len += 1;
+  }
+  return len;
+}
+
+internal Allocator_Error cstring_delete(cstring s, Allocator allocator) {
+  return mem_free((rawptr)s, cstring_len(s), allocator);
+}
+
+internal String cstring_to_string(cstring c) {
+  String s;
+  s.data = c;
+  s.len = cstring_len(c);
+  return s;
+}
+
+internal String cstring_to_string_clone(cstring c, Allocator allocator) {
+  String s;
+  s.len = cstring_len(c);
+  s.data = (const char *)unwrap_err(mem_clone((rawptr)c, s.len, allocator));
+  return s;
+}
+
+internal cstring string_to_cstring_unsafe(String s) { return s.data; }
+
+internal cstring string_to_cstring_clone(String s, Allocator allocator) {
+  char *data = (char *)unwrap_err(mem_alloc(s.len + 1, allocator));
+  mem_tcopy(data, s.data, s.len);
+  data[s.len] = 0;
+  return data;
+}
+
+internal String string_clone(String s, Allocator allocator) {
+  String ret;
+  ret.data =
+      (const char *)unwrap_err(mem_clone((rawptr)s.data, s.len, allocator));
+  ret.len = s.len;
+  return ret;
+}
+
+internal String strings_concatenate(String a, String b, Allocator allocator) {
+  Byte_Slice placeholder = bytes_concatenate(
+      transmute(Byte_Slice, a), transmute(Byte_Slice, b), allocator);
+  return transmute(String, placeholder);
+}
+
+internal b8 cstring_equal(cstring a, cstring b) {
+  if ((a == nil) || (b == nil)) {
+    return a == b;
+  }
+  isize i = 0;
+  for (; a[i] && b[i]; i += 1) {
+    if (a[i] != b[i]) {
+      return false;
+    }
+  }
+  return a[i] == b[i];
+}
+
+internal b8 string_equal(String a, String b) {
+  if (a.len != b.len) {
+    return false;
+  }
+
+  slice_iter(a, c, i, {
+    if (*c != b.data[i]) {
+      return false;
+    }
+  });
+
+  return true;
+}
+
+internal b8 string_compare_lexicographic(String a, String b) {
+  slice_iter(a, c, i, {
+    if (i >= b.len) {
+      return false;
+    }
+    if (*c != b.data[i]) {
+      return *c < b.data[i];
+    }
+  });
+  return true;
+}
+
+internal b8 cstring_compare_lexicographic(cstring a, cstring b) {
+  return string_compare_lexicographic(cstring_to_string(a),
+                                      cstring_to_string(b));
+}
+
+#define string_range(str, start, end) slice_range(str, start, end)
+
+internal isize string_index_byte(String str, byte b) {
+  slice_iter(str, c, i, {
+    if (*c == b) {
+      return i;
+    }
+  });
+  return -1;
+}
+
+internal Maybe_Int parse_isize(String str) {
+  if (str.len == 0) {
+    return (Maybe_Int){};
+  }
+  b8 negative = false;
+  if (str.data[0] == '-') {
+    negative = true;
+    str.data += 1;
+    str.len -= 1;
+  } else if (str.data[0] == '+') {
+    str.data += 1;
+    str.len -= 1;
+  }
+
+  isize value = 0;
+  isize f = 1 - (2 * !!negative);
+  for (isize i = str.len - 1; i >= 0; i -= 1) {
+    if (str.data[i] < '0' || str.data[i] > '9') {
+      return (Maybe_Int){};
+    }
+
+    value += (str.data[i] - '0') * f;
+    
+    f *= 10;
+  }
+
+  return (Maybe_Int){.value = value, .ok = true};
+}
