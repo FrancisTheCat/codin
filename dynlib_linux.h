@@ -1,19 +1,21 @@
 #include "codin.h"
 
-rawptr _dynlib_load(String path, isize *size) {
-  Fd fd = or_do_err(file_open(path, FP_Read), _err, {return nil;});
+b8 _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
+  Fd fd = or_do_err(file_open(path, FP_Read), _err, {
+    return false;
+  });
   File_Info info;
   OS_Error err = file_stat(fd, &info);
   if (err) {
-    return nil;
+    file_close(fd);
+    return false;
   }
-  *size = info.size;
-  return (rawptr)syscall(SYS_mmap, nil, info.size, PROT_EXEC | PROT_READ, MAP_PRIVATE | MAP_FILE, fd, 0);
-}
+  lib->mapping = (rawptr)syscall(SYS_mmap, nil, info.size, PROT_READ, MAP_PRIVATE | MAP_FILE, fd, 0);
+  if (!lib->mapping) {
+    file_close(fd);
+    return false;
+  }
 
-b8 _dynlib_load_symbols(Dynlib *lib, Allocator allocator) {
-  hash_map_init(&lib->symbols, 1024, string_equal, string_hash, allocator);
-  
   typedef struct {
     char    e_ident[16];
     u16     e_type;
@@ -35,7 +37,7 @@ b8 _dynlib_load_symbols(Dynlib *lib, Allocator allocator) {
     u32     sh_name;
     u32     sh_type;
     u64     sh_flags;
-    rawptr  sh_addr;
+    uintptr sh_addr;
     uintptr sh_offset;
     u64     sh_size;
     u32     sh_link;
@@ -44,18 +46,19 @@ b8 _dynlib_load_symbols(Dynlib *lib, Allocator allocator) {
     u64     sh_entsize;
   } Elf64_Shdr;
 
-  if (lib->size < size_of(Elf64_Ehdr)) {
+  if (info.size < size_of(Elf64_Ehdr)) {
+    file_close(fd);
     return false;
   }
   Elf64_Ehdr *ehdr = (Elf64_Ehdr *)lib->mapping;
   if (!string_equal((String){.data = (char const *)ehdr->e_ident, .len = 4}, LIT("\x7F" "ELF"))) {
+    file_close(fd);
     return false;
   }
   if (ehdr->e_type != 3) {
+    file_close(fd);
     return false;
   }
-  log_infof(LIT("PHOFF: %x"), ehdr->e_phoff);
-  log_infof(LIT("SHOFF: %x"), ehdr->e_shoff);
 
   typedef enum {
     SHT_NULL	         = 0,
@@ -106,11 +109,40 @@ b8 _dynlib_load_symbols(Dynlib *lib, Allocator allocator) {
     u64     st_size;
   } Elf64_Sym;
 
-  Byte_Buffer string_table;
-  builder_init(&string_table, 0, 8, allocator);
+  typedef struct {
+    uintptr r_offset;
+    u64     r_info;
+  } Elf64_Rel;
+
+  typedef struct {
+    uintptr r_offset;
+    u32     r_type;
+    u32     r_sym;
+    i64     r_addend;
+  } Elf64_Rela;
+
+  Byte_Slice string_table         = {0};
+  Byte_Slice section_string_table = {0};
 
   Vector(Elf64_Sym) symbols;
-  vector_init(&symbols, 0, 8, allocator);
+  vector_init(&symbols, 0, 8, context.temp_allocator);
+
+  Vector(Elf64_Rela) relas;
+  vector_init(&relas, 0, 8, context.temp_allocator);
+
+  Vector(Elf64_Rel) rels;
+  vector_init(&rels, 0, 8, context.temp_allocator);
+
+  typedef struct {
+    isize   name;
+    uintptr offset;
+    uintptr address;
+    uintptr size;
+    u64     flags;
+  } Section;
+
+  Vector(Section) sections;
+  vector_init(&sections, 0, 8, context.temp_allocator);
 
   char *base;
   Byte_Slice chunk;
@@ -118,42 +150,60 @@ b8 _dynlib_load_symbols(Dynlib *lib, Allocator allocator) {
   for_range(i, 0, ehdr->e_shnum) {
     Elf64_Shdr *shdr = (Elf64_Shdr *)((uintptr)lib->mapping + ehdr->e_shoff + ehdr->e_shentsize * i);
 
+    Section section = (Section) {
+      .name    = shdr->sh_name,
+      .offset  = shdr->sh_offset,
+      .address = shdr->sh_addr,
+      .size    = shdr->sh_size,
+      .flags   = shdr->sh_flags,
+    };
+    vector_append(&sections, section);
+
     switch (shdr->sh_type) {
     case SHT_NULL:
-      log_info(LIT("Type: 'SHT_NULL'"));
       break;
     case SHT_PROGBITS:
-      log_info(LIT("Type: 'SHT_PROGBITS'"));
       break;
     case SHT_SYMTAB:
-      log_info(LIT("Type: 'SHT_SYMTAB'"));
       break;
     case SHT_STRTAB:
-      log_info(LIT("Type: 'SHT_STRTAB'"));
-      base  = (char *)((uintptr)lib->mapping + shdr->sh_offset);
-      chunk = (Byte_Slice) {.data = (byte *)base, .len = (isize)shdr->sh_size};
-      vector_append_slice(&string_table, chunk);
+      if (string_table.len) {
+        section_string_table = (Byte_Slice) {
+          .data = (byte *)((uintptr)lib->mapping + shdr->sh_offset),
+          .len  = (isize)shdr->sh_size,
+        };
+      } else {
+        string_table = (Byte_Slice) {
+          .data = (byte *)((uintptr)lib->mapping + shdr->sh_offset),
+          .len  = (isize)shdr->sh_size,
+        };
+      }
+
+      // base  = (char *)((uintptr)lib->mapping + shdr->sh_offset);
+      // chunk = (Byte_Slice) {.data = (byte *)base, .len = (isize)shdr->sh_size};
+      // vector_append_slice(&string_table, chunk);
       break;
     case SHT_RELA:
-      log_info(LIT("Type: 'SHT_RELA'"));
+      for_range(j, 0, shdr->sh_size / shdr->sh_entsize) {
+        Elf64_Rela *rela = (Elf64_Rela *)((uintptr)lib->mapping + shdr->sh_offset + shdr->sh_entsize * j);
+        vector_append(&relas, *rela);
+      }
       break;
     case SHT_HASH:
-      log_info(LIT("Type: 'SHT_HASH'"));
       break;
     case SHT_DYNAMIC:
-      log_info(LIT("Type: 'SHT_DYNAMIC'"));
       break;
     case SHT_NOTE:
-      log_info(LIT("Type: 'SHT_NOTE'"));
       break;
     case SHT_NOBITS:
-      log_info(LIT("Type: 'SHT_NOBITS'"));
       break;
     case SHT_REL:
-      log_info(LIT("Type: 'SHT_REL'"));
+      for_range(j, 0, shdr->sh_size / shdr->sh_entsize) {
+        Elf64_Rel *rel = (Elf64_Rel *)((uintptr)lib->mapping + shdr->sh_offset + shdr->sh_entsize * j);
+        vector_append(&rels, *rel);
+      }
       break;
     case SHT_SHLIB:
-      log_info(LIT("Type: 'SHT_SHLIB'"));
       break;
     case SHT_DYNSYM:
       for_range(j, 0, shdr->sh_size / shdr->sh_entsize) {
@@ -162,76 +212,225 @@ b8 _dynlib_load_symbols(Dynlib *lib, Allocator allocator) {
       }
       break;
     case SHT_INIT_ARRAY:
-      log_info(LIT("Type: 'SHT_INIT_ARRAY'"));
       break;
     case SHT_FINI_ARRAY:
-      log_info(LIT("Type: 'SHT_FINI_ARRAY'"));
       break;
     case SHT_PREINIT_ARRAY:
-      log_info(LIT("Type: 'SHT_PREINIT_ARRA'"));
       break;
     case SHT_GROUP:
-      log_info(LIT("Type: 'SHT_GROUP'"));
       break;
     case SHT_SYMTAB_SHNDX:
-      log_info(LIT("Type: 'SHT_SYMTAB_SHNDX'"));
       break;
     case SHT_RELR:
-      log_info(LIT("Type: 'SHT_RELR'"));
       break;
     case SHT_NUM:
-      log_info(LIT("Type: 'SHT_NUM'"));
       break;
     case SHT_LOOS:
-      log_info(LIT("Type: 'SHT_LOOS'"));
       break;
     case SHT_GNU_ATTRIBUTES:
-      log_info(LIT("Type: 'SHT_GNU_ATTRIBUT'"));
       break;
     case SHT_GNU_HASH:
-      log_info(LIT("Type: 'SHT_GNU_HASH'"));
       break;
     case SHT_GNU_LIBLIST:
-      log_info(LIT("Type: 'SHT_GNU_LIBLIST'"));
       break;
     case SHT_CHECKSUM:
-      log_info(LIT("Type: 'SHT_CHECKSUM'"));
       break;
     case SHT_LOSUNW:
-      log_info(LIT("Type: 'SHT_LOSUNW'"));
       break;
     case SHT_SUNW_COMDAT:
-      log_info(LIT("Type: 'SHT_SUNW_COMDAT'"));
       break;
     case SHT_SUNW_syminfo:
-      log_info(LIT("Type: 'SHT_SUNW_syminfo'"));
       break;
     case SHT_GNU_verdef:
-      log_info(LIT("Type: 'SHT_GNU_verdef'"));
       break;
     case SHT_GNU_verneed:
-      log_info(LIT("Type: 'SHT_GNU_verneed'"));
       break;
     case SHT_GNU_versym:
-      log_info(LIT("Type: 'SHT_GNU_versym'"));
       break;
     case SHT_LOPROC:
-      log_info(LIT("Type: 'SHT_LOPROC'"));
       break;
     case SHT_HIPROC:
-      log_info(LIT("Type: 'SHT_HIPROC'"));
       break;
     case SHT_LOUSER:
-      log_info(LIT("Type: 'SHT_LOUSER'"));
       break;
     case SHT_HIUSER:
-      log_info(LIT("Type: 'SHT_HIUSER'"));
       break;
     }
   }
 
+  typedef enum {
+    SHF_WRITE	           = (1 << 0),	/* Writable */
+    SHF_ALLOC	           = (1 << 1),	/* Occupies memory during execution */
+    SHF_EXECINSTR        = (1 << 2),	/* Executable */
+    SHF_MERGE	           = (1 << 4),	/* Might be merged */
+    SHF_STRINGS	         = (1 << 5),	/* Contains nul-terminated strings */
+    SHF_INFO_LINK	       = (1 << 6),	/* `sh_info' contains SHT index */
+    SHF_LINK_ORDER	     = (1 << 7),	/* Preserve order after combining */
+    SHF_OS_NONCONFORMING = (1 << 8),	/* Non-standard OS specific handling required */
+    SHF_GROUP	           = (1 << 9),	/* Section is member of a group.  */
+    SHF_TLS		           = (1 << 10),	/* Section hold thread-local data.  */
+    SHF_COMPRESSED	     = (1 << 11),	/* Section with compressed data. */
+    SHF_GNU_RETAIN	     = (1 << 21),  /* Not to be GCed by linker.  */
+    SHF_ORDERED	         = (1 << 30),	/* Special ordering requirement (Solaris).  */
+    SHF_EXCLUDE	         = (1U << 31),	/* Section is excluded unless referenced or allocated (Solaris).*/
+  } Section_Header_Flag;
+
+  uintptr mapping_size = 0;
+
+  vector_iter(sections, section, i, {
+    mapping_size = max(mapping_size, !!(section->flags & SHF_ALLOC) * (section->address + section->size));
+
+    fmt_printf(
+      LIT("Index: %2x, Offset: %4x, Addr: %4x, Size: %4x, Flags: %03b, Name: '%s', flags: ["),
+      i,
+      section->offset,
+      section->address,
+      section->size,
+      section->flags & 0x7,
+      &section_string_table.data[section->name]
+    );
+
+    if (section->flags & SHF_WRITE) {
+      fmt_print(LIT("'SHF_WRITE', "));
+    }
+    if (section->flags & SHF_ALLOC) {
+      fmt_print(LIT("'SHF_ALLOC', "));
+    }
+    if (section->flags & SHF_EXECINSTR) {
+      fmt_print(LIT("'SHF_EXECINSTR', "));
+    }
+    if (section->flags & SHF_MERGE) {
+      fmt_print(LIT("'SHF_MERGE', "));
+    }
+    if (section->flags & SHF_STRINGS) {
+      fmt_print(LIT("'SHF_STRINGS', "));
+    }
+    if (section->flags & SHF_INFO_LINK) {
+      fmt_print(LIT("'SHF_INFO_LINK', "));
+    }
+    if (section->flags & SHF_LINK_ORDER) {
+      fmt_print(LIT("'SHF_LINK_ORDER', "));
+    }
+    if (section->flags & SHF_OS_NONCONFORMING) {
+      fmt_print(LIT("'SHF_OS_NONCONFORMING', "));
+    }
+    if (section->flags & SHF_GROUP) {
+      fmt_print(LIT("'SHF_GROUP', "));
+    }
+    if (section->flags & SHF_TLS) {
+      fmt_print(LIT("'SHF_TLS', "));
+    }
+    if (section->flags & SHF_COMPRESSED) {
+      fmt_print(LIT("'SHF_COMPRESSED', "));
+    }
+    if (section->flags & SHF_GNU_RETAIN) {
+      fmt_print(LIT("'SHF_GNU_RETAIN', "));
+    }
+    if (section->flags & SHF_EXCLUDE) {
+      fmt_print(LIT("'SHF_EXCLUDE', "));
+    }
+    fmt_println(LIT("]"));
+  });
+
+  log_infof(LIT("Required mapping: %x"), mapping_size);
+
+  Slice(struct {
+    isize prot;
+    isize offset;
+  }) pages;
+  slice_init(&pages, (mapping_size + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE, context.temp_allocator);
+
+  rawptr new_mapping = (rawptr)syscall(SYS_mmap, nil, mapping_size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+  slice_iter(sections, section, _section_index, {
+    if (section->flags & SHF_ALLOC) {
+      uintptr start = section->address & ~(OS_PAGE_SIZE-1);
+      uintptr end   = section->address + section->offset;
+      isize   prot  = PROT_READ;
+
+      if (section->flags & SHF_WRITE) {
+        prot |= PROT_WRITE;
+      }
+      if (section->flags & SHF_EXECINSTR) {
+        prot |= PROT_EXEC;
+      }
+
+      for_range(i, start / OS_PAGE_SIZE, (end + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE) {
+        pages.data[i].prot   |= prot;
+        pages.data[i].offset  = section->address - section->offset;
+      }
+
+      bytes_copy(
+        (Byte_Slice) {
+          .data = (byte *)((uintptr)new_mapping + section->address),
+          .len  = (isize)section->size,
+        },
+        (Byte_Slice) {
+          .data = (byte *)((uintptr)lib->mapping + section->offset),
+          .len  = (isize)section->size,
+        }
+      );
+    }
+  })
+
+  lib->mapping = new_mapping;
+
+  file_close(fd);
+
+  fmt_printfln(LIT("relas.len: %d"), relas.len);
+  for (isize _i = 0; _i < (relas).len; _i++) {
+    Elf64_Rela *rela = &(relas).data[_i];
+    fmt_printfln(
+      LIT("\tRela: {offset: %x, sym: %x, type: %x, addend: %x}"),
+      rela->r_offset,
+      (isize)rela->r_sym,
+      (isize)rela->r_type,
+      rela->r_addend
+    );
+    switch (rela->r_type) {
+    case 6:
+      *(uintptr *)((uintptr)lib->mapping + rela->r_offset) =
+        (uintptr)lib->mapping + symbols.data[rela->r_sym].st_value + rela->r_addend;
+      break;
+    case 7:
+      *(uintptr *)((uintptr)lib->mapping + rela->r_offset) =
+        (uintptr)lib->mapping + symbols.data[rela->r_sym].st_value + rela->r_addend;
+      break;
+    case 8:
+      *(uintptr *)((uintptr)lib->mapping + rela->r_offset) = (uintptr)lib->mapping + rela->r_addend;
+      break;
+    case 10:
+      *(u32 *)((uintptr)lib->mapping + rela->r_offset) = rela->r_sym + (u32)rela->r_addend;
+      break;
+    case 11:
+      *(i32 *)((uintptr)lib->mapping + rela->r_offset) = rela->r_sym + rela->r_addend;
+      break;
+    }
+  }
+
+  fmt_printfln(LIT("rels.len: %d"), rels.len);
+  vector_iter(rels, rel, _i, {
+    fmt_printfln(LIT("\tRel: {offset: %x, info: %x}"), rel->r_offset, rel->r_info);
+  })
+
+  hash_map_init(&lib->symbols, 1024, string_equal, string_hash, allocator);
+  
+  #define ELF64_ST_BIND(val)        (((unsigned char) (val)) >> 4)
+  #define ELF64_ST_TYPE(val)        ((val) & 0xf)
+  #define ELF64_ST_INFO(bind, type) (((bind) << 4) + ((type) & 0xf))
+
+  fmt_printfln(LIT("symbols.len: %d"), symbols.len);
   vector_iter(symbols, sym, _i, {
-    if (((isize)sym->st_info & 0xf) == 2) {
+    fmt_printfln(
+      LIT("\tSym: {name: '%s', type: %x, bind: %x, value: %x, size: %x, shndx: %x}"),
+      (cstring)&string_table.data[sym->st_name],
+      (isize)ELF64_ST_TYPE(sym->st_info),
+      (isize)ELF64_ST_BIND(sym->st_info),
+      (isize)sym->st_value,
+      (isize)sym->st_size,
+      (isize)sym->st_shndx
+    );
+    if (((isize)sym->st_info & 0xf) == 2 || ((isize)sym->st_info & 0xf) == 1 || true) {
       hash_map_insert(
         &lib->symbols,
         cstring_to_string((cstring)&string_table.data[sym->st_name]),

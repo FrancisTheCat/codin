@@ -1,5 +1,5 @@
 #include "codin.h"
-#include "image.h"
+// #include "image.h"
 #include "iter.h"
 
 b8 test_sort() {
@@ -282,13 +282,13 @@ int main(Arg_Slice args) {
   test_context_execute(&tc);
   test_context_destroy(tc);
 
-  Image image;
-  Byte_Slice png_data = unwrap_err(read_entire_file_path(LIT("wallpaper.png"), context.temp_allocator));
-  b8 ok = png_load_bytes(png_data, &image, context.allocator);
-  assert(ok);
+  // Image image;
+  // Byte_Slice png_data = unwrap_err(read_entire_file_path(LIT("wallpaper.png"), context.temp_allocator));
+  // b8 ok = png_load_bytes(png_data, &image, context.allocator);
+  // assert(ok);
 
-  Fd file;
-  Writer output_writer;
+  // Fd file;
+  // Writer output_writer;
 
   // file = unwrap_err(file_open(LIT("output.ppm"), FP_Read_Write | FP_Create | FP_Truncate));
   // output_writer = writer_from_handle(file);
@@ -296,12 +296,12 @@ int main(Arg_Slice args) {
   // // assert(ok);
   // file_close(file);
 
-  file = unwrap_err(file_open(LIT("output.png"), FP_Read_Write | FP_Create | FP_Truncate));
-  output_writer = writer_from_handle(file);
-  ok = png_save_writer(&output_writer, &image);
-  assert(ok);
-  file_close(file);
-  slice_delete(image.pixels, context.allocator);
+  // file = unwrap_err(file_open(LIT("output.png"), FP_Read_Write | FP_Create | FP_Truncate));
+  // output_writer = writer_from_handle(file);
+  // ok = png_save_writer(&output_writer, &image);
+  // assert(ok);
+  // file_close(file);
+  // slice_delete(image.pixels, context.allocator);
 
   // image = (Image){0};
   // Byte_Slice ppm_data = unwrap_err(read_entire_file_path(LIT("output.ppm"), context.temp_allocator));
@@ -317,16 +317,37 @@ int main(Arg_Slice args) {
   // });
 
   Dynlib lib = unwrap(dynlib_load(LIT("./dynlib_test/dynlib_test.so"), context.allocator));
-  // Dynlib lib = unwrap(dynlib_load(LIT("/lib/libc.so.6"), context.allocator));
+  // Dynlib lib = unwrap(dynlib_load(LIT("/lib/libm.so.6"), context.allocator));
   // Dynlib lib = unwrap(dynlib_load(LIT("/lib/libOpenGL.so"), context.allocator));
+  isize max_symbol_len = 0;
   hash_map_iter(lib.symbols, str, addr, {
-    log_infof(LIT("%S: %x"), str, addr);
+    max_symbol_len = max(max_symbol_len, str.len); 
+  });
+  String format_string = fmt_tprintf(LIT("%%-%dS: %%x"), max_symbol_len);
+  hash_map_iter(lib.symbols, str, addr, {
+    fmt_printfln(format_string, str, *addr);
   });
 
+  ((void(*)(void))dynlib_get_symbol(lib, LIT("__$startup_runtime")))();
+
+  String *s = (String *)((uintptr)dynlib_get_symbol(lib, LIT("hello")));
+  log_infof(LIT("hello: '%S'"), *s);
+
+  i32 four = *(i32 *)((uintptr)dynlib_get_symbol(lib, LIT("four")));
+  log_infof(LIT("four: %x"), (isize)four);
+
   i32 (*add)(i32, i32) = dynlib_get_symbol(lib, LIT("add"));
+  assert(add);
   i32 three = add(1, 2);
-  log_infof(LIT("1 + 2 = %d"), three);
-  
+  assert(three == 3);
+
+  String(*say_hello)(void) = dynlib_get_symbol(lib, LIT("say_hello"));
+  assert(say_hello);
+  String hello = say_hello();
+
+  log_infof(LIT("say_hello: '%S'"), hello);
+  log_infof(LIT("hello: '%S'"), *s);
+
   dynlib_unload(lib);
 
   arena_allocator_destroy(arena, context.allocator);

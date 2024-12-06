@@ -193,7 +193,6 @@ typedef struct {
   })
 
 internal String format_usize_to_buffer(usize value, Byte_Slice buffer) {
-    isize is_negative = 0;
     isize i = 0;
 
     do {

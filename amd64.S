@@ -94,7 +94,7 @@ __syscall6:
         mov %rdx, %rcx
         mov %r10, %r8
         mov %r8,  %r9
-        mov %r9,  0
+        mov %r9,  [%rsp + 8]
         push %r11
         push %rcx
         syscall

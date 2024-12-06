@@ -58,6 +58,7 @@ static long syscall(long syscall_number, ...) {
   case SYS_getdents:
   case SYS_execve:
   case SYS_unlinkat:
+  case SYS_mprotect:
     arg0 = __builtin_va_arg(args, long);
     arg1 = __builtin_va_arg(args, long);
     arg2 = __builtin_va_arg(args, long);

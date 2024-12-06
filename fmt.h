@@ -270,6 +270,10 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
 
           case 'b':
             tp.isize = ((isize *)slice.data)[j];
+            if (tp.isize < 0) {
+              n += or_return(write_string(w, LIT("-")), n);
+              tp.isize = -tp.isize;
+            }
             temp_str = format_usize_to_buffer_bin(tp.isize, tmp_buf);
             n += or_return(write_string(w, temp_str), n);
             break;
@@ -281,18 +285,30 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
 
           case 'x':
             tp.isize = ((isize *)slice.data)[j];
+            if (tp.isize < 0) {
+              n += or_return(write_string(w, LIT("-")), n);
+              tp.isize = -tp.isize;
+            }
             temp_str = format_usize_to_buffer_hex(tp.isize, tmp_buf, false);
             n += or_return(write_string(w, temp_str), n);
             break;
 
           case 'X':
             tp.isize = ((isize *)slice.data)[j];
+            if (tp.isize < 0) {
+              n += or_return(write_string(w, LIT("-")), n);
+              tp.isize = -tp.isize;
+            }
             temp_str = format_usize_to_buffer_hex(tp.isize, tmp_buf, true);
             n += or_return(write_string(w, temp_str), n);
             break;
 
           case 'd':
             tp.isize = ((isize *)slice.data)[j];
+            if (tp.isize < 0) {
+              n += or_return(write_string(w, LIT("-")), n);
+              tp.isize = -tp.isize;
+            }
             temp_str = format_usize_to_buffer(tp.isize, tmp_buf);
             n += or_return(write_string(w, temp_str), n);
             break;
@@ -306,13 +322,16 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
           // String
           case 'S':
             tp.string = ((String *)slice.data)[j];
-            n += or_return(write_string(w, tp.string), n);
+            n += __format_justify(w, tp.string, &ctx);
             break;
 
           // cstring
           case 's':
             tp.cstring = ((cstring *)slice.data)[j];
-            n += or_return(write_string(w, cstring_to_string(tp.cstring)), n);
+            if (!tp.cstring) {
+              tp.cstring = "<nil>";
+            }
+            n += __format_justify(w, cstring_to_string(tp.cstring), &ctx);
             break;
 
           // Memory size
@@ -367,6 +386,10 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
 
         case 'b':
           tp.isize = va_arg(va_args, isize);
+          if (tp.isize < 0) {
+            n += or_return(write_string(w, LIT("-")), n);
+            tp.isize = -tp.isize;
+          }
           temp_str = format_usize_to_buffer_bin(tp.isize, tmp_buf);
           n += __format_justify(w, temp_str, &ctx);
           break;
@@ -378,18 +401,30 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
 
         case 'x':
           tp.isize = va_arg(va_args, isize);
+          if (tp.isize < 0) {
+            n += or_return(write_string(w, LIT("-")), n);
+            tp.isize = -tp.isize;
+          }
           temp_str = format_usize_to_buffer_hex(tp.isize, tmp_buf, false);
           n += __format_justify(w, temp_str, &ctx);
           break;
 
         case 'X':
           tp.isize = va_arg(va_args, isize);
+          if (tp.isize < 0) {
+            n += or_return(write_string(w, LIT("-")), n);
+            tp.isize = -tp.isize;
+          }
           temp_str = format_usize_to_buffer_hex(tp.isize, tmp_buf, true);
           n += __format_justify(w, temp_str, &ctx);
           break;
 
         case 'd':
           tp.isize = va_arg(va_args, isize);
+          if (tp.isize < 0) {
+            n += or_return(write_string(w, LIT("-")), n);
+            tp.isize = -tp.isize;
+          }
           temp_str = format_usize_to_buffer(tp.isize, tmp_buf);
           n += __format_justify(w, temp_str, &ctx);
           break;
@@ -403,13 +438,16 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
         // String
         case 'S':
           tp.string = va_arg(va_args, String);
-          n += or_return(write_string(w, tp.string), n);
+          n += __format_justify(w, tp.string, &ctx);
           break;
 
         // cstring
         case 's':
           tp.cstring = va_arg(va_args, cstring);
-          n += or_return(write_string(w, cstring_to_string(tp.cstring)), n);
+          if (!tp.cstring) {
+            tp.cstring = "<nil>";
+          }
+          n += __format_justify(w, cstring_to_string(tp.cstring), &ctx);
           break;
 
         // Memory size

@@ -136,12 +136,11 @@ internal Byte_Slice _slice_to_bytes(rawptr data, isize size, isize count) {
   _slice_to_bytes((rawptr)(slice).data, size_of((slice).data[0]), (slice).len)
 
 #define slice_iter(slice, elem, i, BLOCK)                                      \
-  {                                                                            \
-    for (isize i = 0; i < (slice).len; i++) {                                  \
-      type_of((slice).data) elem = &(slice).data[i];                           \
-      { BLOCK }                                                                \
-    }                                                                          \
-  }
+  for (isize i = 0; i < (slice).len; i++) {                                    \
+    type_of((slice).data) elem = &(slice).data[i];                             \
+    { BLOCK }                                                                  \
+  }                                                                            \
+  
 
 internal Byte_Slice bytes_concatenate(Byte_Slice a, Byte_Slice b,
                                       Allocator allocator) {
