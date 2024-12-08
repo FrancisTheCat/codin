@@ -45,6 +45,8 @@ static long syscall(long syscall_number, ...) {
   case SYS_clock_gettime:
   case SYS_clock_getres:
   case SYS_shutdown:
+  case SYS_memfd_create:
+  case SYS_ftruncate:
     arg0 = __builtin_va_arg(args, long);
     arg1 = __builtin_va_arg(args, long);
     ret  = __syscall2(syscall_number, arg0, arg1);
@@ -59,6 +61,9 @@ static long syscall(long syscall_number, ...) {
   case SYS_execve:
   case SYS_unlinkat:
   case SYS_mprotect:
+  case SYS_connect:
+  case SYS_sendmsg:
+  case SYS_fcntl:
     arg0 = __builtin_va_arg(args, long);
     arg1 = __builtin_va_arg(args, long);
     arg2 = __builtin_va_arg(args, long);

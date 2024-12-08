@@ -131,6 +131,13 @@ internal String builder_to_string(Builder b) {
   return s;
 }
 
+internal Byte_Slice builder_to_bytes(Builder b) {
+  Byte_Slice sb;
+  sb.data = (byte *)b.data;
+  sb.len = b.len;
+  return sb;
+}
+
 internal cstring builder_to_cstring(Builder *b) {
   vector_append(b, 0);
   return b->data;

@@ -102,10 +102,32 @@ internal Reader reader_from_socket(Socket socket) {
 
 internal Net_Result_Int socket_write(Socket socket, Byte_Slice buf) {
   Net_Result_Int result = {0};
-  result.value = syscall(SYS_sendto, socket, buf.data, buf.len, MSG_NOSIGNAL, 0, 0);
-  fmt_wprintf(&stdout, LIT("socket_write: %d\n"), result.value);
+
+  struct iovec {
+    rawptr base;
+    usize  len;
+  } iovec = {
+    .base = buf.data,
+    .len  = (usize)buf.len,
+  };
+
+  struct msghdr {
+    rawptr        name;       /* Optional address */
+    u32           namelen;    /* Size of address */
+    struct iovec *iov;        /* Scatter/gather array */
+    usize         iovlen;     /* # elements in msg_iov */
+    void         *control;    /* Ancillary data, see below */
+    usize         controllen; /* Ancillary data buffer len */
+    i32           flags;      /* Flags (unused) */
+  } socket_msg = {
+    .iov        = &iovec,
+    .iovlen     = 1,
+  };
+
+  result.value = syscall(SYS_sendmsg, socket, &socket_msg, MSG_NOSIGNAL | 0x40, 0, 0);
   if (result.value < 0) {
-    result.err = NE_Other;
+    // log_errorf(LIT("Errno: 0x%x"), -result.value);
+    // result.err = NE_Other;
   }
   return result;
 }

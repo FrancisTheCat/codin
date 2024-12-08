@@ -1,5 +1,9 @@
 #include "codin.h"
 
+#define Array(T, N) struct {                                                   \
+  T data[N];                                                                   \
+}
+
 #define SLICE_LIT(name, T, ...)                                                \
   T name;                                                                      \
   type_of(*name.data) _##name##_data_values[] = __VA_ARGS__;                   \

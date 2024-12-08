@@ -338,6 +338,8 @@ internal void __runtime_cleanup();
 
 #include "dynlib.h"
 
+#include "wayland.h"
+
 internal _Thread_local Growing_Arena_Allocator __default_temp_allocator_arena;
 internal _Thread_local Default_Allocator       __default_heap_allocator;
 
@@ -359,18 +361,24 @@ internal void __thread_cleanup() {
 
 internal void __runtime_cleanup() { __thread_cleanup(); }
 
-typedef Slice(String) Arg_Slice;
+int main();
 
-int main(Arg_Slice);
-
-int __codin_main(i32 __arg_c, cstring *__arg_v) {
+int __codin_main(i32 arg_c, cstring *arg_v) {
     __runtime_init();
-    Arg_Slice __args = slice_make(Arg_Slice, __arg_c, context.allocator);
-    slice_iter(__args, __arg, i, {
-      *__arg = cstring_to_string(__arg_v[i]);
+    slice_init(&os_args, arg_c, context.allocator);
+    slice_iter(os_args, arg, i, {
+      *arg = cstring_to_string(arg_v[i]);
     });
+    for (cstring *e = &arg_v[arg_c + 1]; *e; e += 1) {
+      os_env.len += 1;
+    }
+    slice_init(&os_env, os_env.len, context.allocator);
+    slice_iter(os_env, e, i, {
+      *e = cstring_to_string(arg_v[arg_c + 1 + i]);
+    });
+
     CONTEXT_GUARD({
-      main(__args);
+      main();
     })
     __runtime_cleanup();
 }

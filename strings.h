@@ -139,3 +139,28 @@ internal Maybe_Int parse_isize(String str) {
 
   return (Maybe_Int){.value = value, .ok = true};
 }
+
+internal isize string_copy(String dst, String src) {
+  return bytes_copy(transmute(Byte_Slice, dst), transmute(Byte_Slice, src));
+}
+
+internal isize string_index(String str, String substr) {
+  if (str.len < substr.len) {
+    return -1;
+  }
+
+  for_range(i, 0, str.len - substr.len + 1) {
+    if (string_equal(substr, slice_range(str, i, i + substr.len))) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+internal Byte_Slice string_to_bytes(String str) {
+  return (Byte_Slice) {
+    .data = (byte *)str.data,
+    .len  = str.len,
+  };
+}

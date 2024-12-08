@@ -70,9 +70,21 @@ typedef struct {
   Reader_Proc proc;
 } Reader;
 
-/// Maybe_Int write_any(const Reader *w, const T *v)
+/// Maybe_Int read_any(const Reader *r, const T *v)
 #define read_any(r, _v)                                                       \
   read_bytes(r, (Byte_Slice){.data = (byte *)_v, .len = size_of(*_v)})
+
+/// T read_t(const Reader *r, type T)
+#define read_t(r, T)                                                       \
+  T __read_t_result;                                                       \
+  read_bytes(                                                              \
+    r,                                                                     \
+    (Byte_Slice) {                                                         \
+      .data = (byte *)&__read_t_result,                                    \
+      .len = size_of(__read_t_result)                                      \
+    }                                                                      \
+  );                                                                       \
+  __read_t_result;
 
 internal Maybe_Int read_bytes(const Reader *reader, Byte_Slice buf) {
   return reader->proc(reader->data, buf);

@@ -693,7 +693,7 @@ internal isize fmt_println(String str) {
 
 #define fmt_panicf(...)                                                        \
   {                                                                            \
-    fmt_wprintf(&stderr, LIT("Panic: )");                                      \
+    fmt_wprintf(&stderr, LIT("Panic: "));                                      \
     fmt_wprintf(&stderr, __VA_ARGS__);                                         \
     fmt_wprintf(&stderr, LIT("\n"));                                           \
     trap();                                                                    \

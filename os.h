@@ -1,5 +1,19 @@
 #include "codin.h"
 
+internal Slice(String) os_args;
+internal Slice(String) os_env;
+
+internal String get_env(String key) {
+  slice_iter(os_env, str, _i, {
+    isize i = string_index(*str, key);
+    if (i == -1 || i + key.len >= str->len || str->data[i + key.len] != '=') {
+      continue;
+    }
+    return slice_range(*str, key.len + 1, str->len);
+  })
+  return (String) {.len = 0};
+}
+
 #define stdin __stdin
 #define stdout __stdout
 #define stderr __stderr

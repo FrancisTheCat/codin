@@ -10,9 +10,11 @@
 #define SYS_dup2          33
 #define SYS_nanosleep     35
 #define SYS_socket        41
+#define SYS_connect       42
 #define SYS_accept        43
 #define SYS_sendto        44
 #define SYS_recvfrom      45
+#define SYS_sendmsg       46
 #define SYS_shutdown      48
 #define SYS_bind          49
 #define SYS_listen        50
@@ -22,6 +24,8 @@
 #define SYS_exit          60
 #define SYS_wait4         61
 #define SYS_kill          62
+#define SYS_fcntl         72
+#define SYS_ftruncate     77
 #define SYS_getdents      78
 #define SYS_getcwd        79
 #define SYS_chdir         80
@@ -38,6 +42,7 @@
 #define SYS_waitid        247
 #define SYS_openat        257
 #define SYS_unlinkat      263
+#define SYS_memfd_create  319
 #define SYS_clone3        435
 
 #define AF_INET 2

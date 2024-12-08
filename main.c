@@ -187,7 +187,7 @@ b8 test_hash_map() {
   return true;
 }
 
-int main(Arg_Slice args) {
+int main() {
   // isize hour;
   // isize min;
   // isize sec;
@@ -254,7 +254,7 @@ int main(Arg_Slice args) {
 
   fmt_println(LIT(""));
 
-  fmt_printfln(LIT("Args: %[S]"), args);
+  fmt_printfln(LIT("Args: %[S]"), os_args);
 
   fmt_printfln(LIT("PI: %.8f"), 3.14159265359);
   fmt_printfln(LIT("E:  %.8f"), 2.71828182846);
@@ -316,39 +316,91 @@ int main(Arg_Slice args) {
   //   fmt_printfln(LIT("%03d:\t%S"), i, line);
   // });
 
-  Dynlib lib = unwrap(dynlib_load(LIT("./dynlib_test/dynlib_test.so"), context.allocator));
-  // Dynlib lib = unwrap(dynlib_load(LIT("/lib/libm.so.6"), context.allocator));
-  // Dynlib lib = unwrap(dynlib_load(LIT("/lib/libOpenGL.so"), context.allocator));
-  isize max_symbol_len = 0;
-  hash_map_iter(lib.symbols, str, addr, {
-    max_symbol_len = max(max_symbol_len, str.len); 
-  });
-  String format_string = fmt_tprintf(LIT("%%-%dS: %%x"), max_symbol_len);
-  hash_map_iter(lib.symbols, str, addr, {
-    fmt_printfln(format_string, str, *addr);
-  });
+  // Dynlib lib = unwrap(dynlib_load(LIT("./dynlib_test/dynlib_test.so"), context.allocator));
+  // // Dynlib lib = unwrap(dynlib_load(LIT("/lib/libm.so.6"), context.allocator));
+  // // Dynlib lib = unwrap(dynlib_load(LIT("/lib/libOpenGL.so"), context.allocator));
+  // isize max_symbol_len = 0;
+  // hash_map_iter(lib.symbols, str, addr, {
+  //   max_symbol_len = max(max_symbol_len, str.len); 
+  // });
+  // String format_string = fmt_tprintf(LIT("%%-%dS: %%x"), max_symbol_len);
+  // hash_map_iter(lib.symbols, str, addr, {
+  //   fmt_printfln(format_string, str, *addr);
+  // });
 
-  ((void(*)(void))dynlib_get_symbol(lib, LIT("__$startup_runtime")))();
+  // ((void(*)(void))dynlib_get_symbol(lib, LIT("__$startup_runtime")))();
 
-  String *s = (String *)((uintptr)dynlib_get_symbol(lib, LIT("hello")));
-  log_infof(LIT("hello: '%S'"), *s);
+  // String *s = (String *)((uintptr)dynlib_get_symbol(lib, LIT("hello")));
+  // log_infof(LIT("hello: '%S'"), *s);
 
-  i32 four = *(i32 *)((uintptr)dynlib_get_symbol(lib, LIT("four")));
-  log_infof(LIT("four: %x"), (isize)four);
+  // i32 four = *(i32 *)((uintptr)dynlib_get_symbol(lib, LIT("four")));
+  // log_infof(LIT("four: %x"), (isize)four);
 
-  i32 (*add)(i32, i32) = dynlib_get_symbol(lib, LIT("add"));
-  assert(add);
-  i32 three = add(1, 2);
-  assert(three == 3);
+  // i32 (*add)(i32, i32) = dynlib_get_symbol(lib, LIT("add"));
+  // assert(add);
+  // i32 three = add(1, 2);
+  // assert(three == 3);
 
-  String(*say_hello)(void) = dynlib_get_symbol(lib, LIT("say_hello"));
-  assert(say_hello);
-  String hello = say_hello();
+  // String(*say_hello)(void) = dynlib_get_symbol(lib, LIT("say_hello"));
+  // assert(say_hello);
+  // String hello = say_hello();
 
-  log_infof(LIT("say_hello: '%S'"), hello);
-  log_infof(LIT("hello: '%S'"), *s);
+  // log_infof(LIT("say_hello: '%S'"), hello);
+  // log_infof(LIT("hello: '%S'"), *s);
 
-  dynlib_unload(lib);
+  // dynlib_unload(lib);
+
+  // context.logger.proc = nil;
+
+  Socket wl_socket = wayland_display_connect();
+  Wayland_State state = {
+      .wl_registry = wayland_wl_display_get_registry(wl_socket),
+      .w = 64,
+      .h = 64,
+      .stride = 64 * COLOR_CHANNELS,
+  };
+
+  // Single buffering.
+  state.shm_pool_size = state.h * state.stride;
+  b8 shm_ok = create_shared_memory_file(state.shm_pool_size, &state);
+  assert(shm_ok);
+
+  loop {
+    byte _read_buf[4096] = {0};
+    Byte_Slice read_buf = {.data = _read_buf, .len = size_of(_read_buf)};
+    read_buf.len = unwrap_err(file_read(wl_socket, read_buf));
+
+    while (read_buf.len > 0) {
+      read_buf = slice_range(read_buf, handle_wayland_message(wl_socket, &state, read_buf), read_buf.len);
+    }
+
+    if (state.wl_compositor != 0 && state.wl_shm != 0 && state.xdg_wm_base != 0 && state.wl_surface == 0) {
+      state.wl_surface   = wayland_wl_compositor_create_surface(wl_socket, &state);
+      state.xdg_surface  = wayland_xdg_wm_base_get_xdg_surface(wl_socket, &state);
+      state.xdg_toplevel = wayland_xdg_surface_get_toplevel(wl_socket, &state);
+
+      wayland_wl_surface_commit(wl_socket, &state);
+    }
+
+    if (state.state == STATE_SURFACE_ACKED_CONFIGURE) {
+      u32 *pixels = (u32 *)state.shm_pool_data;
+      for_range(i, 0, state.w * state.h) {
+        pixels[i] = 0xFF00FFFF;
+      }
+
+      if (!state.wl_shm_pool) {
+        state.wl_shm_pool = wayland_wl_shm_create_pool(wl_socket, &state);
+      }
+      if (!state.wl_buffer) {
+        state.wl_buffer = wayland_wl_shm_pool_create_buffer(wl_socket, &state);
+      }
+
+      wayland_wl_surface_attach(wl_socket, &state);
+      wayland_wl_surface_commit(wl_socket, &state);
+
+      state.state = STATE_SURFACE_ATTACHED;
+    }
+  }
 
   arena_allocator_destroy(arena, context.allocator);
   tracking_allocator_fmt_results_w(&stdout, &track);
