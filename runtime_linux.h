@@ -63,6 +63,7 @@ static long syscall(long syscall_number, ...) {
   case SYS_mprotect:
   case SYS_connect:
   case SYS_sendmsg:
+  case SYS_recvmsg:
   case SYS_fcntl:
     arg0 = __builtin_va_arg(args, long);
     arg1 = __builtin_va_arg(args, long);

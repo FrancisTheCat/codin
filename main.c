@@ -365,10 +365,29 @@ int main() {
   b8 shm_ok = create_shared_memory_file(state.shm_pool_size, &state);
   assert(shm_ok);
 
-  loop {
+  vector_init(&state.fds_in, 0, 8, context.allocator);
+
+  while (!state.should_close) {
     byte _read_buf[4096] = {0};
+    byte _control_buf[256] = {0};
     Byte_Slice read_buf = {.data = _read_buf, .len = size_of(_read_buf)};
-    read_buf.len = unwrap_err(file_read(wl_socket, read_buf));
+    struct iovec iov = {
+      .base = _read_buf,
+      .len  = size_of(_read_buf),
+    };
+    struct msghdr msg = {
+      .control    = _control_buf,
+      .controllen = size_of(_control_buf),
+      .iov        = &iov,
+      .iovlen     = 1,
+    };
+    read_buf.len = syscall(SYS_recvmsg, wl_socket, &msg, 0);
+
+    struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
+    while (chdr) {
+      vector_append(&state.fds_in, *(i32 *)CMSG_DATA(chdr));
+      chdr = CMSG_NXTHDR(&msg, chdr);
+    }
 
     while (read_buf.len > 0) {
       read_buf = slice_range(read_buf, handle_wayland_message(wl_socket, &state, read_buf), read_buf.len);
@@ -382,10 +401,23 @@ int main() {
       wayland_wl_surface_commit(wl_socket, &state);
     }
 
+    if (state.wl_seat && !state.wl_keyboard) {
+      state.wl_keyboard = wayland_wl_get_keyboard(wl_socket, &state);
+    }
+
     if (state.state == STATE_SURFACE_ACKED_CONFIGURE) {
       u32 *pixels = (u32 *)state.shm_pool_data;
-      for_range(i, 0, state.w * state.h) {
-        pixels[i] = 0xFF00FFFF;
+      for_range(y, 0, state.h) {
+        for_range(x, 0, state.w) {
+          u32 color = 0;
+          f32 r = (f32)x / (f32)state.w;
+          f32 g = (f32)y / (f32)state.h;
+          color |= (u8)(r * 255);
+          color <<= 8;
+          color |= (u8)(g * 255);
+          color <<= 8;
+          pixels[x + y * state.w] = color;
+        }
       }
 
       if (!state.wl_shm_pool) {
@@ -396,10 +428,17 @@ int main() {
       }
 
       wayland_wl_surface_attach(wl_socket, &state);
+      wayland_wl_surface_damage_buffer(wl_socket, &state);
       wayland_wl_surface_commit(wl_socket, &state);
 
       state.state = STATE_SURFACE_ATTACHED;
     }
+
+    // if (state.state == STATE_SURFACE_ATTACHED) {
+    //   wayland_wl_surface_attach(wl_socket, &state);
+    //   wayland_wl_surface_damage_buffer(wl_socket, &state);
+    //   wayland_wl_surface_commit(wl_socket, &state);
+    // }
   }
 
   arena_allocator_destroy(arena, context.allocator);
