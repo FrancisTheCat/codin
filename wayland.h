@@ -85,8 +85,7 @@ internal isize wayland_wl_registry_bind(Socket s, u32 registry, u32 name, String
   u16 opcode = WAYLAND_WL_REGISTRY_BIND_OPCODE;
   write_any(&writer, &opcode);
 
-  i32 interface_len = roundup_4(interface.len);
-  interface.len = interface_len;
+  i32 interface_len = roundup_4(interface.len + 1);
 
   u16 msg_announced_size =
     + WAYLAND_HEADER_SIZE
@@ -98,7 +97,9 @@ internal isize wayland_wl_registry_bind(Socket s, u32 registry, u32 name, String
   write_any(&writer, &msg_announced_size);
 
   write_any(&writer, &name);
-  write_any(&writer, &interface_len);
+  i32 write_len = interface.len + 1;
+  write_any(&writer, &write_len);
+  interface.len = interface_len;
   write_string(&writer, interface);
   write_any(&writer, &version);
   
@@ -145,7 +146,7 @@ internal b8 create_shared_memory_file(uintptr size, Wayland_State *state) {
   #define MFD_NOEXEC_SEAL		0x0008U
   /* executable */
   #define MFD_EXEC		0x0010U
-  Fd fd = syscall(SYS_memfd_create, "my_wayland_shared_memory_file_123123", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+  Fd fd = syscall(SYS_memfd_create, "/my_wayland_shared_memory_file_123123", MFD_ALLOW_SEALING);
   if (fd == -1) {
     return false;
   }
@@ -164,7 +165,7 @@ internal b8 create_shared_memory_file(uintptr size, Wayland_State *state) {
 
   // char name[255] = "my_wayland_client0911";
 
-  // int fd = syscall(SYS_open, name, O_RDWR | O_EXCL | O_CREAT, 0600);
+  // int fd = syscall(SYS_open, name, O_RDWR | O_EXCL | O_CREAT | O_TRUNC, 0600);
   // if (fd == -1) {
   //   return false;
   // }
