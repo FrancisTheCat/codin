@@ -48,14 +48,14 @@
 
 #define slice_range(_full, _start, _end)                                       \
   ({                                                                           \
-    type_of(_start) start = _start;                                            \
-    type_of(_end) end = _end;                                                  \
-    type_of(_full) full = _full;                                               \
-    type_of(_full) range;                                                      \
+    type_of(_start) __slice_range_start = _start;                              \
+    type_of(_end) __slice_range_end = _end;                                    \
+    type_of(_full) __slice_range_full = _full;                                 \
+    type_of(_full) __slice_range_range;                                        \
                                                                                \
-    range.data = full.data + start;                                            \
-    range.len = end - start;                                                   \
-    range;                                                                     \
+    __slice_range_range.data = __slice_range_full.data + __slice_range_start;  \
+    __slice_range_range.len = __slice_range_end - __slice_range_start;         \
+    __slice_range_range;                                                       \
   })
 
 #define slice_range_type(T, _full, _start, _end)                               \

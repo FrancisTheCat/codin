@@ -1,88 +1,51 @@
 #include "codin.h"
+#include "xkb.h"
+
+#include "EGL/egl.h"
 
 #define WAYLAND_DISPLAY_OBJECT_ID                    1
 #define WAYLAND_WL_REGISTRY_EVENT_GLOBAL             0
-#define WAYLAND_SHM_POOL_EVENT_FORMAT                0
-#define WAYLAND_WL_BUFFER_EVENT_RELEASE              0
+#define WAYLAND_WL_DISPLAY_ERROR_EVENT               0
+#define WAYLAND_WL_DISPLAY_GET_REGISTRY_OPCODE       1
+#define WAYLAND_WL_REGISTRY_BIND_OPCODE              0
+
+#define WAYLAND_WL_COMPOSITOR_CREATE_SURFACE_OPCODE  0
+
 #define WAYLAND_XDG_WM_BASE_EVENT_PING               0
+#define WAYLAND_XDG_WM_BASE_PONG_OPCODE              3
+#define WAYLAND_XDG_WM_BASE_GET_XDG_SURFACE_OPCODE   2
+
+#define WAYLAND_XDG_SURFACE_EVENT_CONFIGURE          0
+#define WAYLAND_XDG_SURFACE_GET_TOPLEVEL_OPCODE      1
+#define WAYLAND_XDG_SURFACE_ACK_CONFIGURE_OPCODE     4
+
 #define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE         0
 #define WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE             1
 #define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE_BOUNDS  2
-#define WAYLAND_XDG_SURFACE_EVENT_CONFIGURE          0
-#define WAYLAND_WL_DISPLAY_GET_REGISTRY_OPCODE       1
-#define WAYLAND_WL_REGISTRY_BIND_OPCODE              0
-#define WAYLAND_WL_COMPOSITOR_CREATE_SURFACE_OPCODE  0
-#define WAYLAND_XDG_WM_BASE_PONG_OPCODE              3
-#define WAYLAND_XDG_SURFACE_ACK_CONFIGURE_OPCODE     4
-#define WAYLAND_WL_SHM_CREATE_POOL_OPCODE            0
-#define WAYLAND_XDG_WM_BASE_GET_XDG_SURFACE_OPCODE   2
-#define WAYLAND_WL_SHM_POOL_CREATE_BUFFER_OPCODE     0
+
 #define WAYLAND_WL_SURFACE_ATTACH_OPCODE             1
-#define WAYLAND_XDG_SURFACE_GET_TOPLEVEL_OPCODE      1
 #define WAYLAND_WL_SURFACE_COMMIT_OPCODE             6
-#define WAYLAND_WL_DISPLAY_ERROR_EVENT               0
-#define WAYLAND_FORMAT_XRGB8888                      1
-#define WAYLAND_HEADER_SIZE                          8
-#define COLOR_CHANNELS                               4
+
+#define WAYLAND_WL_SHM_POOL_EVENT_FORMAT             0
+#define WAYLAND_WL_SHM_CREATE_POOL_OPCODE            0
+#define WAYLAND_WL_SHM_POOL_RESIZE_OPCODE            2
+#define WAYLAND_WL_SHM_POOL_CREATE_BUFFER_OPCODE     0
+
+#define WAYLAND_WL_BUFFER_EVENT_RELEASE              0
+#define WAYLAND_WL_BUFFER_DESTROY_OPCODE             0
+#define WAYLAND_WL_SEAT_GET_POINTER                  0
 #define WAYLAND_WL_SEAT_GET_KEYBOARD                 1
+
+#define WAYLAND_WL_POINTER_MOTION_EVENT              2
+#define WAYLAND_WL_POINTER_BUTTON_EVENT              3
+
 #define WAYLAND_WL_KEYBOARD_EVENT_KEY                3
 #define WAYLAND_WL_KEYBOARD_EVENT_KEYMAP             0
 
-typedef enum {
-  Key_Null = 0,
+#define WAYLAND_FORMAT_XRGB8888                      1
+#define WAYLAND_HEADER_SIZE                          8
+#define COLOR_CHANNELS                               4
 
-  Key_0 = '0',
-  Key_1,
-  Key_2,
-  Key_3,
-  Key_4,
-  Key_5,
-  Key_6,
-  Key_7,
-  Key_8,
-  Key_9,
-
-  Key_A = 'A',
-  Key_B,
-  Key_C,
-  Key_D,
-  Key_E,
-  Key_F,
-  Key_G,
-  Key_H,
-  Key_I,
-  Key_J,
-  Key_K,
-  Key_L,
-  Key_M,
-  Key_N,
-  Key_O,
-  Key_P,
-  Key_Q,
-  Key_R,
-  Key_S,
-  Key_T,
-  Key_U,
-  Key_V,
-  Key_W,
-  Key_X,
-  Key_Y,
-  Key_Z,
-
-  Key_Space,
-  Key_Return,
-  Key_Backspace,
-
-  Key_LShift,
-  Key_RShift,
-  Key_LControl,
-  Key_RControl,
-
-  Key_Comma,
-  Key_Period,
-  Key_Semicolon,
-  Key_Quote,
-} Key;
 
 u32 __wayland_current_id = 1;
 
@@ -254,6 +217,7 @@ typedef struct {
   u32 wl_registry;
   u32 wl_seat;
   u32 wl_keyboard;
+  u32 wl_pointer;
   u32 wl_shm;
   u32 wl_shm_pool;
   u32 wl_buffer;
@@ -268,10 +232,151 @@ typedef struct {
   u32 shm_pool_size;
   i32 shm_fd;
   u8 *shm_pool_data;
+  f32 mouse_x;
+  f32 mouse_y;
   Framebuffer_State_t state;
   b8 should_close;
   Vector(Fd) fds_in;
+  Keymap keymap;
+  b8 keys[Key_MAX_VALUE];
 } Wayland_State;
+
+internal i32 wayland_wl_shm_pool_create_buffer(Socket socket, Wayland_State *state) {
+  Builder builder;
+  builder_init(&builder, 0, 64, context.temp_allocator);
+  Writer writer = writer_from_builder(&builder);
+
+  write_any(&writer, &state->wl_shm_pool);
+
+  u16 opcode = WAYLAND_WL_SHM_POOL_CREATE_BUFFER_OPCODE;
+  write_any(&writer, &opcode);
+
+  u16 msg_announced_size =
+    + WAYLAND_HEADER_SIZE
+    + size_of(__wayland_current_id)
+    + size_of(i32)
+    + size_of(state->w)
+    + size_of(state->h)
+    + size_of(state->stride)
+    + size_of(u32);
+  write_any(&writer, &msg_announced_size);
+
+  __wayland_current_id += 1;
+  write_any(&writer, &__wayland_current_id);
+  
+  i32 offset = 0;
+  write_any(&writer, &offset);
+  write_any(&writer, &state->w);
+  write_any(&writer, &state->h);
+  write_any(&writer, &state->stride);
+  i32 format = WAYLAND_FORMAT_XRGB8888;
+  write_any(&writer, &format);
+
+  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
+
+  log_infof(LIT("-> wl_shm_pool@%d.create_buffer: wl_buffer=%d"), state->wl_shm_pool, __wayland_current_id);
+
+  return __wayland_current_id;
+}
+
+internal i32 wayland_wl_shm_create_pool(Socket socket, Wayland_State *state) {
+  Builder builder;
+  builder_init(&builder, 0, 64, context.temp_allocator);
+  Writer writer = writer_from_builder(&builder);
+
+  write_any(&writer, &state->wl_shm);
+
+  u16 opcode = WAYLAND_WL_SHM_CREATE_POOL_OPCODE;
+  write_any(&writer, &opcode);
+
+  u16 msg_announced_size =
+    WAYLAND_HEADER_SIZE + size_of(__wayland_current_id) + size_of(state->shm_pool_size);
+  write_any(&writer, &msg_announced_size);
+
+  assert(builder.len == WAYLAND_HEADER_SIZE);
+
+  __wayland_current_id += 1;
+  write_any(&writer, &__wayland_current_id);
+  
+  File_Info info;
+  file_stat(state->shm_fd, &info);
+  assert(info.size == state->shm_pool_size);
+
+  write_any(&writer, &state->shm_pool_size);
+
+  assert(builder.len == msg_announced_size);
+
+  // I dont even really know what to say about this
+
+  char control_buf[CMSG_SPACE(size_of(state->shm_fd))] __attribute__ ((aligned(8))) = "";
+
+  struct iovec iovec = {
+    .base = builder.data,
+    .len  = (usize)builder.len,
+  };
+
+  struct msghdr socket_msg = {
+    .iov        = &iovec,
+    .iovlen     = 1,
+    .control    = control_buf,
+    .controllen = size_of(control_buf),
+  };
+
+  #define SCM_RIGHTS 1
+
+  struct cmsghdr *cmsg = CMSG_FIRSTHDR(&socket_msg);
+  cmsg->level = SOL_SOCKET;
+  cmsg->type  = SCM_RIGHTS;
+  cmsg->len   = CMSG_LEN(size_of(state->shm_fd));
+
+  mem_copy(CMSG_DATA(cmsg), &state->shm_fd, size_of(state->shm_fd));
+  socket_msg.controllen = CMSG_SPACE(size_of(state->shm_fd));
+
+  isize status = syscall(SYS_sendmsg, socket, &socket_msg, MSG_NOSIGNAL | 0x40);
+  assert(status != -1);
+
+  log_infof(LIT("-> wl_shm@%d.create_pool: wl_shm_pool=%d"), state->wl_shm, __wayland_current_id);
+
+  return __wayland_current_id;
+}
+
+internal void wayland_wl_shm_pool_resize(Socket socket, Wayland_State *state) {
+  Builder builder;
+  builder_init(&builder, 0, 64, context.temp_allocator);
+  Writer writer = writer_from_builder(&builder);
+
+  write_any(&writer, &state->wl_shm_pool);
+
+  u16 opcode = WAYLAND_WL_SHM_POOL_RESIZE_OPCODE;
+  write_any(&writer, &opcode);
+
+  u16 msg_announced_size = WAYLAND_HEADER_SIZE + size_of(state->shm_pool_size);
+  write_any(&writer, &msg_announced_size);
+
+  write_any(&writer, &state->shm_pool_size);
+
+  log_infof(LIT("-> wl_shm_pool@%d.resize: size=%d"), state->wl_shm_pool, state->shm_pool_size);
+
+  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
+}
+
+internal void wayland_wl_buffer_destroy(Socket socket, u32 buffer) {
+  Builder builder;
+  builder_init(&builder, 0, 64, context.temp_allocator);
+  Writer writer = writer_from_builder(&builder);
+
+  write_any(&writer, &buffer);
+
+  u16 opcode = WAYLAND_WL_BUFFER_DESTROY_OPCODE;
+  write_any(&writer, &opcode);
+
+  u16 msg_announced_size = WAYLAND_HEADER_SIZE;
+  write_any(&writer, &msg_announced_size);
+
+  log_infof(LIT("-> wl_buffer@%d.destroy:"), buffer);
+
+  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
+}
 
 internal b8 create_shared_memory_file(uintptr size, Wayland_State *state) {
   #define MFD_CLOEXEC		0x0001U
@@ -431,12 +536,22 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
 
     log_infof(LIT("Bounds: w=%d, h=%d"), width, height);
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE) {
-    u32 width;
-    u32 height;
-    read_any(&reader, &width);
-    read_any(&reader, &height);
+    read_any(&reader, &state->w);
+    read_any(&reader, &state->h);
 
-    log_infof(LIT("Configure: w=%d, h=%d"), width, height);
+    syscall(SYS_munmap, state->shm_pool_data, state->shm_pool_size);
+    file_close(state->shm_fd);
+
+    state->shm_fd = -1;
+
+    state->stride = state->w * COLOR_CHANNELS;
+    state->shm_pool_size = state->h * state->stride;
+    b8 ok = create_shared_memory_file(state->shm_pool_size, state);
+    assert(ok);
+    state->wl_shm_pool = wayland_wl_shm_create_pool(socket, state);
+    state->wl_buffer = wayland_wl_shm_pool_create_buffer(socket, state);
+
+    log_infof(LIT("Configure: w=%d, h=%d"), state->w, state->h);
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE) {
     state->should_close = true;
   } else if (object_id == state->wl_keyboard && opcode == WAYLAND_WL_KEYBOARD_EVENT_KEYMAP) {
@@ -464,6 +579,8 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
     };
     write_entire_file_path(LIT("keymap.txt"), kmdata);
 
+    parse_key_codes(transmute(String, kmdata), &state->keymap, context.allocator);
+
   } else if (object_id == state->wl_keyboard && opcode == WAYLAND_WL_KEYBOARD_EVENT_KEY) {
     u32 serial;
     u32 time;
@@ -475,8 +592,61 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
     read_any(&reader, &key);
     read_any(&reader, &pressed);
 
-    log_infof(LIT("Key %d %B"), key, pressed);
-    
+    if (key + 8 < state->keymap.len) {
+      if (state->keymap.data[key + 8]) {
+        state->keys[state->keymap.data[key + 8]] = pressed;
+      }
+
+      if (state->keymap.data[key + 8] == Key_Escape && pressed) {
+        state->should_close = true;
+      }
+
+      fmt_println(get_key_name(state->keymap.data[key + 8]));
+    }
+  } else if (object_id == state->wl_pointer) {
+    u32 serial, x, y, time, button;
+    b32 pressed;
+    f32 fx, fy;
+
+    switch (opcode) {
+    case WAYLAND_WL_POINTER_MOTION_EVENT:
+      read_any(&reader, &time);
+      read_any(&reader, &x);
+      read_any(&reader, &y);
+
+      fx = (f32)(x >> 8) + (f32)(x & 0xFF) / 0x100;
+      fy = (f32)(y >> 8) + (f32)(y & 0xFF) / 0x100;
+
+      state->mouse_x = fx;
+      state->mouse_y = fy;
+      break;
+    case WAYLAND_WL_POINTER_BUTTON_EVENT:
+      read_any(&reader, &serial);
+      read_any(&reader, &time);
+      read_any(&reader, &button);
+      read_any(&reader, &pressed);
+
+      #define BTN_MOUSE   0x110
+      #define BTN_LEFT    0x110
+      #define BTN_RIGHT   0x111
+      #define BTN_MIDDLE  0x112
+      #define BTN_SIDE    0x113
+      #define BTN_EXTRA   0x114
+      #define BTN_FORWARD 0x115
+      #define BTN_BACK    0x116
+      #define BTN_TASK    0x117
+
+      log_infof(LIT("Button: %d %B"), button, pressed);
+    }
+  } else if (object_id == state->wl_seat) {
+    if (opcode == 0) {
+      u32 capabilities;
+
+      read_any(&reader, &capabilities);
+
+      log_infof(LIT("Capabilities: %d"), capabilities);
+    }
+
   } else if (object_id == WAYLAND_DISPLAY_OBJECT_ID && opcode == WAYLAND_WL_DISPLAY_ERROR_EVENT) {
     u32 target_object_id;
     read_any(&reader, &target_object_id);
@@ -613,105 +783,6 @@ internal void wayland_wl_surface_attach(Socket socket, Wayland_State *state) {
   log_infof(LIT("-> wl_surface@%d.attach: buffer=%d offset=[%d,%d]"), state->wl_surface, state->wl_buffer, 0, 0);
 }
 
-internal i32 wayland_wl_shm_create_pool(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_shm);
-
-  u16 opcode = WAYLAND_WL_SHM_CREATE_POOL_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size =
-    WAYLAND_HEADER_SIZE + size_of(__wayland_current_id) + size_of(state->shm_pool_size);
-  write_any(&writer, &msg_announced_size);
-
-  assert(builder.len == WAYLAND_HEADER_SIZE);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  File_Info info;
-  file_stat(state->shm_fd, &info);
-  assert(info.size == state->shm_pool_size);
-
-  write_any(&writer, &state->shm_pool_size);
-
-  assert(builder.len == msg_announced_size);
-
-  // I dont even really know what to say about this
-
-  char control_buf[CMSG_SPACE(size_of(state->shm_fd))] __attribute__ ((aligned(8))) = "";
-
-  struct iovec iovec = {
-    .base = builder.data,
-    .len  = (usize)builder.len,
-  };
-
-  struct msghdr socket_msg = {
-    .iov        = &iovec,
-    .iovlen     = 1,
-    .control    = control_buf,
-    .controllen = size_of(control_buf),
-  };
-
-  #define SCM_RIGHTS 1
-
-  struct cmsghdr *cmsg = CMSG_FIRSTHDR(&socket_msg);
-  cmsg->level = SOL_SOCKET;
-  cmsg->type  = SCM_RIGHTS;
-  cmsg->len   = CMSG_LEN(size_of(state->shm_fd));
-
-  mem_copy(CMSG_DATA(cmsg), &state->shm_fd, size_of(state->shm_fd));
-  socket_msg.controllen = CMSG_SPACE(size_of(state->shm_fd));
-
-  isize status = syscall(SYS_sendmsg, socket, &socket_msg, MSG_NOSIGNAL | 0x40);
-  assert(status != -1);
-
-  log_infof(LIT("-> wl_shm@%d.create_pool: wl_shm_pool=%d"), state->wl_shm, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
-internal i32 wayland_wl_shm_pool_create_buffer(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_shm_pool);
-
-  u16 opcode = WAYLAND_WL_SHM_POOL_CREATE_BUFFER_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size =
-    + WAYLAND_HEADER_SIZE
-    + size_of(__wayland_current_id)
-    + size_of(i32)
-    + size_of(state->w)
-    + size_of(state->h)
-    + size_of(state->stride)
-    + size_of(u32);
-  write_any(&writer, &msg_announced_size);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  i32 offset = 0;
-  write_any(&writer, &offset);
-  write_any(&writer, &state->w);
-  write_any(&writer, &state->h);
-  write_any(&writer, &state->stride);
-  i32 format = WAYLAND_FORMAT_XRGB8888;
-  write_any(&writer, &format);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  log_infof(LIT("-> wl_shm_pool@%d.create_buffer: wl_buffer=%d"), state->wl_shm_pool, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
 internal void wayland_wl_surface_damage_buffer(Socket socket, Wayland_State *state) {
   Builder builder;
   builder_init(&builder, 0, 64, context.temp_allocator);
@@ -740,7 +811,7 @@ internal void wayland_wl_surface_damage_buffer(Socket socket, Wayland_State *sta
   log_infof(LIT("-> wl_surface@%d.damage_buffer: wl_buffer=%d"), state->wl_surface, __wayland_current_id);
 }
 
-internal u32 wayland_wl_get_keyboard(Socket socket, Wayland_State *state) {
+internal u32 wayland_wl_seat_get_keyboard(Socket socket, Wayland_State *state) {
   Builder builder;
   builder_init(&builder, 0, 64, context.temp_allocator);
   Writer writer = writer_from_builder(&builder);
@@ -761,6 +832,31 @@ internal u32 wayland_wl_get_keyboard(Socket socket, Wayland_State *state) {
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
   log_infof(LIT("-> wl_seat@%d.get_keyboard: current id=%d"), state->wl_seat, __wayland_current_id);
+
+  return __wayland_current_id;
+}
+
+internal u32 wayland_wl_seat_get_pointer(Socket socket, Wayland_State *state) {
+  Builder builder;
+  builder_init(&builder, 0, 64, context.temp_allocator);
+  Writer writer = writer_from_builder(&builder);
+
+  write_any(&writer, &state->wl_seat);
+
+  u16 opcode = WAYLAND_WL_SEAT_GET_POINTER;
+  write_any(&writer, &opcode);
+
+  u16 msg_announced_size =
+    + WAYLAND_HEADER_SIZE
+    + size_of(__wayland_current_id);
+  write_any(&writer, &msg_announced_size);
+
+  __wayland_current_id += 1;
+  write_any(&writer, &__wayland_current_id);
+  
+  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
+
+  log_infof(LIT("-> wl_seat@%d.get_pointer: current id=%d"), state->wl_seat, __wayland_current_id);
 
   return __wayland_current_id;
 }

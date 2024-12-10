@@ -1,5 +1,17 @@
 #include "codin.h"
 
+internal b8 rune_is_alpha(rune r) {
+  return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z');
+}
+
+internal b8 rune_is_numeric(rune r) {
+  return '0' <= r && r <= '9';
+}
+
+internal b8 rune_is_alpha_numeric(rune r) {
+  return rune_is_alpha(r) || rune_is_numeric(r);
+}
+
 internal Allocator_Error string_delete(String s, Allocator allocator) {
   return mem_free((rawptr)s.data, s.len, allocator);
 }
