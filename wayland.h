@@ -1,5 +1,6 @@
 #include "codin.h"
 #include "xkb.h"
+#include "bad_font.h"
 
 #define WAYLAND_DISPLAY_OBJECT_ID                    1
 #define WAYLAND_WL_REGISTRY_EVENT_GLOBAL             0
@@ -214,40 +215,38 @@ typedef enum {
 } Surface_State;
 
 typedef enum {
-  Buffer_State_None = 0,
+  Buffer_State_Released = 0,
   Buffer_State_Busy,
-  Buffer_State_Released,
-  Buffer_State_Resize_Pending,
-  Buffer_State_Resize_Pending_Released,
 } Buffer_State;
 
 typedef struct {
-  u32 wl_registry;
-  u32 wl_seat;
-  u32 wl_keyboard;
-  u32 wl_pointer;
-  u32 wl_shm;
-  u32 wl_shm_pool;
-  u32 wl_buffer;
-  u32 xdg_wm_base;
-  u32 xdg_surface;
-  u32 wl_compositor;
-  u32 wl_surface;
-  u32 xdg_toplevel;
-  u32 stride;
-  u32 w;
-  u32 h;
-  u32 shm_pool_size;
-  i32 shm_fd;
-  u8 *shm_pool_data;
-  f32 mouse_x;
-  f32 mouse_y;
+  u32           wl_registry;
+  u32           wl_seat;
+  u32           wl_keyboard;
+  u32           wl_pointer;
+  u32           wl_shm;
+  u32           wl_shm_pool;
+  u32           wl_buffer;
+  u32           xdg_wm_base;
+  u32           xdg_surface;
+  u32           wl_compositor;
+  u32           wl_surface;
+  u32           xdg_toplevel;
+  u32           stride;
+  u32           w;
+  u32           h;
+  u32           shm_pool_size;
+  i32           shm_fd;
+  u8           *shm_pool_data;
+  f32           mouse_x;
+  f32           mouse_y;
   Surface_State surface_state;
-  Buffer_State buffer_state;
-  b8 should_close;
-  Vector(Fd) fds_in;
-  Keymap keymap;
-  b8 keys[Key_MAX_VALUE];
+  Buffer_State  buffer_state;
+  b8            should_close;
+  b8            should_resize;
+  Vector(Fd)    fds_in;
+  Keymap        keymap;
+  b8            keys[Key_MAX_VALUE];
 } Wayland_State;
 
 internal i32 wayland_wl_shm_pool_create_buffer(Socket socket, Wayland_State *state) {
@@ -528,62 +527,48 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
     if (string_equal(interface, LIT("wl_seat"))) {
       state->wl_seat = wayland_wl_registry_bind(socket, state->wl_registry, name, interface, version);
     }
+
   } else if (object_id == state->xdg_wm_base && opcode == WAYLAND_XDG_WM_BASE_EVENT_PING) {
     u32 ping;
     read_any(&reader, &ping);
+
+    log_infof(LIT("<- xdg_wm_base@%d.ping:"), state->xdg_wm_base);
+
     wayland_xdg_wm_base_pong(socket, state, ping);
+
   } else if (object_id == state->xdg_surface && opcode == WAYLAND_XDG_SURFACE_EVENT_CONFIGURE) {
     u32 configure;
     read_any(&reader, &configure);
+
+    log_infof(LIT("<- xdg_surface@%d.configure:"), state->xdg_surface);
+
     wayland_xdg_surface_ack_configure(socket, state, configure);
     state->surface_state = Surface_State_Acked_Configure;
+
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE_BOUNDS) {
     u32 width;
     u32 height;
     read_any(&reader, &width);
     read_any(&reader, &height);
 
-    log_infof(LIT("Bounds: w=%d, h=%d"), width, height);
+    log_infof(LIT("<- xdg_toplevel@%d.configure_bounds: width=%d height=%d"), state->xdg_toplevel, width, height);
+
   } else if (object_id == state->wl_buffer && opcode == WAYLAND_WL_BUFFER_EVENT_RELEASE) {
-    if (state->buffer_state == Buffer_State_Resize_Pending) {
-      state->buffer_state = Buffer_State_Resize_Pending_Released;
-    } else {
-      state->buffer_state = Buffer_State_Released;
-    }
+    state->buffer_state = Buffer_State_Released;
+
+    log_infof(LIT("<- wl_buffer@%d.release:"), state->wl_buffer);
+
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE) {
     read_any(&reader, &state->w);
     read_any(&reader, &state->h);
 
-    if (state->buffer_state == Buffer_State_Released || state->buffer_state == Buffer_State_Resize_Pending_Released) {
-      wayland_wl_buffer_destroy(socket, state->wl_buffer);
+    state->w = max(state->w, 1);
+    state->h = max(state->h, 1);
 
-      state->stride = state->w * COLOR_CHANNELS;
-
-      if (state->shm_pool_size < state->h * state->stride) {
-        isize result;
-        result = syscall(SYS_munmap, state->shm_pool_data, state->shm_pool_size);
-        assert(result == 0);
-
-        state->shm_pool_size = state->h * state->stride;
-        result = syscall(SYS_ftruncate, state->shm_fd, state->shm_pool_size);
-        assert(result == 0);
-
-        state->shm_pool_data =
-          (u8 *)syscall(SYS_mmap, nil, state->shm_pool_size, PROT_READ | PROT_WRITE, MAP_SHARED, state->shm_fd, 0);
-        assert(state->shm_pool_data);
-        wayland_wl_shm_pool_resize(socket, state);
-      }
-    
-      state->wl_buffer = wayland_wl_shm_pool_create_buffer(socket, state);
-
-      log_infof(LIT("Configure: w=%d, h=%d"), state->w, state->h);
-
-      state->buffer_state = Buffer_State_Busy;
-    } else {
-      state->buffer_state = Buffer_State_Resize_Pending;
-    }
+    state->should_resize = true;
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE) {
     state->should_close = true;
+
   } else if (object_id == state->wl_keyboard && opcode == WAYLAND_WL_KEYBOARD_EVENT_KEYMAP) {
     u32 format;
     u32 size;
@@ -822,7 +807,7 @@ internal void wayland_wl_surface_attach(Socket socket, Wayland_State *state) {
   log_infof(LIT("-> wl_surface@%d.attach: buffer=%d offset=[%d,%d]"), state->wl_surface, state->wl_buffer, 0, 0);
 }
 
-internal void wayland_wl_surface_damage_buffer(Socket socket, Wayland_State *state) {
+internal void wayland_wl_surface_damage_buffer(Socket socket, Wayland_State *state, i32 offset_x, i32 offset_y, i32 width, i32 height) {
   Builder builder;
   builder_init(&builder, 0, 64, context.temp_allocator);
   Writer writer = writer_from_builder(&builder);
@@ -839,11 +824,10 @@ internal void wayland_wl_surface_damage_buffer(Socket socket, Wayland_State *sta
     + size_of(state->h);
   write_any(&writer, &msg_announced_size);
 
-  i32 offset = 0;
-  write_any(&writer, &offset);
-  write_any(&writer, &offset);
-  write_any(&writer, &state->w);
-  write_any(&writer, &state->h);
+  write_any(&writer, &offset_x);
+  write_any(&writer, &offset_y);
+  write_any(&writer, &width);
+  write_any(&writer, &height);
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
@@ -932,4 +916,100 @@ internal void wayland_xdg_toplevel_set_title(Socket socket, Wayland_State *state
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
   log_infof(LIT("-> xdg_toplevel@%d.set_title: title='%S'"), state->xdg_toplevel, title);
+}
+
+internal void wayland_draw_rect_outlines(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+  u32 *pixels = (u32 *)state->shm_pool_data;
+
+  if (in_range(x, 0, state->w)) {
+    for_range(_y, max(y, 0), min(y + h, state->h)) {
+      pixels[x + _y * state->w] = color;
+    }
+  }
+
+  if (in_range(x + w, 0, state->w)) {
+    for_range(_y, max(y, 0), min(y + h, state->h)) {
+      pixels[x + w + _y * state->w] = color;
+    }
+  }
+
+  if (in_range(y, 0, state->h)) {
+    for_range(_x, max(x, 0), min(x + w, state->w)) {
+      pixels[_x + y * state->w] = color;
+    }
+  }
+  if (in_range(y + h, 0, state->h)) {
+    for_range(_x, max(x, 0), min(x + w, state->w)) {
+      pixels[_x + (y + h) * state->w] = color;
+    }
+  }
+}
+
+internal void wayland_draw_rect(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+  u32 *pixels = (u32 *)state->shm_pool_data;
+  for_range(_y, max(y, 0), min(y + h, state->h)) {
+    for_range(_x, max(x, 0), min(x + w, state->w)) {
+      pixels[_x + _y * state->w] = color;
+    }
+  }
+}
+
+BMF_Font font;
+
+internal void wayland_render(Wayland_State *state) {
+  u32 *pixels = (u32 *)state->shm_pool_data;
+  struct Time time = time_now();
+  i32 t = time.nsec / Millisecond;
+
+  f32 inv_w = 1.0 / state->w;
+  f32 inv_h = 1.0 / state->h;
+
+  for_range(y, 0, state->h) {
+    for_range(x, 0, state->w) {
+      pixels[x + y * state->w] = 0xFF1E2128;
+    }
+  }
+
+  for_range(i, 0, 10) {
+    if (
+      (state->mouse_y > 25 + i * 100) && (state->mouse_y < 50 + 25 + i * 100) &&
+      (state->mouse_x > 25)           && (state->mouse_x < state->w - 25)
+    ) {
+      wayland_draw_rect_outlines(state, 25, 25 + i * 100, state->w - 50, 50, 0xFFE06B74);
+    } else {
+      wayland_draw_rect_outlines(state, 25, 25 + i * 100, state->w - 50, 50, 0xFF62AEEF);
+    }
+  }
+
+  isize x = 30;
+  isize y = 25 + 25 + 12;
+  BMF_Baked_Quad_I q;
+
+  slice_iter(LIT("The quick brown fox jumps over the lazy dog"), c, _i, {
+    b8 ok = bmf_get_baked_quad_i(&font, *c, &x, &y, &q);
+    assert(ok);
+
+    for_range(ry, 0, q.y1 - q.y0) {
+      for_range(rx, 0, q.x1 - q.x0) {
+        isize _x = rx + q.x0;
+        isize _y = ry + q.y0;
+
+        isize _u = rx + q.u0;
+        isize _v = ry + q.v0;
+
+        u8 alpha = font.atlas.data[_u + _v * font.atlas_width];
+
+        // u32 color = 0x98C379;
+        u32 color = 0xABB2BF;
+        Array(u8, 4)src = transmute(type_of(src), color);
+        Array(u8, 4)dst = transmute(type_of(dst), pixels[_x + _y * state->w]);
+        for_range(i, 0, 4) {
+          dst.data[i] = (((u16)dst.data[i] * (u16)(255 - alpha)) >> 8) +
+                        (((u16)src.data[i] * (u16)(      alpha)) >> 8);
+        }
+
+        pixels[_x + _y * state->w] = transmute(u32, dst);
+      }
+    }
+  })
 }

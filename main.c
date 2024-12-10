@@ -392,6 +392,10 @@ int main() {
 
   // context.logger.proc = nil;
 
+  Byte_Slice font_data = unwrap_err(read_entire_file_path(LIT("out12.bmf"), context.allocator));
+  b8 font_ok = bmf_load_font(font_data, &font);
+  assert(font_ok);
+
   Socket wl_socket = wayland_display_connect();
   Wayland_State state = {
       .wl_registry = wayland_wl_display_get_registry(wl_socket),
@@ -585,7 +589,19 @@ int main() {
       }
     }
 
-    if (state.surface_state == Surface_State_Acked_Configure && state.buffer_state == Buffer_State_Resize_Pending_Released) {
+    if (state.surface_state == Surface_State_Acked_Configure && state.buffer_state == Buffer_State_Released) {
+      if (!state.wl_shm_pool) {
+        state.wl_shm_pool = wayland_wl_shm_create_pool(wl_socket, &state);
+      }
+      if (!state.wl_buffer) {
+        state.wl_buffer = wayland_wl_shm_pool_create_buffer(wl_socket, &state);
+      }
+
+      state.surface_state = Surface_State_Attached;
+      state.should_resize = true;
+    }
+
+    if (state.surface_state == Surface_State_Attached && state.should_resize && state.buffer_state == Buffer_State_Released) {
       wayland_wl_buffer_destroy(wl_socket, state.wl_buffer);
 
       state.stride = state.w * COLOR_CHANNELS;
@@ -607,44 +623,17 @@ int main() {
     
       state.wl_buffer = wayland_wl_shm_pool_create_buffer(wl_socket, &state);
 
-      log_infof(LIT("Configure: w=%d, h=%d"), state.w, state.h);
-
-      state.buffer_state = Buffer_State_Busy;
-    }
-
-    if (state.surface_state == Surface_State_Acked_Configure && state.buffer_state != Buffer_State_Busy && state.buffer_state < Buffer_State_Resize_Pending) {
-      u32 *pixels = (u32 *)state.shm_pool_data;
-      for_range(y, 0, state.h) {
-        for_range(x, 0, state.w) {
-          u32 color = 0;
-          f32 r = (f32)x / (f32)state.w;
-          f32 g = (f32)y / (f32)state.h;
-          color |= (u8)(r * 255);
-          color <<= 8;
-          color |= (u8)(g * 255);
-          color <<= 8;
-          pixels[x + y * state.w] = color;
-        }
-      }
-
-      if (!state.wl_shm_pool) {
-        state.wl_shm_pool = wayland_wl_shm_create_pool(wl_socket, &state);
-      }
-      if (!state.wl_buffer) {
-        state.wl_buffer = wayland_wl_shm_pool_create_buffer(wl_socket, &state);
-      }
+      wayland_render(&state);
 
       wayland_wl_surface_attach(wl_socket, &state);
-      wayland_wl_surface_damage_buffer(wl_socket, &state);
+      wayland_wl_surface_damage_buffer(wl_socket, &state, 0, 0, state.w, state.h);
       wayland_wl_surface_commit(wl_socket, &state);
 
-      state.surface_state = Surface_State_Attached;
       state.buffer_state  = Buffer_State_Busy;
+      state.should_resize = false;
     }
 
     if (state.surface_state == Surface_State_Attached && state.buffer_state == Buffer_State_Released) {
-      local_persist b8 flip = false;
-
       frames_since_print += 1;
 
       if (time_now().nsec - last_fps_print.nsec > Second) {
@@ -653,25 +642,10 @@ int main() {
         frames_since_print = 0;
       }
 
-      u32 *pixels = (u32 *)state.shm_pool_data;
-      for_range(_y, 0, state.h) {
-        for_range(_x, 0, state.w) {
-          i32 x = flip ? state.w - _x : _x;
-          i32 y = flip ? state.h - _y : _y;
-          u32 color = 0;
-          f32 r = (f32)x / (f32)state.w;
-          f32 g = (f32)y / (f32)state.h;
-          color |= (u8)(r * 255);
-          color <<= 8;
-          color |= (u8)(g * 255);
-          color <<= 8;
-          pixels[_x + _y * state.w] = color;
-        }
-      }
-      flip = !flip;
+      wayland_render(&state);
 
       wayland_wl_surface_attach(wl_socket, &state);
-      wayland_wl_surface_damage_buffer(wl_socket, &state);
+      wayland_wl_surface_damage_buffer(wl_socket, &state, 0, 0, state.w, state.h);
       wayland_wl_surface_commit(wl_socket, &state);
 
       state.buffer_state = Buffer_State_Busy;
