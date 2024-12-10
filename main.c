@@ -582,7 +582,7 @@ int main() {
       }
     }
 
-    if (state.surface_state == Surface_State_Acked_Configure) {
+    if (state.surface_state == Surface_State_Acked_Configure && state.buffer_state == Buffer_State_Released) {
       u32 *pixels = (u32 *)state.shm_pool_data;
       for_range(y, 0, state.h) {
         for_range(x, 0, state.w) {
@@ -609,6 +609,7 @@ int main() {
       wayland_wl_surface_commit(wl_socket, &state);
 
       state.surface_state = Surface_State_Attached;
+      state.buffer_state  = Buffer_State_Busy;
     }
 
     mem_free_all(context.temp_allocator);

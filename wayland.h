@@ -215,9 +215,8 @@ typedef enum {
 } Surface_State;
 
 typedef enum {
-  Buffer_State_None = 0,
+  Buffer_State_Released = 0,
   Buffer_State_Busy,
-  Buffer_State_Released,
 } Buffer_State;
 
 typedef struct {
@@ -546,22 +545,33 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
   } else if (object_id == state->wl_buffer && opcode == WAYLAND_WL_BUFFER_EVENT_RELEASE) {
     state->buffer_state = Buffer_State_Released;
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE) {
-    read_any(&reader, &state->w);
-    read_any(&reader, &state->h);
+    if (state->buffer_state == Buffer_State_Released) {
+      read_any(&reader, &state->w);
+      read_any(&reader, &state->h);
 
-    syscall(SYS_munmap, state->shm_pool_data, state->shm_pool_size);
-    file_close(state->shm_fd);
+      wayland_wl_buffer_destroy(socket, state->wl_buffer);
 
-    state->shm_fd = -1;
+      state->stride = state->w * COLOR_CHANNELS;
 
-    state->stride = state->w * COLOR_CHANNELS;
-    state->shm_pool_size = state->h * state->stride;
-    b8 ok = create_shared_memory_file(state->shm_pool_size, state);
-    assert(ok);
-    state->wl_shm_pool = wayland_wl_shm_create_pool(socket, state);
-    state->wl_buffer = wayland_wl_shm_pool_create_buffer(socket, state);
+      if (state->shm_pool_size * state->stride) {
+        isize result;
+        result = syscall(SYS_munmap, state->shm_pool_data, state->shm_pool_size);
+        assert(result == 0);
 
-    log_infof(LIT("Configure: w=%d, h=%d"), state->w, state->h);
+        state->shm_pool_size = state->h * state->stride;
+        result = syscall(SYS_ftruncate, state->shm_fd, state->shm_pool_size);
+        assert(result == 0);
+
+        state->shm_pool_data =
+          (u8 *)syscall(SYS_mmap, nil, state->shm_pool_size, PROT_READ | PROT_WRITE, MAP_SHARED, state->shm_fd, 0);
+        assert(state->shm_pool_data);
+        wayland_wl_shm_pool_resize(socket, state);
+      }
+      
+      state->wl_buffer = wayland_wl_shm_pool_create_buffer(socket, state);
+
+      log_infof(LIT("Configure: w=%d, h=%d"), state->w, state->h);
+    }
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE) {
     state->should_close = true;
   } else if (object_id == state->wl_keyboard && opcode == WAYLAND_WL_KEYBOARD_EVENT_KEYMAP) {
