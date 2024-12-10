@@ -38,6 +38,7 @@
 
 #define WAYLAND_WL_POINTER_MOTION_EVENT              2
 #define WAYLAND_WL_POINTER_BUTTON_EVENT              3
+#define WAYLAND_WL_POINTER_AXIS_EVENT                4
 
 #define WAYLAND_WL_KEYBOARD_EVENT_KEY                3
 #define WAYLAND_WL_KEYBOARD_EVENT_KEYMAP             0
@@ -208,10 +209,16 @@ internal isize wayland_wl_registry_bind(Socket s, u32 registry, u32 name, String
 }
 
 typedef enum {
-  STATE_NONE,
-  STATE_SURFACE_ACKED_CONFIGURE,
-  STATE_SURFACE_ATTACHED,
-} Framebuffer_State_t;
+  Surface_State_None = 0,
+  Surface_State_Acked_Configure,
+  Surface_State_Attached,
+} Surface_State;
+
+typedef enum {
+  Buffer_State_None = 0,
+  Buffer_State_Busy,
+  Buffer_State_Released,
+} Buffer_State;
 
 typedef struct {
   u32 wl_registry;
@@ -234,7 +241,8 @@ typedef struct {
   u8 *shm_pool_data;
   f32 mouse_x;
   f32 mouse_y;
-  Framebuffer_State_t state;
+  Surface_State surface_state;
+  Buffer_State buffer_state;
   b8 should_close;
   Vector(Fd) fds_in;
   Keymap keymap;
@@ -379,11 +387,11 @@ internal void wayland_wl_buffer_destroy(Socket socket, u32 buffer) {
 }
 
 internal b8 create_shared_memory_file(uintptr size, Wayland_State *state) {
-  #define MFD_CLOEXEC		0x0001U
+  #define MFD_CLOEXEC       0x0001U
   #define MFD_ALLOW_SEALING	0x0002U
-  #define MFD_HUGETLB		0x0004U
+  #define MFD_HUGETLB       0x0004U
   /* not executable and sealed to prevent changing to executable. */
-  #define MFD_NOEXEC_SEAL		0x0008U
+  #define MFD_NOEXEC_SEAL    0x0008U
   /* executable */
   #define MFD_EXEC		0x0010U
   Fd fd = syscall(SYS_memfd_create, "/my_wayland_shared_memory_file_123123", MFD_ALLOW_SEALING);
@@ -527,7 +535,7 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
     u32 configure;
     read_any(&reader, &configure);
     wayland_xdg_surface_ack_configure(socket, state, configure);
-    state->state = STATE_SURFACE_ACKED_CONFIGURE;
+    state->surface_state = Surface_State_Acked_Configure;
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE_BOUNDS) {
     u32 width;
     u32 height;
@@ -535,6 +543,8 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
     read_any(&reader, &height);
 
     log_infof(LIT("Bounds: w=%d, h=%d"), width, height);
+  } else if (object_id == state->wl_buffer && opcode == WAYLAND_WL_BUFFER_EVENT_RELEASE) {
+    state->buffer_state = Buffer_State_Released;
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE) {
     read_any(&reader, &state->w);
     read_any(&reader, &state->h);
@@ -604,7 +614,8 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
       fmt_println(get_key_name(state->keymap.data[key + 8]));
     }
   } else if (object_id == state->wl_pointer) {
-    u32 serial, x, y, time, button;
+    u32 serial, time, button, axis;
+    i32 x, y, value;
     b32 pressed;
     f32 fx, fy;
 
@@ -614,8 +625,8 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
       read_any(&reader, &x);
       read_any(&reader, &y);
 
-      fx = (f32)(x >> 8) + (f32)(x & 0xFF) / 0x100;
-      fy = (f32)(y >> 8) + (f32)(y & 0xFF) / 0x100;
+      fx = x / 256.0;
+      fy = y / 256.0;
 
       state->mouse_x = fx;
       state->mouse_y = fy;
@@ -626,17 +637,25 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
       read_any(&reader, &button);
       read_any(&reader, &pressed);
 
-      #define BTN_MOUSE   0x110
-      #define BTN_LEFT    0x110
-      #define BTN_RIGHT   0x111
-      #define BTN_MIDDLE  0x112
-      #define BTN_SIDE    0x113
-      #define BTN_EXTRA   0x114
-      #define BTN_FORWARD 0x115
-      #define BTN_BACK    0x116
-      #define BTN_TASK    0x117
+      // #define BTN_MOUSE   0x110
+      // #define BTN_LEFT    0x110
+      // #define BTN_RIGHT   0x111
+      // #define BTN_MIDDLE  0x112
+      // #define BTN_SIDE    0x113
+      // #define BTN_EXTRA   0x114
+      // #define BTN_FORWARD 0x115
+      // #define BTN_BACK    0x116
+      // #define BTN_TASK    0x117
 
       log_infof(LIT("Button: %d %B"), button, pressed);
+      break;
+    case WAYLAND_WL_POINTER_AXIS_EVENT:
+      read_any(&reader, &time);
+      read_any(&reader, &axis);
+      read_any(&reader, &value);
+
+      log_infof(LIT("Axis: %f %B"), (f32)value / 256.0, axis);
+      break;
     }
   } else if (object_id == state->wl_seat) {
     if (opcode == 0) {
