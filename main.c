@@ -539,6 +539,9 @@ int main() {
 
   vector_init(&state.fds_in, 0, 8, context.allocator);
 
+  struct Time last_fps_print = time_now();
+  isize frames_since_print = 0;
+
   while (!state.should_close) {
     byte _read_buf[4096] = {0};
     byte _control_buf[256] = {0};
@@ -582,7 +585,34 @@ int main() {
       }
     }
 
-    if (state.surface_state == Surface_State_Acked_Configure && state.buffer_state == Buffer_State_Released) {
+    if (state.surface_state == Surface_State_Acked_Configure && state.buffer_state == Buffer_State_Resize_Pending_Released) {
+      wayland_wl_buffer_destroy(wl_socket, state.wl_buffer);
+
+      state.stride = state.w * COLOR_CHANNELS;
+
+      if (state.shm_pool_size < state.h * state.stride) {
+        isize result;
+        result = syscall(SYS_munmap, state.shm_pool_data, state.shm_pool_size);
+        assert(result == 0);
+
+        state.shm_pool_size = state.h * state.stride;
+        result = syscall(SYS_ftruncate, state.shm_fd, state.shm_pool_size);
+        assert(result == 0);
+
+        state.shm_pool_data =
+          (u8 *)syscall(SYS_mmap, nil, state.shm_pool_size, PROT_READ | PROT_WRITE, MAP_SHARED, state.shm_fd, 0);
+        assert(state.shm_pool_data);
+        wayland_wl_shm_pool_resize(wl_socket, &state);
+      }
+    
+      state.wl_buffer = wayland_wl_shm_pool_create_buffer(wl_socket, &state);
+
+      log_infof(LIT("Configure: w=%d, h=%d"), state.w, state.h);
+
+      state.buffer_state = Buffer_State_Busy;
+    }
+
+    if (state.surface_state == Surface_State_Acked_Configure && state.buffer_state != Buffer_State_Busy && state.buffer_state < Buffer_State_Resize_Pending) {
       u32 *pixels = (u32 *)state.shm_pool_data;
       for_range(y, 0, state.h) {
         for_range(x, 0, state.w) {
@@ -612,6 +642,41 @@ int main() {
       state.buffer_state  = Buffer_State_Busy;
     }
 
+    if (state.surface_state == Surface_State_Attached && state.buffer_state == Buffer_State_Released) {
+      local_persist b8 flip = false;
+
+      frames_since_print += 1;
+
+      if (time_now().nsec - last_fps_print.nsec > Second) {
+        wayland_xdg_toplevel_set_title(wl_socket, &state, fmt_tprintf(LIT("FPS: %d"), frames_since_print));
+        last_fps_print = time_now();
+        frames_since_print = 0;
+      }
+
+      u32 *pixels = (u32 *)state.shm_pool_data;
+      for_range(_y, 0, state.h) {
+        for_range(_x, 0, state.w) {
+          i32 x = flip ? state.w - _x : _x;
+          i32 y = flip ? state.h - _y : _y;
+          u32 color = 0;
+          f32 r = (f32)x / (f32)state.w;
+          f32 g = (f32)y / (f32)state.h;
+          color |= (u8)(r * 255);
+          color <<= 8;
+          color |= (u8)(g * 255);
+          color <<= 8;
+          pixels[_x + _y * state.w] = color;
+        }
+      }
+      flip = !flip;
+
+      wayland_wl_surface_attach(wl_socket, &state);
+      wayland_wl_surface_damage_buffer(wl_socket, &state);
+      wayland_wl_surface_commit(wl_socket, &state);
+
+      state.buffer_state = Buffer_State_Busy;
+    }
+    
     mem_free_all(context.temp_allocator);
   }
 

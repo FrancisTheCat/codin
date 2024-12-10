@@ -1,8 +1,6 @@
 #include "codin.h"
 #include "xkb.h"
 
-#include "EGL/egl.h"
-
 #define WAYLAND_DISPLAY_OBJECT_ID                    1
 #define WAYLAND_WL_REGISTRY_EVENT_GLOBAL             0
 #define WAYLAND_WL_DISPLAY_ERROR_EVENT               0
@@ -22,6 +20,7 @@
 #define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE         0
 #define WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE             1
 #define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE_BOUNDS  2
+#define WAYLAND_XDG_TOPLEVEL_SET_TITLE_OPCODE        2
 
 #define WAYLAND_WL_SURFACE_ATTACH_OPCODE             1
 #define WAYLAND_WL_SURFACE_COMMIT_OPCODE             6
@@ -215,8 +214,11 @@ typedef enum {
 } Surface_State;
 
 typedef enum {
-  Buffer_State_Released = 0,
+  Buffer_State_None = 0,
   Buffer_State_Busy,
+  Buffer_State_Released,
+  Buffer_State_Resize_Pending,
+  Buffer_State_Resize_Pending_Released,
 } Buffer_State;
 
 typedef struct {
@@ -543,17 +545,21 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
 
     log_infof(LIT("Bounds: w=%d, h=%d"), width, height);
   } else if (object_id == state->wl_buffer && opcode == WAYLAND_WL_BUFFER_EVENT_RELEASE) {
-    state->buffer_state = Buffer_State_Released;
+    if (state->buffer_state == Buffer_State_Resize_Pending) {
+      state->buffer_state = Buffer_State_Resize_Pending_Released;
+    } else {
+      state->buffer_state = Buffer_State_Released;
+    }
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE) {
-    if (state->buffer_state == Buffer_State_Released) {
-      read_any(&reader, &state->w);
-      read_any(&reader, &state->h);
+    read_any(&reader, &state->w);
+    read_any(&reader, &state->h);
 
+    if (state->buffer_state == Buffer_State_Released || state->buffer_state == Buffer_State_Resize_Pending_Released) {
       wayland_wl_buffer_destroy(socket, state->wl_buffer);
 
       state->stride = state->w * COLOR_CHANNELS;
 
-      if (state->shm_pool_size * state->stride) {
+      if (state->shm_pool_size < state->h * state->stride) {
         isize result;
         result = syscall(SYS_munmap, state->shm_pool_data, state->shm_pool_size);
         assert(result == 0);
@@ -567,10 +573,14 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
         assert(state->shm_pool_data);
         wayland_wl_shm_pool_resize(socket, state);
       }
-      
+    
       state->wl_buffer = wayland_wl_shm_pool_create_buffer(socket, state);
 
       log_infof(LIT("Configure: w=%d, h=%d"), state->w, state->h);
+
+      state->buffer_state = Buffer_State_Busy;
+    } else {
+      state->buffer_state = Buffer_State_Resize_Pending;
     }
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE) {
     state->should_close = true;
@@ -888,4 +898,38 @@ internal u32 wayland_wl_seat_get_pointer(Socket socket, Wayland_State *state) {
   log_infof(LIT("-> wl_seat@%d.get_pointer: current id=%d"), state->wl_seat, __wayland_current_id);
 
   return __wayland_current_id;
+}
+
+internal void wayland_xdg_toplevel_set_title(Socket socket, Wayland_State *state, String title) {
+  Builder builder;
+  builder_init(&builder, 0, 64, context.temp_allocator);
+  Writer writer = writer_from_builder(&builder);
+
+  write_any(&writer, &state->xdg_toplevel);
+
+  u16 opcode = WAYLAND_XDG_TOPLEVEL_SET_TITLE_OPCODE;
+  write_any(&writer, &opcode);
+
+  i32 title_len = roundup_4(title.len + 1);
+
+  u16 msg_announced_size =
+    + WAYLAND_HEADER_SIZE
+    + size_of(title_len)
+    + title_len;
+  write_any(&writer, &msg_announced_size);
+
+  i32 write_len = title.len + 1;
+  write_any(&writer, &write_len);
+  write_string(&writer, title);
+  for_range(i, title.len, title_len) {
+    write_byte(&writer, 0);
+  }
+
+  assert(builder.len == roundup_4(builder.len));
+
+  write_entire_file_path(LIT("dump.hex"), builder_to_bytes(builder));
+  
+  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
+
+  log_infof(LIT("-> xdg_toplevel@%d.set_title: title='%S'"), state->xdg_toplevel, title);
 }
