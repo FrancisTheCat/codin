@@ -195,3 +195,5 @@ internal Allocator_Error _mem_free_all(Allocator allocator,
   assert(allocator.proc);
   return allocator.proc(allocator.data, AM_Free_All, 0, 0, nil, location).err;
 }
+
+#define any_to_bytes(any) ((Byte_Slice) {.data = (byte *)any, .len = size_of(*any)})

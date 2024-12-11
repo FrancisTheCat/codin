@@ -81,7 +81,7 @@ typedef Vector(byte) Byte_Buffer;
   }
 
 #define vector_clear(vector)                                                   \
-  { (vector)->cap = 0; }
+  { (vector)->len = 0; }
 
 #define vector_pop(_vector)                                                    \
   ({                                                                           \

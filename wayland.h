@@ -1,51 +1,57 @@
 #include "codin.h"
 #include "xkb.h"
-#include "bad_font.h"
 
-#define WAYLAND_DISPLAY_OBJECT_ID                    1
-#define WAYLAND_WL_REGISTRY_EVENT_GLOBAL             0
-#define WAYLAND_WL_DISPLAY_ERROR_EVENT               0
-#define WAYLAND_WL_DISPLAY_GET_REGISTRY_OPCODE       1
-#define WAYLAND_WL_REGISTRY_BIND_OPCODE              0
+#include "ui.h"
 
-#define WAYLAND_WL_COMPOSITOR_CREATE_SURFACE_OPCODE  0
+#define WAYLAND_DISPLAY_OBJECT_ID                          1
+#define WAYLAND_WL_REGISTRY_EVENT_GLOBAL                   0
+#define WAYLAND_WL_DISPLAY_ERROR_EVENT                     0
+#define WAYLAND_WL_DISPLAY_GET_REGISTRY_OPCODE             1
+#define WAYLAND_WL_REGISTRY_BIND_OPCODE                    0
 
-#define WAYLAND_XDG_WM_BASE_EVENT_PING               0
-#define WAYLAND_XDG_WM_BASE_PONG_OPCODE              3
-#define WAYLAND_XDG_WM_BASE_GET_XDG_SURFACE_OPCODE   2
+#define WAYLAND_WL_COMPOSITOR_CREATE_SURFACE_OPCODE        0
 
-#define WAYLAND_XDG_SURFACE_EVENT_CONFIGURE          0
-#define WAYLAND_XDG_SURFACE_GET_TOPLEVEL_OPCODE      1
-#define WAYLAND_XDG_SURFACE_ACK_CONFIGURE_OPCODE     4
+#define WAYLAND_XDG_WM_BASE_EVENT_PING                     0
+#define WAYLAND_XDG_WM_BASE_PONG_OPCODE                    3
+#define WAYLAND_XDG_WM_BASE_GET_XDG_SURFACE_OPCODE         2
 
-#define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE         0
-#define WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE             1
-#define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE_BOUNDS  2
-#define WAYLAND_XDG_TOPLEVEL_SET_TITLE_OPCODE        2
+#define WAYLAND_XDG_SURFACE_EVENT_CONFIGURE                0
+#define WAYLAND_XDG_SURFACE_GET_TOPLEVEL_OPCODE            1
+#define WAYLAND_XDG_SURFACE_ACK_CONFIGURE_OPCODE           4
 
-#define WAYLAND_WL_SURFACE_ATTACH_OPCODE             1
-#define WAYLAND_WL_SURFACE_COMMIT_OPCODE             6
+#define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE               0
+#define WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE                   1
+#define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE_BOUNDS        2
+#define WAYLAND_XDG_TOPLEVEL_SET_TITLE_OPCODE              2
 
-#define WAYLAND_WL_SHM_POOL_EVENT_FORMAT             0
-#define WAYLAND_WL_SHM_CREATE_POOL_OPCODE            0
-#define WAYLAND_WL_SHM_POOL_RESIZE_OPCODE            2
-#define WAYLAND_WL_SHM_POOL_CREATE_BUFFER_OPCODE     0
+#define WAYLAND_WL_SURFACE_ATTACH_OPCODE                   1
+#define WAYLAND_WL_SURFACE_COMMIT_OPCODE                   6
 
-#define WAYLAND_WL_BUFFER_EVENT_RELEASE              0
-#define WAYLAND_WL_BUFFER_DESTROY_OPCODE             0
-#define WAYLAND_WL_SEAT_GET_POINTER                  0
-#define WAYLAND_WL_SEAT_GET_KEYBOARD                 1
+#define WAYLAND_WL_SHM_POOL_EVENT_FORMAT                   0
+#define WAYLAND_WL_SHM_CREATE_POOL_OPCODE                  0
+#define WAYLAND_WL_SHM_POOL_RESIZE_OPCODE                  2
+#define WAYLAND_WL_SHM_POOL_CREATE_BUFFER_OPCODE           0
 
-#define WAYLAND_WL_POINTER_MOTION_EVENT              2
-#define WAYLAND_WL_POINTER_BUTTON_EVENT              3
-#define WAYLAND_WL_POINTER_AXIS_EVENT                4
+#define WAYLAND_WL_BUFFER_EVENT_RELEASE                    0
+#define WAYLAND_WL_BUFFER_DESTROY_OPCODE                   0
+#define WAYLAND_WL_SEAT_GET_POINTER                        0
+#define WAYLAND_WL_SEAT_GET_KEYBOARD                       1
 
-#define WAYLAND_WL_KEYBOARD_EVENT_KEY                3
-#define WAYLAND_WL_KEYBOARD_EVENT_KEYMAP             0
+#define WAYLAND_WL_POINTER_ENTER_EVENT                     0
+#define WAYLAND_WL_POINTER_MOTION_EVENT                    2
+#define WAYLAND_WL_POINTER_BUTTON_EVENT                    3
+#define WAYLAND_WL_POINTER_AXIS_EVENT                      4
 
-#define WAYLAND_FORMAT_XRGB8888                      1
-#define WAYLAND_HEADER_SIZE                          8
-#define COLOR_CHANNELS                               4
+#define WAYLAND_WL_KEYBOARD_EVENT_KEY                      3
+#define WAYLAND_WL_KEYBOARD_EVENT_KEYMAP                   0
+
+#define WAYLAND_WP_CURSOR_SHAPE_MANAGER_GET_POINTER_OPCODE 1
+
+#define WAYLAND_WP_CURSOR_SHAPE_DEVICE_SET_SHAPE_OPCODE    1
+
+#define WAYLAND_FORMAT_XRGB8888                            1
+#define WAYLAND_HEADER_SIZE                                8
+#define COLOR_CHANNELS                                     4
 
 
 u32 __wayland_current_id = 1;
@@ -232,6 +238,8 @@ typedef struct {
   u32           wl_compositor;
   u32           wl_surface;
   u32           xdg_toplevel;
+  u32           wp_cursor_shape_manager;
+  u32           wp_cursor_shape_device;
   u32           stride;
   u32           w;
   u32           h;
@@ -240,6 +248,7 @@ typedef struct {
   u8           *shm_pool_data;
   f32           mouse_x;
   f32           mouse_y;
+  b8            mouse_buttons[2];
   Surface_State surface_state;
   Buffer_State  buffer_state;
   b8            should_close;
@@ -474,7 +483,57 @@ internal void wayland_xdg_surface_ack_configure(Socket socket, Wayland_State *st
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 }
 
-internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_Slice data) {
+internal u32 wayland_wp_cursor_shape_manager_get_pointer(Socket socket, Wayland_State *state) {
+  Builder builder;
+  builder_init(&builder, 0, 64, context.temp_allocator);
+  Writer writer = writer_from_builder(&builder);
+
+  write_any(&writer, &state->wp_cursor_shape_manager);
+
+  u16 opcode = WAYLAND_WP_CURSOR_SHAPE_MANAGER_GET_POINTER_OPCODE;
+  write_any(&writer, &opcode);
+
+  u16 msg_announced_size =
+    + WAYLAND_HEADER_SIZE
+    + size_of(__wayland_current_id)
+    + size_of(state->wl_pointer);
+  write_any(&writer, &msg_announced_size);
+
+  __wayland_current_id += 1;
+  write_any(&writer, &__wayland_current_id);
+
+  write_any(&writer, &state->wl_pointer);
+  
+  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
+
+  log_infof(LIT("-> wp_cursor_shape_manager@%d.get_pointer: current id=%d"), state->wp_cursor_shape_manager, __wayland_current_id);
+
+  return __wayland_current_id;
+}
+
+internal void wayland_wp_cursor_shape_device_set_shape(Socket socket, Wayland_State *state, u32 serial) {
+  Builder builder;
+  builder_init(&builder, 0, 64, context.temp_allocator);
+  Writer writer = writer_from_builder(&builder);
+
+  write_any(&writer, &state->wp_cursor_shape_device);
+
+  u16 opcode = WAYLAND_WP_CURSOR_SHAPE_DEVICE_SET_SHAPE_OPCODE;
+  write_any(&writer, &opcode);
+
+  u16 msg_announced_size = WAYLAND_HEADER_SIZE + size_of(serial) + size_of(u32);
+  write_any(&writer, &msg_announced_size);
+
+  write_any(&writer, &serial);
+  u32 cursor = 1;
+  write_any(&writer, &cursor);
+
+  log_infof(LIT("-> wp_cursor_shape_device@%d.set_shape: shape=%d"), state->wp_cursor_shape_device, cursor);
+
+  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
+}
+
+internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_Slice data) {
   if (data.len < 8) {
     fmt_panicf(LIT("Invalid len: %d"), data.len);
   }
@@ -526,6 +585,10 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
 
     if (string_equal(interface, LIT("wl_seat"))) {
       state->wl_seat = wayland_wl_registry_bind(socket, state->wl_registry, name, interface, version);
+    }
+
+    if (string_equal(interface, LIT("wp_cursor_shape_manager_v1"))) {
+      state->wp_cursor_shape_manager = wayland_wl_registry_bind(socket, state->wl_registry, name, interface, version);
     }
 
   } else if (object_id == state->xdg_wm_base && opcode == WAYLAND_XDG_WM_BASE_EVENT_PING) {
@@ -623,6 +686,7 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
     i32 x, y, value;
     b32 pressed;
     f32 fx, fy;
+    u32 surface;
 
     switch (opcode) {
     case WAYLAND_WL_POINTER_MOTION_EVENT:
@@ -642,15 +706,24 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
       read_any(&reader, &button);
       read_any(&reader, &pressed);
 
-      // #define BTN_MOUSE   0x110
-      // #define BTN_LEFT    0x110
-      // #define BTN_RIGHT   0x111
-      // #define BTN_MIDDLE  0x112
-      // #define BTN_SIDE    0x113
-      // #define BTN_EXTRA   0x114
-      // #define BTN_FORWARD 0x115
-      // #define BTN_BACK    0x116
-      // #define BTN_TASK    0x117
+      #define BTN_MOUSE   0x110
+      #define BTN_LEFT    0x110
+      #define BTN_RIGHT   0x111
+      #define BTN_MIDDLE  0x112
+      #define BTN_SIDE    0x113
+      #define BTN_EXTRA   0x114
+      #define BTN_FORWARD 0x115
+      #define BTN_BACK    0x116
+      #define BTN_TASK    0x117
+
+      switch (button) {
+      case BTN_LEFT:
+        state->mouse_buttons[0] = pressed;
+        break;
+      case BTN_RIGHT:
+        state->mouse_buttons[1] = pressed;
+        break;
+      }
 
       log_infof(LIT("Button: %d %B"), button, pressed);
       break;
@@ -660,6 +733,20 @@ internal isize handle_wayland_message(Socket socket, Wayland_State *state, Byte_
       read_any(&reader, &value);
 
       log_infof(LIT("Axis: %f %B"), (f32)value / 256.0, axis);
+      break;
+
+    case WAYLAND_WL_POINTER_ENTER_EVENT:
+      read_any(&reader, &serial);
+      read_any(&reader, &surface);
+
+      if (state->wp_cursor_shape_manager) {
+        if (!state->wp_cursor_shape_device) {
+          state->wp_cursor_shape_device = wayland_wp_cursor_shape_manager_get_pointer(socket, state);
+        }
+
+        wayland_wp_cursor_shape_device_set_shape(socket, state, serial);
+      }
+      
       break;
     }
   } else if (object_id == state->wl_seat) {
@@ -927,9 +1014,9 @@ internal void wayland_draw_rect_outlines(Wayland_State *state, i32 x, i32 y, i32
     }
   }
 
-  if (in_range(x + w, 0, state->w)) {
+  if (in_range(x + w, 0, state->w) && w) {
     for_range(_y, max(y, 0), min(y + h, state->h)) {
-      pixels[x + w + _y * state->w] = color;
+      pixels[x + w - 1 + _y * state->w] = color;
     }
   }
 
@@ -938,9 +1025,56 @@ internal void wayland_draw_rect_outlines(Wayland_State *state, i32 x, i32 y, i32
       pixels[_x + y * state->w] = color;
     }
   }
+  if (in_range(y + h, 0, state->h) && h) {
+    for_range(_x, max(x, 0), min(x + w, state->w)) {
+      pixels[_x + (y + h - 1) * state->w] = color;
+    }
+  }
+}
+
+internal void alpha_blend_rgb8(u32 *_dst, u32 _src, u8 _alpha) {
+  if (!_alpha) {
+    return;
+  }
+  Array(u8, 4)  src = transmute(type_of(src), _src);
+  Array(u8, 4) *dst = transmute(type_of(dst), _dst);
+  for_range(i, 0, 4) {
+    dst->data[i] = (((u16)dst->data[i] * (u16)(255 - _alpha)) >> 8) +
+                   (((u16)src.data[i]  * (u16)(      _alpha)) >> 8);
+  }
+}
+
+internal void alpha_blend_rgba8(u32 *dst, u32 src) {
+  alpha_blend_rgb8(dst, src, src >> 24);
+}
+
+internal void wayland_draw_rect_outlines_alpha(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+  if ((color & 0xFF) == 0xFF) {
+    wayland_draw_rect_outlines(state, x, y, w, h, color);
+    return;
+  }
+  u32 *pixels = (u32 *)state->shm_pool_data;
+
+  if (in_range(x, 0, state->w)) {
+    for_range(_y, max(y, 0), min(y + h, state->h)) {
+      alpha_blend_rgba8(&pixels[x + _y * state->w], color);
+    }
+  }
+
+  if (in_range(x + w, 0, state->w)) {
+    for_range(_y, max(y, 0), min(y + h, state->h)) {
+      alpha_blend_rgba8(&pixels[x + w - 1 + _y * state->w], color);
+    }
+  }
+
+  if (in_range(y, 0, state->h)) {
+    for_range(_x, max(x, 0), min(x + w, state->w)) {
+      alpha_blend_rgba8(&pixels[_x + y * state->w], color);
+    }
+  }
   if (in_range(y + h, 0, state->h)) {
     for_range(_x, max(x, 0), min(x + w, state->w)) {
-      pixels[_x + (y + h) * state->w] = color;
+      alpha_blend_rgba8(&pixels[_x + (y + h - 1) * state->w], color);
     }
   }
 }
@@ -954,9 +1088,246 @@ internal void wayland_draw_rect(Wayland_State *state, i32 x, i32 y, i32 w, i32 h
   }
 }
 
-BMF_Font font;
+internal void wayland_draw_rect_alpha(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+  if ((color >> 24) == 0xFF) {
+    wayland_draw_rect(state, x, y, w, h, color);
+    return;
+  }
+  u32 *pixels = (u32 *)state->shm_pool_data;
+  for_range(_y, max(y, 0), min(y + h, state->h)) {
+    for_range(_x, max(x, 0), min(x + w, state->w)) {
+      alpha_blend_rgba8(&pixels[_x + _y * state->w], color);
+    }
+  }
+}
 
-internal void wayland_render(Wayland_State *state) {
+internal void wayland_draw_rect_gradient_v(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 _start, u32 _end) {
+  u32 *pixels = (u32 *)state->shm_pool_data;
+
+  Array(u8, 4) start = transmute(type_of(start), _start);
+  Array(u8, 4) end   = transmute(type_of(end),   _end  );
+  Array(u8, 4) color = {0};
+  
+  for_range(_y, max(y, 0), min(y + h, state->h)) {
+    u8 t = (255 * (_y - y)) / h;
+    for_range(i, 0, 4) {
+      color.data[i] = (((u16)start.data[i] * (u16)(255 - t)) >> 8) +
+                      (((u16)end.  data[i] * (u16)(      t)) >> 8);
+    }
+    for_range(_x, max(x, 0), min(x + w, state->w)) {
+      alpha_blend_rgba8(&pixels[_x + _y * state->w], transmute(u32, color));
+    }
+  }
+}
+
+internal void wayland_draw_rect_gradient_h(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 _start, u32 _end) {
+  u32 *pixels = (u32 *)state->shm_pool_data;
+
+  Array(u8, 4) start = transmute(type_of(start), _start);
+  Array(u8, 4) end   = transmute(type_of(end),   _end  );
+  Array(u8, 4) color = {0};
+
+  // TODO(Franz): Update this value based on profiling
+  if (state->h < 64) {
+    for_range(_x, max(x, 0), min(x + w, state->w)) {
+      u8 t = (255 * (_x - x)) / w;
+      for_range(i, 0, 4) {
+        color.data[i] = (((u16)start.data[i] * (u16)(255 - t)) >> 8) +
+                        (((u16)end.  data[i] * (u16)(      t)) >> 8);
+      }
+      for_range(_y, max(y, 0), min(y + h, state->h)) {
+        alpha_blend_rgba8(&pixels[_x + _y * state->w], transmute(u32, color));
+      }
+    }
+  } else {
+    for_range(_y, max(y, 0), min(y + h, state->h)) {
+      for_range(_x, max(x, 0), min(x + w, state->w)) {
+        u8 t = (255 * (_x - x)) / w;
+        for_range(i, 0, 4) {
+          color.data[i] = (((u16)start.data[i] * (u16)(255 - t)) >> 8) +
+                          (((u16)end.  data[i] * (u16)(      t)) >> 8);
+        }
+        alpha_blend_rgba8(&pixels[_x + _y * state->w], transmute(u32, color));
+      }
+    }
+  }
+}
+
+internal isize wayland_draw_text(Wayland_State *state, String str, u32 color, isize *x, isize *y) {
+  isize start_x = *x;
+
+  u32 *pixels = (u32 *)state->shm_pool_data;
+  BMF_Baked_Quad_I q;
+  u16 color_alpha = color >> 24;
+
+  slice_iter(str, c, _i, {
+    if (*c == '\n') {
+      *x = start_x;
+    }
+    b8 ok = bmf_get_baked_quad_i(&font, *c, x, y, &q);
+
+    if (q.x0 >= state->w) {
+      break;
+    }
+    if (q.y0 >= state->h) {
+      break;
+    }
+
+    for_range(ry, 0, q.y1 - q.y0) {
+      isize _y = ry + q.y0;
+      isize _v = ry + q.v0;
+
+      if (_y >= state->h) {
+        break;
+      }
+
+      for_range(rx, 0, q.x1 - q.x0) {
+        isize _x = rx + q.x0;
+        isize _u = rx + q.u0;
+
+        if (_x >= state->w) {
+          break;
+        }
+
+        u16 alpha = font.atlas.data[_u + _v * font.atlas_width];
+        alpha_blend_rgb8(&pixels[_x + _y * state->w], color, (alpha * color_alpha) >> 8);
+      }
+    }
+  })
+}
+
+UI_Context ui_context;
+
+String fps_string = {0};
+
+internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
+  // slice_iter(ctx->commands, cmd, _i, {
+  //   u32 hash = hash_ui_command(0, *cmd);
+  //   // ui_state->command_hashes
+  // });
+  Rectangle rect;
+  isize x, y;
+  slice_iter(ctx->commands, cmd, _i, {
+    switch(cmd->type) {
+    case UI_Command_Type_None:
+      break;
+    case UI_Command_Type_Gradient:
+      rect = cmd->variant.box.rect;
+      wayland_draw_rect_gradient_v(
+        wl_state,
+        rect.x0 + 1,
+        rect.y0 + 1,
+        rect.x1 - rect.x0 - 2,
+        rect.y1 - rect.y0 - 2,
+        cmd->variant.box.color,
+        cmd->variant.box.color2
+      );
+      wayland_draw_rect_outlines_alpha(
+        wl_state,
+        rect.x0,
+        rect.y0,
+        rect.x1 - rect.x0,
+        rect.y1 - rect.y0,
+        cmd->variant.box.outline
+      );
+
+      #define UI_SHADOW_RADIUS       16
+      #define UI_SHADOW_INV_STRENGTH 2
+      #define UI_SHADOW_COLOR        0
+
+      if (rect.y1 + UI_SHADOW_RADIUS < wl_state->h) {
+        u32 *pixels = (u32 *)wl_state->shm_pool_data;
+        for_range(_y, 0, UI_SHADOW_RADIUS) {
+          u8 t = (255 * (UI_SHADOW_RADIUS - _y)) / UI_SHADOW_RADIUS;
+          t = ((u16)t * (u16)t) >> 8;
+          for_range(_x, rect.x0 + UI_SHADOW_RADIUS, rect.x1) {
+            alpha_blend_rgb8(&pixels[_x + wl_state->w * (_y + rect.y1)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
+          }
+        }
+        for_range(_x, 0, UI_SHADOW_RADIUS) {
+          u8 t = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
+          t = ((u16)t * (u16)t) >> 8;
+          for_range(_y, rect.y0 + UI_SHADOW_RADIUS, rect.y1) {
+            alpha_blend_rgb8(&pixels[rect.x1 + _x + wl_state->w * _y], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
+          }
+        }
+        for_range(_y, 0, UI_SHADOW_RADIUS) {
+          for_range(_x, 0, UI_SHADOW_RADIUS) {
+            u8 tx = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
+            u8 ty = (255 * (UI_SHADOW_RADIUS - _y)) / UI_SHADOW_RADIUS;
+
+            tx = ((u16)tx * (u16)tx) >> 8;
+            ty = ((u16)ty * (u16)ty) >> 8;
+
+            u8 t = ((u16)tx * (u16)ty) >> 8;
+
+            alpha_blend_rgb8(&pixels[rect.x1 + _x + wl_state->w * (_y + rect.y1)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
+          }
+        }
+        for_range(_y, 0, UI_SHADOW_RADIUS) {
+          for_range(_x, 0, UI_SHADOW_RADIUS) {
+            u8 tx = (255 * _x) / UI_SHADOW_RADIUS;
+            u8 ty = (255 * (UI_SHADOW_RADIUS - _y)) / UI_SHADOW_RADIUS;
+
+            tx = ((u16)tx * (u16)tx) >> 8;
+            ty = ((u16)ty * (u16)ty) >> 8;
+
+            u8 t = ((u16)tx * (u16)ty) >> 8;
+
+            alpha_blend_rgb8(&pixels[rect.x0 + _x + wl_state->w * (_y + rect.y1)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
+          }
+        }
+        for_range(_y, 0, UI_SHADOW_RADIUS) {
+          for_range(_x, 0, UI_SHADOW_RADIUS) {
+            u8 tx = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
+            u8 ty = (255 * _y) / UI_SHADOW_RADIUS;
+
+            tx = ((u16)tx * (u16)tx) >> 8;
+            ty = ((u16)ty * (u16)ty) >> 8;
+
+            u8 t = ((u16)tx * (u16)ty) >> 8;
+
+            alpha_blend_rgb8(&pixels[rect.x1 + _x + wl_state->w * (_y + rect.y0)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
+          }
+        }
+      }
+      break;
+    case UI_Command_Type_Box:
+      rect = cmd->variant.box.rect;
+      wayland_draw_rect_alpha(
+        wl_state,
+        rect.x0,
+        rect.y0,
+        rect.x1 - rect.x0,
+        rect.y1 - rect.y0,
+        cmd->variant.box.color
+      );
+      wayland_draw_rect_outlines_alpha(
+        wl_state,
+        rect.x0 - 1,
+        rect.y0 - 1,
+        rect.x1 - rect.x0 + 2,
+        rect.y1 - rect.y0 + 2,
+        cmd->variant.box.outline
+      );
+      break;
+    case UI_Command_Type_Text:
+      x = cmd->variant.text.bounds.x0;
+      y = cmd->variant.text.bounds.y1 - font.decender;
+      wayland_draw_text(wl_state, cmd->variant.text.text, cmd->variant.text.color, &x, &y);
+      break;
+    case UI_Command_Type_Image:
+      unimplemented();
+      break;
+    }
+  });
+
+  vector_clear(&ctx->commands);
+  ctx->x = 25;
+  ctx->y = 25;
+}
+
+internal void wayland_render(Wayland_State *state, Directory const *directory) {
   u32 *pixels = (u32 *)state->shm_pool_data;
   struct Time time = time_now();
   i32 t = time.nsec / Millisecond;
@@ -970,46 +1341,28 @@ internal void wayland_render(Wayland_State *state) {
     }
   }
 
-  for_range(i, 0, 10) {
-    if (
-      (state->mouse_y > 25 + i * 100) && (state->mouse_y < 50 + 25 + i * 100) &&
-      (state->mouse_x > 25)           && (state->mouse_x < state->w - 25)
-    ) {
-      wayland_draw_rect_outlines(state, 25, 25 + i * 100, state->w - 50, 50, 0xFFE06B74);
-    } else {
-      wayland_draw_rect_outlines(state, 25, 25 + i * 100, state->w - 50, 50, 0xFF62AEEF);
-    }
-  }
+  String str   = LIT("The quick brown fox jumps over the lazy dog");
+  ui_context.mouse.x = state->mouse_x;
+  ui_context.mouse.y = state->mouse_y;
 
-  isize x = 30;
-  isize y = 25 + 25 + 12;
-  BMF_Baked_Quad_I q;
+  ui_context.width  = state->w;
+  ui_context.height = state->h;
 
-  slice_iter(LIT("The quick brown fox jumps over the lazy dog"), c, _i, {
-    b8 ok = bmf_get_baked_quad_i(&font, *c, &x, &y, &q);
-    assert(ok);
+  ui_context.mouse.buttons[0] = state->mouse_buttons[0];
+  ui_context.mouse.buttons[1] = state->mouse_buttons[1];
 
-    for_range(ry, 0, q.y1 - q.y0) {
-      for_range(rx, 0, q.x1 - q.x0) {
-        isize _x = rx + q.x0;
-        isize _y = ry + q.y0;
+  ui_label(&ui_context, fps_string);
+  ui_label(&ui_context, str);
 
-        isize _u = rx + q.u0;
-        isize _v = ry + q.v0;
-
-        u8 alpha = font.atlas.data[_u + _v * font.atlas_width];
-
-        // u32 color = 0x98C379;
-        u32 color = 0xABB2BF;
-        Array(u8, 4)src = transmute(type_of(src), color);
-        Array(u8, 4)dst = transmute(type_of(dst), pixels[_x + _y * state->w]);
-        for_range(i, 0, 4) {
-          dst.data[i] = (((u16)dst.data[i] * (u16)(255 - alpha)) >> 8) +
-                        (((u16)src.data[i] * (u16)(      alpha)) >> 8);
-        }
-
-        pixels[_x + _y * state->w] = transmute(u32, dst);
-      }
-    }
+  slice_iter(*directory, file, _i, {
+    ui_button(&ui_context, file->name);
   })
+
+  // if (ui_button(&ui_context, LIT("Hello Button"))) {
+  //   if (ui_button(&ui_context, LIT("Hello Button"))) {
+  //   }
+  // }
+
+  ui_state_render(&ui_context, state);
+
 }

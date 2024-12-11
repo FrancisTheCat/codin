@@ -218,6 +218,11 @@ internal b8 bmf_get_baked_quad_i(BMF_Font const *font, rune c, isize *x, isize *
 		mem_zero(quad, size_of(*quad));
 		return true;
   }
+  if (c == '\n') {
+		*y += font->single_h + font->spacing;
+		mem_zero(quad, size_of(*quad));
+		return true;
+  }
   isize n = bmf_get_quad_index(c);
   if (n == -1) {
 		// bmf_get_baked_quad(font, '!', x, y, quad);
@@ -236,12 +241,10 @@ internal b8 bmf_get_baked_quad_i(BMF_Font const *font, rune c, isize *x, isize *
 	i32 fw = font->atlas_width;
 	i32 fh = font->atlas_height;
 
-	*x += font->single_w + font->spacing;
-
 	*quad = (BMF_Baked_Quad_I) {
-  	(i32)(*x) - font->spacing,
+  	(i32)(*x),
   	(i32)(*y) - font->single_h + font->decender,
-  	(i32)(*x) - font->spacing + font->single_w,
+  	(i32)(*x) + font->single_w,
   	(i32)(*y) + font->decender,
   	x0_px,
   	y0_px,
@@ -249,5 +252,14 @@ internal b8 bmf_get_baked_quad_i(BMF_Font const *font, rune c, isize *x, isize *
   	y1_px,
   };
 
+	*x += font->single_w + font->spacing;
+
 	return true;
+}
+
+internal isize bmf_measure_text(BMF_Font const *font, String text) {
+	if (text.len == 0) {
+		return 0;
+	}
+	return text.len * (font->single_w + font->spacing) - font->spacing;
 }

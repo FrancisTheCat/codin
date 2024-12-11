@@ -2,10 +2,6 @@
 // #include "image.h"
 #include "iter.h"
 
-// #include <vulkan/vulkan.h>
-// #include <vulkan/vulkan_core.h>
-// #include <vulkan/vulkan_wayland.h>
-
 b8 test_sort() {
   Slice(isize) sorting_array;
   slice_init(&sorting_array, 1e4, context.allocator);
@@ -252,17 +248,17 @@ int main() {
   Allocator arena_allocator =
       arena_allocator_init(&arena, 1024, context.allocator);
 
-  Directory dir = unwrap_err(read_directory_path(LIT("."), context.allocator));
+  Directory directory = unwrap_err(read_directory_path(LIT("."), context.allocator));
 
   isize max_name_len = 0;
   isize max_size_len = LIT("<dir>").len;
 
-  slice_iter(dir, file, i, {
+  slice_iter(directory, file, i, {
     max_name_len = max(file->name.len, max_name_len);
     max_size_len = max(fmt_file_size_w(nil, file->size), max_size_len);
   });
 
-  sort_slice_by(dir, i, j, string_compare_lexicographic(dir.data[i].name, dir.data[j].name));
+  sort_slice_by(directory, i, j, string_compare_lexicographic(directory.data[i].name, directory.data[j].name));
       // ((dir.data[i].is_dir != dir.data[j].is_dir)
       //      ? dir.data[i].is_dir
       //      : string_compare_lexicographic(dir.data[i].name,
@@ -276,7 +272,7 @@ int main() {
     *(char *)s = ' ';
   });
 
-  slice_iter(dir, file, i, {
+  slice_iter(directory, file, i, {
     isize n = fmt_printf(LIT("%S"), file->name);
     fmt_print(slice_range(spaces, 0, max_name_len - n));
 
@@ -299,7 +295,7 @@ int main() {
   fmt_printfln(LIT("PI: %.8f"), 3.14159265359);
   fmt_printfln(LIT("E:  %.8f"), 2.71828182846);
 
-  directory_delete(dir, context.allocator);
+  // directory_delete(dir, context.allocator);
 
   Process_Creation_Args pargs = DEFAULT_PROCESS_ARGS;
   pargs.args = SLICE_VAL(Process_Args, {LIT("/bin/echo"), LIT("HELLO FROM ECHO")});
@@ -541,6 +537,8 @@ int main() {
   b8 shm_ok = create_shared_memory_file(state.shm_pool_size, &state);
   assert(shm_ok);
 
+  ui_context_init(&ui_context, 1, 1, context.allocator);
+
   vector_init(&state.fds_in, 0, 8, context.allocator);
 
   struct Time last_fps_print = time_now();
@@ -569,7 +567,7 @@ int main() {
     }
 
     while (read_buf.len > 0) {
-      read_buf = slice_range(read_buf, handle_wayland_message(wl_socket, &state, read_buf), read_buf.len);
+      read_buf = slice_range(read_buf, wayland_handle_message(wl_socket, &state, read_buf), read_buf.len);
     }
 
     if (state.wl_compositor != 0 && state.wl_shm != 0 && state.xdg_wm_base != 0 && state.wl_surface == 0) {
@@ -623,13 +621,7 @@ int main() {
     
       state.wl_buffer = wayland_wl_shm_pool_create_buffer(wl_socket, &state);
 
-      wayland_render(&state);
-
-      wayland_wl_surface_attach(wl_socket, &state);
-      wayland_wl_surface_damage_buffer(wl_socket, &state, 0, 0, state.w, state.h);
-      wayland_wl_surface_commit(wl_socket, &state);
-
-      state.buffer_state  = Buffer_State_Busy;
+      state.buffer_state  = Buffer_State_Released;
       state.should_resize = false;
     }
 
@@ -637,12 +629,16 @@ int main() {
       frames_since_print += 1;
 
       if (time_now().nsec - last_fps_print.nsec > Second) {
-        wayland_xdg_toplevel_set_title(wl_socket, &state, fmt_tprintf(LIT("FPS: %d"), frames_since_print));
+        if (fps_string.data) {
+          string_delete(fps_string, context.allocator);
+        }
+        fps_string = fmt_aprintf(context.allocator, LIT("FPS: %d"), frames_since_print);
+        wayland_xdg_toplevel_set_title(wl_socket, &state, fps_string);
         last_fps_print = time_now();
         frames_since_print = 0;
       }
 
-      wayland_render(&state);
+      wayland_render(&state, &directory);
 
       wayland_wl_surface_attach(wl_socket, &state);
       wayland_wl_surface_damage_buffer(wl_socket, &state, 0, 0, state.w, state.h);
@@ -653,6 +649,9 @@ int main() {
     
     mem_free_all(context.temp_allocator);
   }
+
+  directory_delete(directory, context.allocator);
+  ui_context_destroy(&ui_context, context.allocator);
 
   arena_allocator_destroy(arena, context.allocator);
   tracking_allocator_fmt_results_w(&stdout, &track);
