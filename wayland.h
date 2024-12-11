@@ -1014,7 +1014,7 @@ internal void wayland_draw_rect_outlines(Wayland_State *state, i32 x, i32 y, i32
     }
   }
 
-  if (in_range(x + w, 0, state->w) && w) {
+  if (in_range(x + w - 1, 0, state->w) && w) {
     for_range(_y, max(y, 0), min(y + h, state->h)) {
       pixels[x + w - 1 + _y * state->w] = color;
     }
@@ -1025,7 +1025,7 @@ internal void wayland_draw_rect_outlines(Wayland_State *state, i32 x, i32 y, i32
       pixels[_x + y * state->w] = color;
     }
   }
-  if (in_range(y + h, 0, state->h) && h) {
+  if (in_range(y + h - 1, 0, state->h) && h) {
     for_range(_x, max(x, 0), min(x + w, state->w)) {
       pixels[_x + (y + h - 1) * state->w] = color;
     }
@@ -1061,7 +1061,7 @@ internal void wayland_draw_rect_outlines_alpha(Wayland_State *state, i32 x, i32 
     }
   }
 
-  if (in_range(x + w, 0, state->w)) {
+  if (in_range(x + w - 1, 0, state->w) && w) {
     for_range(_y, max(y, 0), min(y + h, state->h)) {
       alpha_blend_rgba8(&pixels[x + w - 1 + _y * state->w], color);
     }
@@ -1072,7 +1072,7 @@ internal void wayland_draw_rect_outlines_alpha(Wayland_State *state, i32 x, i32 
       alpha_blend_rgba8(&pixels[_x + y * state->w], color);
     }
   }
-  if (in_range(y + h, 0, state->h)) {
+  if (in_range(y + h - 1, 0, state->h) && h) {
     for_range(_x, max(x, 0), min(x + w, state->w)) {
       alpha_blend_rgba8(&pixels[_x + (y + h - 1) * state->w], color);
     }
@@ -1200,6 +1200,69 @@ UI_Context ui_context;
 
 String fps_string = {0};
 
+internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
+  #define UI_SHADOW_RADIUS       16
+  #define UI_SHADOW_INV_STRENGTH 2
+  #define UI_SHADOW_COLOR        0
+
+  if (rect.y1 + UI_SHADOW_RADIUS < state->h) {
+    u32 *pixels = (u32 *)state->shm_pool_data;
+    for_range(_y, 0, UI_SHADOW_RADIUS) {
+      u8 t = (255 * (UI_SHADOW_RADIUS - _y)) / UI_SHADOW_RADIUS;
+      t = ((u16)t * (u16)t) >> 8;
+      for_range(_x, rect.x0 + UI_SHADOW_RADIUS, rect.x1) {
+        alpha_blend_rgb8(&pixels[_x + state->w * (_y + rect.y1)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
+      }
+    }
+    for_range(_x, 0, UI_SHADOW_RADIUS) {
+      u8 t = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
+      t = ((u16)t * (u16)t) >> 8;
+      for_range(_y, rect.y0 + UI_SHADOW_RADIUS, rect.y1) {
+        alpha_blend_rgb8(&pixels[rect.x1 + _x + state->w * _y], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
+      }
+    }
+    for_range(_y, 0, UI_SHADOW_RADIUS) {
+      for_range(_x, 0, UI_SHADOW_RADIUS) {
+        u8 tx = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
+        u8 ty = (255 * (UI_SHADOW_RADIUS - _y)) / UI_SHADOW_RADIUS;
+
+        tx = ((u16)tx * (u16)tx) >> 8;
+        ty = ((u16)ty * (u16)ty) >> 8;
+
+        u8 t = ((u16)tx * (u16)ty) >> 8;
+
+        alpha_blend_rgb8(&pixels[rect.x1 + _x + state->w * (_y + rect.y1)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
+      }
+    }
+    for_range(_y, 0, UI_SHADOW_RADIUS) {
+      for_range(_x, 0, UI_SHADOW_RADIUS) {
+        u8 tx = (255 * _x) / UI_SHADOW_RADIUS;
+        u8 ty = (255 * (UI_SHADOW_RADIUS - _y)) / UI_SHADOW_RADIUS;
+
+        tx = ((u16)tx * (u16)tx) >> 8;
+        ty = ((u16)ty * (u16)ty) >> 8;
+
+        u8 t = ((u16)tx * (u16)ty) >> 8;
+
+        alpha_blend_rgb8(&pixels[rect.x0 + _x + state->w * (_y + rect.y1)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
+      }
+    }
+    for_range(_y, 0, UI_SHADOW_RADIUS) {
+      for_range(_x, 0, UI_SHADOW_RADIUS) {
+        u8 tx = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
+        u8 ty = (255 * _y) / UI_SHADOW_RADIUS;
+
+        tx = ((u16)tx * (u16)tx) >> 8;
+        ty = ((u16)ty * (u16)ty) >> 8;
+
+        u8 t = ((u16)tx * (u16)ty) >> 8;
+
+        alpha_blend_rgb8(&pixels[rect.x1 + _x + state->w * (_y + rect.y0)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
+      }
+    }
+  }
+}
+
 internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
   // slice_iter(ctx->commands, cmd, _i, {
   //   u32 hash = hash_ui_command(0, *cmd);
@@ -1230,86 +1293,27 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
         rect.y1 - rect.y0,
         cmd->variant.box.outline
       );
-
-      #define UI_SHADOW_RADIUS       16
-      #define UI_SHADOW_INV_STRENGTH 2
-      #define UI_SHADOW_COLOR        0
-
-      if (rect.y1 + UI_SHADOW_RADIUS < wl_state->h) {
-        u32 *pixels = (u32 *)wl_state->shm_pool_data;
-        for_range(_y, 0, UI_SHADOW_RADIUS) {
-          u8 t = (255 * (UI_SHADOW_RADIUS - _y)) / UI_SHADOW_RADIUS;
-          t = ((u16)t * (u16)t) >> 8;
-          for_range(_x, rect.x0 + UI_SHADOW_RADIUS, rect.x1) {
-            alpha_blend_rgb8(&pixels[_x + wl_state->w * (_y + rect.y1)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
-          }
-        }
-        for_range(_x, 0, UI_SHADOW_RADIUS) {
-          u8 t = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
-          t = ((u16)t * (u16)t) >> 8;
-          for_range(_y, rect.y0 + UI_SHADOW_RADIUS, rect.y1) {
-            alpha_blend_rgb8(&pixels[rect.x1 + _x + wl_state->w * _y], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
-          }
-        }
-        for_range(_y, 0, UI_SHADOW_RADIUS) {
-          for_range(_x, 0, UI_SHADOW_RADIUS) {
-            u8 tx = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
-            u8 ty = (255 * (UI_SHADOW_RADIUS - _y)) / UI_SHADOW_RADIUS;
-
-            tx = ((u16)tx * (u16)tx) >> 8;
-            ty = ((u16)ty * (u16)ty) >> 8;
-
-            u8 t = ((u16)tx * (u16)ty) >> 8;
-
-            alpha_blend_rgb8(&pixels[rect.x1 + _x + wl_state->w * (_y + rect.y1)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
-          }
-        }
-        for_range(_y, 0, UI_SHADOW_RADIUS) {
-          for_range(_x, 0, UI_SHADOW_RADIUS) {
-            u8 tx = (255 * _x) / UI_SHADOW_RADIUS;
-            u8 ty = (255 * (UI_SHADOW_RADIUS - _y)) / UI_SHADOW_RADIUS;
-
-            tx = ((u16)tx * (u16)tx) >> 8;
-            ty = ((u16)ty * (u16)ty) >> 8;
-
-            u8 t = ((u16)tx * (u16)ty) >> 8;
-
-            alpha_blend_rgb8(&pixels[rect.x0 + _x + wl_state->w * (_y + rect.y1)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
-          }
-        }
-        for_range(_y, 0, UI_SHADOW_RADIUS) {
-          for_range(_x, 0, UI_SHADOW_RADIUS) {
-            u8 tx = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
-            u8 ty = (255 * _y) / UI_SHADOW_RADIUS;
-
-            tx = ((u16)tx * (u16)tx) >> 8;
-            ty = ((u16)ty * (u16)ty) >> 8;
-
-            u8 t = ((u16)tx * (u16)ty) >> 8;
-
-            alpha_blend_rgb8(&pixels[rect.x1 + _x + wl_state->w * (_y + rect.y0)], UI_SHADOW_COLOR, t / UI_SHADOW_INV_STRENGTH);
-          }
-        }
-      }
+      wayland_draw_box_shadow(wl_state, rect);
       break;
     case UI_Command_Type_Box:
       rect = cmd->variant.box.rect;
       wayland_draw_rect_alpha(
         wl_state,
-        rect.x0,
-        rect.y0,
-        rect.x1 - rect.x0,
-        rect.y1 - rect.y0,
+        rect.x0 + 1,
+        rect.y0 + 1,
+        rect.x1 - rect.x0 - 2,
+        rect.y1 - rect.y0 - 2,
         cmd->variant.box.color
       );
       wayland_draw_rect_outlines_alpha(
         wl_state,
-        rect.x0 - 1,
-        rect.y0 - 1,
-        rect.x1 - rect.x0 + 2,
-        rect.y1 - rect.y0 + 2,
+        rect.x0,
+        rect.y0,
+        rect.x1 - rect.x0,
+        rect.y1 - rect.y0,
         cmd->variant.box.outline
       );
+      wayland_draw_box_shadow(wl_state, rect);
       break;
     case UI_Command_Type_Text:
       x = cmd->variant.text.bounds.x0;
