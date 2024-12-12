@@ -163,7 +163,7 @@ internal b8 ui_button(UI_Context *ctx, String text) {
     .x0 = ctx->x,
     .y0 = ctx->y,
     .x1 = ctx->width - 25,
-    .y1 = ctx->y + font.single_h,
+    .y1 = ctx->y + font.single_h + font.decender,
   };
 
   UI_Color color         = UI_Color_Button;
@@ -194,6 +194,8 @@ internal b8 ui_button(UI_Context *ctx, String text) {
   };
   vector_append(&ctx->commands, cmd);
 
+  rect.x0 += font.decender;
+
   cmd.type        = UI_Command_Type_Text;
   cmd.variant.text = (UI_Command_Text) {
     .text   = text,
@@ -201,7 +203,7 @@ internal b8 ui_button(UI_Context *ctx, String text) {
     .color  = ctx->colors[text_color],
   };
 
-  ctx->y += font.single_h * 2;
+  ctx->y += font.single_h * 2 + font.decender;
   
   vector_append(&ctx->commands, cmd);
 
@@ -214,8 +216,8 @@ internal void ui_label(UI_Context *ctx, String text) {
   Rectangle rect = (Rectangle) {
     .x0 = ctx->x,
     .y0 = ctx->y,
-    .x1 = ctx->x + width,
-    .y1 = ctx->y + font.single_h,
+    .x1 = ctx->x + width + font.decender * 2,
+    .y1 = ctx->y + font.single_h + font.decender,
   };
 
   UI_Color color         = UI_Color_Label;
@@ -230,6 +232,8 @@ internal void ui_label(UI_Context *ctx, String text) {
   };
   vector_append(&ctx->commands, cmd);
 
+  rect.x0 += font.decender;
+
   cmd.type        = UI_Command_Type_Text;
   cmd.variant.text = (UI_Command_Text) {
     .text   = text,
@@ -237,7 +241,7 @@ internal void ui_label(UI_Context *ctx, String text) {
     .color  = ctx->colors[text_color],
   };
 
-  ctx->y += font.single_h * 2;
+  ctx->y += font.single_h * 2 + font.decender;
   
   vector_append(&ctx->commands, cmd);
 }

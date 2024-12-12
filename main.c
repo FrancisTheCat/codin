@@ -1,6 +1,7 @@
 #include "codin.h"
 // #include "image.h"
 #include "iter.h"
+#include "math.h"
 
 b8 test_sort() {
   Slice(isize) sorting_array;
@@ -543,6 +544,23 @@ int main() {
 
   struct Time last_fps_print = time_now();
   isize frames_since_print = 0;
+
+  for_range(_i, 0, 256) {
+    u8 i = _i;
+
+    f32 f = sqrtf((f32)i / 255.0);
+
+    __fixed_0_8_sqrt_lut[i] = (u8)(f * 255);
+  }
+
+  for_range(_i, 0, 256) {
+    u8 i = _i;
+
+    f32 x = (f32)i / 255.0;
+
+    f32 f = x * x * (3.0f - 2.0f * x);
+    __fixed_0_8_smoothstep_lut[i] = (u8)(f * 255);
+  }
 
   while (!state.should_close) {
     byte _read_buf[4096] = {0};
