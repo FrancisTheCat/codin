@@ -4,6 +4,22 @@
 #include "zlib.h"
 #include "deflate.h"
 
+typedef enum {
+  PNG_CT_Palette = 1,
+  PNG_CT_Color   = 2,
+  PNG_CT_Alpha   = 4,
+} PNG_Color_Type;
+
+struct IHDR {
+  u32 width;
+  u32 height;
+  u8 bit_depth;
+  u8 color_type;
+  u8 compression_method;
+  u8 filter_method;
+  u8 interlace_method;
+} __attribute__ ((packed));
+
 internal rawptr z_alloc_proc(rawptr allocator, u32 items, u32 size) {
   Allocator *a = (Allocator *)allocator;
   return unwrap_err(mem_alloc(items * size, *a));
@@ -232,22 +248,7 @@ internal b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
   }
   i += ihdr_chunk.len + 12;
 
-  typedef enum {
-    PNG_CT_Palette = 1,
-    PNG_CT_Color   = 2,
-    PNG_CT_Alpha   = 4,
-  } PNG_Color_Type;
-
-  #pragma pack(1) 
-  struct IHDR {
-    u32 width;
-    u32 height;
-    u8 bit_depth;
-    u8 color_type;
-    u8 compression_method;
-    u8 filter_method;
-    u8 interlace_method;
-  } ihdr = *(struct IHDR*)&ihdr_chunk.data[0];
+  struct IHDR ihdr = *(struct IHDR*)&ihdr_chunk.data[0];
 
   if (size_of(struct IHDR) != ihdr_chunk.len) {
     return false;
@@ -328,18 +329,18 @@ internal b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
 
   buf = vector_to_slice(Byte_Slice, compressed_data);
 
-  {
-    Byte_Slice copy = buf; 
-    Reader reader = buffer_reader(&copy);
-    Writer writer = null_writer();
-    b8 result = my_inflate(&reader, &writer);
-    log_infof(LIT("result: %B"), (isize)result);
-  }
+  // {
+  //   Byte_Slice copy = buf; 
+  //   Reader reader = buffer_reader(&copy);
+  //   Writer writer = null_writer();
+  //   b8 result = my_inflate(&reader, &writer);
+  //   log_infof(LIT("result: %B"), (isize)result);
+  // }
 
-  result = zlib_inflate(buffer_reader(&buf), buffer_writer);
-  if (buf.len != 0 || result != Z_OK) {
-    goto fail;
-  }
+  // result = zlib_inflate(buffer_reader(&buf), buffer_writer);
+  // if (buf.len != 0 || result != Z_OK) {
+  //   goto fail;
+  // }
   
   for_range(y, 0, ihdr.height) {
     byte filter = temp_buffer.data[bpp * y * ihdr.width + y];
@@ -460,22 +461,7 @@ b8 png_save_writer(Writer const *writer, Image *image) {
     return false;
   }
 
-  typedef enum {
-    PNG_CT_Palette = 1,
-    PNG_CT_Color   = 2,
-    PNG_CT_Alpha   = 4,
-  } PNG_Color_Type;
-
-  #pragma pack(1) 
-  struct IHDR {
-    u32 width;
-    u32 height;
-    u8 bit_depth;
-    u8 color_type;
-    u8 compression_method;
-    u8 filter_method;
-    u8 interlace_method;
-  } ihdr = {0};
+   struct IHDR ihdr = {0};
 
   isize bpp = image->components * (image->pixel_type == PT_u8 ? 1 : 2);
   if (image->pixels.len != bpp * image->width * image->height) {
@@ -722,4 +708,26 @@ b8 ppm_load_bytes(Byte_Slice data, Image *image) {
   image->pixels.len  = image->width * image->height * 3;
 
   return true;
+}
+
+void image_clone_to_rgba8(Image const *in, Image *out, Allocator allocator) {
+  *out = *in;
+
+  assert(in->pixel_type == PT_u8);
+  assert(in->components == 3);
+
+  out->components = 4;
+  out->pixel_type = PT_u8;
+
+  slice_init(&out->pixels, in->width * in->height * 4, allocator);
+
+  for_range(y, 0, in->height) {
+    for_range(x, 0, in->width) {
+      u8 r = in->pixels.data[(x + y * in->width) * in->components + 1];
+      u8 g = in->pixels.data[(x + y * in->width) * in->components + 2];
+      u8 b = in->pixels.data[(x + y * in->width) * in->components + 0];
+
+      ((u32 *)out->pixels.data)[x + y * out->width] = (0xFF << 24) | (r << 16) | (g << 8) | b;
+    }
+  }
 }

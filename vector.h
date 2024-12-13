@@ -41,6 +41,9 @@ typedef Vector(byte) Byte_Buffer;
 #define vector_append(_vector, elem)                                           \
   {                                                                            \
     type_of(_vector) vector = _vector;                                         \
+    if (!vector->allocator.proc) {                                             \
+      vector->allocator = context.allocator;                                   \
+    }                                                                          \
     if (vector->len == vector->cap) {                                          \
       isize new_cap = max(vector->cap * 2, 8);                                 \
       mem_resize((rawptr *)&vector->data,                                      \
@@ -56,6 +59,9 @@ typedef Vector(byte) Byte_Buffer;
 #define vector_append_slice(_vector, s)                                        \
   {                                                                            \
     type_of(_vector) vector = _vector;                                         \
+    if (!vector->allocator.proc) {                                             \
+      vector->allocator = context.allocator;                                   \
+    }                                                                          \
     assert(sizeof((s).data[0]) == sizeof(vector->data[0]));                    \
     if (vector->len + (s).len >= vector->cap) {                                \
       isize new_cap = max(vector->len + (s).len, max(vector->cap * 2, 8));     \
@@ -71,6 +77,9 @@ typedef Vector(byte) Byte_Buffer;
 #define vector_reserve(_vector, _cap)                                          \
   {                                                                            \
     type_of(_vector) vector = _vector;                                         \
+    if (!vector->allocator.proc) {                                             \
+      vector->allocator = context.allocator;                                   \
+    }                                                                          \
     if (_cap > vector->cap) {                                                  \
       isize new_cap = _cap;                                                    \
       mem_resize((rawptr *)&vector->data,                                      \

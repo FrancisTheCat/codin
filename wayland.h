@@ -412,6 +412,22 @@ internal b8 create_shared_memory_file(uintptr size, Wayland_State *state) {
   if (t != 0) {
     return false;
   }
+
+  #define F_LINUX_SPECIFIC_BASE	1024
+  #define F_ADD_SEALS	(F_LINUX_SPECIFIC_BASE + 9)
+  #define F_GET_SEALS	(F_LINUX_SPECIFIC_BASE + 10)
+
+  /*
+   * Types of seals
+   */
+  #define F_SEAL_SEAL	0x0001	/* prevent further seals from being set */
+  #define F_SEAL_SHRINK	0x0002	/* prevent file from shrinking */
+  #define F_SEAL_GROW	0x0004	/* prevent file from growing */
+  #define F_SEAL_WRITE	0x0008	/* prevent writes */
+  #define F_SEAL_FUTURE_WRITE	0x0010  /* prevent future writes while mapped */
+  #define F_SEAL_EXEC	0x0020  /* prevent chmod modifying exec bits */
+
+  t = syscall(SYS_fcntl, F_ADD_SEALS, F_SEAL_SHRINK);
   
   state->shm_pool_data =
     (u8 *)syscall(SYS_mmap, nil, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -1302,6 +1318,24 @@ internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
   }
 }
 
+internal void wayland_draw_image(Wayland_State *state, i32 x, i32 y, Image const *image) {
+  assert(image->pixel_type == PT_u8);
+  assert(image->components == 4);
+  u32 *pixels = (u32 *)state->shm_pool_data;
+  for_range(_y, 0, image->height) {
+    if (_y + y >= state->h) {
+      break;
+    }
+    for_range(_x, 0, image->width) {
+      if (_x + x >= state->w) {
+        break;
+      }
+      u32 pixel = ((u32 *)image->pixels.data)[_x + _y * image->width];
+      alpha_blend_rgba8(&pixels[_x + x + (_y + y) * state->w], pixel);
+    }
+  }
+}
+
 internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
   // slice_iter(ctx->commands, cmd, _i, {
   //   u32 hash = hash_ui_command(0, *cmd);
@@ -1360,7 +1394,22 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
       wayland_draw_text(wl_state, cmd->variant.text.text, cmd->variant.text.color, &x, &y);
       break;
     case UI_Command_Type_Image:
-      unimplemented();
+      rect = cmd->variant.image.rect;
+      wayland_draw_image(
+        wl_state,
+        rect.x0,
+        rect.y0,
+        &ctx->images.data[cmd->variant.image.image.index]
+      );
+      wayland_draw_rect_outlines_alpha(
+        wl_state,
+        rect.x0,
+        rect.y0,
+        rect.x1 - rect.x0,
+        rect.y1 - rect.y0,
+        cmd->variant.image.outline
+      );
+      wayland_draw_box_shadow(wl_state, rect);
       break;
     }
   });
@@ -1384,7 +1433,7 @@ internal void wayland_render(Wayland_State *state, Directory const *directory) {
     }
   }
 
-  String str   = LIT("The quick brown fox jumps over the lazy dog");
+  String str = LIT("The quick brown fox jumps over the lazy dog");
   ui_context.mouse.x = state->mouse_x;
   ui_context.mouse.y = state->mouse_y;
 
@@ -1397,15 +1446,11 @@ internal void wayland_render(Wayland_State *state, Directory const *directory) {
   ui_label(&ui_context, fps_string);
   ui_label(&ui_context, str);
 
+  ui_image(&ui_context, (UI_Image) {.index = 0});
+
   slice_iter(*directory, file, _i, {
     ui_button(&ui_context, file->name);
   })
 
-  // if (ui_button(&ui_context, LIT("Hello Button"))) {
-  //   if (ui_button(&ui_context, LIT("Hello Button"))) {
-  //   }
-  // }
-
   ui_state_render(&ui_context, state);
-
 }

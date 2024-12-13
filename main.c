@@ -1,5 +1,5 @@
 #include "codin.h"
-// #include "image.h"
+#include "image.h"
 #include "iter.h"
 #include "math.h"
 
@@ -25,8 +25,7 @@ b8 test_sort() {
 }
 
 b8 test_vector() {
-  Vector(isize) v;
-  vector_init(&v, 0, 8, context.allocator);
+  Vector(isize) v = {0};
 
   for (int i = 0; i < 10; i++) {
     vector_append(&v, i);
@@ -539,8 +538,15 @@ int main() {
   assert(shm_ok);
 
   ui_context_init(&ui_context, 1, 1, context.allocator);
+  Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("test.ppm"), context.temp_allocator));
+  Image backing_image;
+  Image rgba8_image;
+  b8 ok = ppm_load_bytes(image_data, &backing_image);
+  image_clone_to_rgba8(&backing_image, &rgba8_image, context.allocator);
+  assert(ok);
+  UI_Image image = ui_create_image(&ui_context, rgba8_image);
 
-  vector_init(&state.fds_in, 0, 8, context.allocator);
+  // vector_init(&state.fds_in, 0, 8, context.allocator);
 
   struct Time last_fps_print = time_now();
   isize frames_since_print = 0;

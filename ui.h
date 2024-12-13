@@ -1,5 +1,6 @@
 #include "codin.h"
 #include "bad_font.h"
+#include "image.h"
 
 static BMF_Font font;
 
@@ -25,9 +26,14 @@ typedef struct {
 } UI_Command_Text;
 
 typedef struct {
-  Rectangle bounds;
+  i32 index;
+} UI_Image;
+
+typedef struct {
+  Rectangle rect;
   u32       tint;
-  i32       image_id;
+  u32       outline;
+  UI_Image  image;
 } UI_Command_Image;
 
 typedef enum {
@@ -75,6 +81,7 @@ internal u32 hash_ui_command(u32 in, UI_Command command) {
 typedef enum {
   UI_Color_Background,
   UI_Color_Text,
+  UI_Color_Image_Border,
 
   UI_Color_Label,
   UI_Color_Label_Text,
@@ -108,6 +115,7 @@ typedef struct {
   } mouse;
   Slice(u32)         command_hashes;
   Slice(u32)         prev_command_hashes;
+  Vector(Image)      images;
   u32                colors[UI_Color_MAX];
 } UI_Context;
 
@@ -119,11 +127,13 @@ internal void ui_context_init(UI_Context *ctx, isize width, isize height, Alloca
   slice_init(&ctx->command_hashes,      n_cells, allocator);
   slice_init(&ctx->prev_command_hashes, n_cells, allocator);
   vector_init(&ctx->commands, 0, 8, allocator);
+  vector_init(&ctx->images, 0, 8, allocator);
 
   ctx->width  = width;
   ctx->height = height;
 
   ctx->colors[UI_Color_Background            ] = 0xFF000000;
+  ctx->colors[UI_Color_Image_Border          ] = 0xFF62AEEF;
   ctx->colors[UI_Color_Label                 ] = 0x22FFFFFF;
   ctx->colors[UI_Color_Label_Text            ] = 0xFFABB2BF;
   ctx->colors[UI_Color_Label_Outline         ] = 0xFFABB2BF;
@@ -244,4 +254,31 @@ internal void ui_label(UI_Context *ctx, String text) {
   ctx->y += font.single_h * 2 + font.decender;
   
   vector_append(&ctx->commands, cmd);
+}
+
+internal UI_Image ui_create_image(UI_Context *ctx, Image image) {
+  UI_Image ret = {.index = (i32)ctx->images.len};
+  vector_append(&ctx->images, image);
+  return ret;
+}
+
+internal void ui_image(UI_Context *ctx, UI_Image img) {
+  UI_Command cmd;
+  Image *image = &ctx->images.data[img.index];
+  Rectangle rect = (Rectangle) {
+    .x0 = ctx->x,
+    .y0 = ctx->y,
+    .x1 = ctx->x + (i32)image->width,
+    .y1 = ctx->y + (i32)image->height,
+  };
+
+  cmd.type          = UI_Command_Type_Image;
+  cmd.variant.image = (UI_Command_Image) {
+    .rect    = rect,
+    .outline = ctx->colors[UI_Color_Image_Border],
+    .image   = img,
+  };
+  vector_append(&ctx->commands, cmd);
+
+  ctx->y += font.single_h + image->height;
 }

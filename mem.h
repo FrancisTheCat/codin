@@ -180,7 +180,9 @@ internal Allocator_Error _mem_resize(rawptr *data, isize old_size,
   }
   rawptr new_data = or_return_err_v(_mem_alloc(new_size, allocator, location));
   mem_copy(new_data, *data, old_size);
-  err = _mem_free(*data, old_size, allocator, location);
+  if (old_size) {
+    err = _mem_free(*data, old_size, allocator, location);
+  }
   *data = new_data;
 
   return err;
