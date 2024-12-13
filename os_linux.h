@@ -51,6 +51,7 @@
 #define O_SYNC     04010000
 #define O_FSYNC    O_SYNC
 #define O_ASYNC    020000
+#define O_CLOEXEC	 02000000
 
 #define S_IFDIR 0040000
 
@@ -275,16 +276,30 @@ internal OS_Error _remove_dir_at(Fd dir, String path) {
 }
 
 #define DEFAULT_PROCESS_ARGS                                                   \
-  (Process_Creation_Args) { .stdin = 0, .stdout = 1, .stderr = 2 }
+  (Process_Creation_Args) { .stdin = 0, .stdout = 1, .stderr = 2, .env = os_env }
 
 internal OS_Result_Pid _create_process(String path,
                                        Process_Creation_Args const *args) {
   OS_Result_Pid result = {0};
+  int pipe_fds[2];
+  syscall(SYS_pipe2, &pipe_fds, O_CLOEXEC);
+
   Pid pid = syscall_or_return(SYS_fork);
   if (pid) {
-    result.value = pid;
-    return result;
+    syscall(SYS_close, pipe_fds[1]);
+    i64 out;
+    isize n = syscall(SYS_read, pipe_fds[0], &out, size_of(out));
+    syscall(SYS_close, pipe_fds[0]);
+    if (n == 0) {
+      result.value = pid;
+      return result;
+    } else {
+      result.err = __errno_unwrap(out);
+      return result;
+    }
   }
+
+  syscall(SYS_close, pipe_fds[0]);
 
   syscall(SYS_dup2, args->stdin,  0);
   syscall(SYS_dup2, args->stdout, 1);
@@ -307,8 +322,9 @@ internal OS_Result_Pid _create_process(String path,
   slice_iter(args->env, e, i,
              { c_env.data[i] = string_to_cstring_clone(*e, context.temp_allocator); });
 
-  syscall(SYS_execve, c_path, c_args.data, c_env.data);
-  unreachable();
+  i64 execve_result = syscall(SYS_execve, c_path, c_args.data, c_env.data);
+  syscall(SYS_write, pipe_fds[1], &execve_result, size_of(execve_result));
+  syscall(SYS_exit, 1);
 }
 
 internal OS_Error _kill_process(Pid pid) {

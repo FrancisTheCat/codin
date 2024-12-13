@@ -1,7 +1,10 @@
 #include "codin.h"
 
-internal Slice(String) os_args;
-internal Slice(String) os_env;
+typedef Slice(String) Process_Args;
+typedef Slice(String) Process_Env;
+
+internal Process_Args os_args;
+internal Process_Env  os_env;
 
 internal String get_env(String key) {
   slice_iter(os_env, str, _i, {
@@ -112,9 +115,6 @@ internal OS_Error _remove_dir_at(Fd dir, String path);
 
 internal b8 _file_exists(String path);
 
-typedef Slice(String) Process_Args;
-typedef Slice(String) Process_Env;
-
 typedef struct {
   Process_Args args;
   Process_Env  env;
@@ -212,8 +212,12 @@ internal void directory_delete(Directory dir, Allocator allocator) {
   slice_delete(dir, allocator);
 }
 
-internal OS_Result_Pid create_process(String path, Process_Creation_Args const *args) {
+internal OS_Result_Pid process_create(String path, Process_Creation_Args const *args) {
   return _create_process(path, args);
+}
+
+internal OS_Error process_wait(Pid pid) {
+  return _wait_process(pid);
 }
 
 internal Maybe_Int writer_file_proc(rawptr handle, Byte_Slice data) {

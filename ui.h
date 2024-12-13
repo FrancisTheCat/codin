@@ -195,7 +195,7 @@ internal b8 ui_button(UI_Context *ctx, String text) {
     }
   }
 
-  cmd.type        = UI_Command_Type_Gradient;
+  cmd.type        = UI_Command_Type_Box;
   cmd.variant.box = (UI_Command_Box) {
     .rect    = rect,
     .color   = ctx->colors[color],

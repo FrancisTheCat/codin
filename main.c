@@ -223,32 +223,35 @@ b8 test_hash_map() {
 //   }
 // }
 
+b8 spall_write_callback(SpallProfile *self, const void *data, isize length) {
+  return file_write((Fd)self->data, (Byte_Slice) {.data = (byte *)data, .len = length}).err == OSE_None;
+}
+
+void spall_close_callback(SpallProfile *self) {
+  file_close((Fd)self->data);
+}
+
 int main() {
-  // isize hour;
-  // isize min;
-  // isize sec;
-  // isize nanos;
-  // struct Time time = time_now();
-  // time_precise_clock(time, &hour, &min, &sec, &nanos);
-  // fmt_printfln(LIT("Time: %02d:%02d %02d.%03d"), hour + 1, min, sec, nanos / 1000000);
-
-  // time_sleep(2 * Second);
-
-  // time = time_now();
-  // time_precise_clock(time, &hour, &min, &sec, &nanos);
-  // fmt_printfln(LIT("Time: %02d:%02d %02d.%03d"), hour + 1, min, sec, nanos / 1000000);
-  // return 0;
-  
   Tracking_Allocator track;
   context.allocator = tracking_allocator_init(&track, context.allocator);
 
   context.logger = create_file_logger(1);
 
-  Arena_Allocator arena;
-  Allocator arena_allocator =
-      arena_allocator_init(&arena, 1024, context.allocator);
+  Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
+  spall_ctx = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
 
+	int buffer_size = 1 * 1024 * 1024;
+	byte *buffer = mem_alloc(buffer_size, context.allocator).value;
+	spall_buffer = (SpallBuffer){
+		.length = buffer_size,
+		.data = buffer,
+	};
+
+	spall_buffer_init(&spall_ctx, &spall_buffer);
+
+  spall_buffer_begin(&spall_ctx, &spall_buffer, "read_directory", 14, get_time_in_micros());
   Directory directory = unwrap_err(read_directory_path(LIT("."), context.allocator));
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   isize max_name_len = 0;
   isize max_size_len = LIT("<dir>").len;
@@ -258,11 +261,13 @@ int main() {
     max_size_len = max(fmt_file_size_w(nil, file->size), max_size_len);
   });
 
+  spall_buffer_begin(&spall_ctx, &spall_buffer, "sort", 4, get_time_in_micros());
   sort_slice_by(directory, i, j, string_compare_lexicographic(directory.data[i].name, directory.data[j].name));
       // ((dir.data[i].is_dir != dir.data[j].is_dir)
       //      ? dir.data[i].is_dir
       //      : string_compare_lexicographic(dir.data[i].name,
       //      dir.data[j].name)));
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   String cwd = unwrap_err(_get_current_directory(context.temp_allocator));
   fmt_printfln(LIT("Directory: %S\n"), cwd);
@@ -272,21 +277,29 @@ int main() {
     *(char *)s = ' ';
   });
 
-  slice_iter(directory, file, i, {
-    isize n = fmt_printf(LIT("%S"), file->name);
-    fmt_print(slice_range(spaces, 0, max_name_len - n));
+  spall_buffer_begin(&spall_ctx, &spall_buffer, "print_directory", 15, get_time_in_micros());
+  {
+    Builder buffer;
+    builder_init(&buffer, 0, 8, context.temp_allocator);
+    Writer w = writer_from_builder(&buffer);
+    slice_iter(directory, file, i, {
+      isize n = fmt_wprintf(&w, LIT("%S"), file->name);
+      fmt_wprint(&w, slice_range(spaces, 0, max_name_len - n));
 
-    fmt_print(LIT(" | "));
+      fmt_wprint(&w, LIT(" | "));
 
-    if (file->is_dir) {
-      n = fmt_print(LIT("<dir>"));
-    } else {
-      n = fmt_printf(LIT("%M"), file->size);
-    }
-    fmt_print(slice_range(spaces, 0, max_size_len - n));
+      if (file->is_dir) {
+        n = fmt_wprint(&w, LIT("<dir>"));
+      } else {
+        n = fmt_wprintf(&w, LIT("%M"), file->size);
+      }
+      fmt_wprint(&w, slice_range(spaces, 0, max_size_len - n));
 
-    fmt_printfln(LIT(" | %T | %T | %T"), file->creation_time, file->modification_time, file->acces_time);
-  });
+      fmt_wprintfln(&w, LIT(" | %T | %T | %T"), file->creation_time, file->modification_time, file->acces_time);
+    });
+    fmt_print(builder_to_string(buffer));
+  }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   fmt_println(LIT(""));
 
@@ -297,11 +310,25 @@ int main() {
 
   // directory_delete(dir, context.allocator);
 
-  Process_Creation_Args pargs = DEFAULT_PROCESS_ARGS;
-  pargs.args = SLICE_VAL(Process_Args, {LIT("/bin/echo"), LIT("HELLO FROM ECHO")});
-  Pid pid = unwrap_err(create_process(LIT("/bin/echo"), &pargs));
+  // Process_Creation_Args pargs = DEFAULT_PROCESS_ARGS;
+  // pargs.args = SLICE_VAL(Process_Args, {LIT("/bin/echo"), LIT("HELLO FROM ECHO")});
+  // Pid pid = unwrap_err(process_create(LIT("/bin/echo"), &pargs));
 
-  _wait_process(pid);
+  // process_wait(pid);
+
+  // pargs = DEFAULT_PROCESS_ARGS;
+  // pargs.args = SLICE_VAL(Process_Args, {LIT("/bin/xdg-open"), LIT("test.ppm")});
+  // pid = unwrap_err(process_create(LIT("/bin/xdg-open"), &pargs));
+
+  // process_wait(pid);
+
+  // pargs = DEFAULT_PROCESS_ARGS;
+  // pargs.args = SLICE_VAL(Process_Args, {LIT("/bin/alacritty")});
+  // pid = unwrap_err(process_create(LIT("/bin/alacritty"), &pargs));
+
+  // process_wait(pid);
+
+  // return 0;
 
   fmt_println(LIT(""));
 
@@ -538,10 +565,11 @@ int main() {
   assert(shm_ok);
 
   ui_context_init(&ui_context, 1, 1, context.allocator);
-  Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("test.ppm"), context.temp_allocator));
+  Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("orange.ppm"), context.temp_allocator));
   Image backing_image;
   Image rgba8_image;
   b8 ok = ppm_load_bytes(image_data, &backing_image);
+  assert(ok);
   image_clone_to_rgba8(&backing_image, &rgba8_image, context.allocator);
   assert(ok);
   UI_Image image = ui_create_image(&ui_context, rgba8_image);
@@ -677,7 +705,10 @@ int main() {
   directory_delete(directory, context.allocator);
   ui_context_destroy(&ui_context, context.allocator);
 
-  arena_allocator_destroy(arena, context.allocator);
+	spall_buffer_quit(&spall_ctx, &spall_buffer);
+	mem_free((rawptr)buffer, buffer_size, context.allocator);
+	spall_quit(&spall_ctx);
+  
   tracking_allocator_fmt_results_w(&stdout, &track);
   tracking_allocator_destroy(track);
 

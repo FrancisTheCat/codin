@@ -43,6 +43,7 @@
 #define SYS_waitid        247
 #define SYS_openat        257
 #define SYS_unlinkat      263
+#define SYS_pipe2         293
 #define SYS_memfd_create  319
 #define SYS_clone3        435
 

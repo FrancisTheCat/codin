@@ -1,7 +1,21 @@
 #include "codin.h"
 #include "xkb.h"
 
+#include "immintrin.h"
+
 #include "ui.h"
+
+#include "spall.h"
+
+#define wayland_log_infof(format, ...)
+// #define wayland_log_infof log_infof
+
+SpallBuffer spall_buffer;
+SpallProfile spall_ctx;
+
+f64 get_time_in_micros() {
+  return (f64)(time_now().nsec) / Microsecond;
+}
 
 #define WAYLAND_DISPLAY_OBJECT_ID                          1
 #define WAYLAND_WL_REGISTRY_EVENT_GLOBAL                   0
@@ -171,7 +185,7 @@ internal isize wayland_wl_display_get_registry(Socket s) {
   
   (void)unwrap_err(socket_write(s, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> wl_display@%d.get_registry: wl_registry=%d"), WAYLAND_DISPLAY_OBJECT_ID, __wayland_current_id);
+  wayland_log_infof(LIT("-> wl_display@%d.get_registry: wl_registry=%d"), WAYLAND_DISPLAY_OBJECT_ID, __wayland_current_id);
 
   return __wayland_current_id;
 }
@@ -209,7 +223,7 @@ internal isize wayland_wl_registry_bind(Socket s, u32 registry, u32 name, String
   
   (void)unwrap_err(socket_write(s, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> wl_registry@%d.bind: name=%d interface=%s version=%d wayland_current_id=%d"), registry, name, interface.data, version, __wayland_current_id);
+  wayland_log_infof(LIT("-> wl_registry@%d.bind: name=%d interface=%s version=%d wayland_current_id=%d"), registry, name, interface.data, version, __wayland_current_id);
 
   return __wayland_current_id;
 }
@@ -291,7 +305,7 @@ internal i32 wayland_wl_shm_pool_create_buffer(Socket socket, Wayland_State *sta
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> wl_shm_pool@%d.create_buffer: wl_buffer=%d"), state->wl_shm_pool, __wayland_current_id);
+  wayland_log_infof(LIT("-> wl_shm_pool@%d.create_buffer: wl_buffer=%d"), state->wl_shm_pool, __wayland_current_id);
 
   return __wayland_current_id;
 }
@@ -352,7 +366,7 @@ internal i32 wayland_wl_shm_create_pool(Socket socket, Wayland_State *state) {
   isize status = syscall(SYS_sendmsg, socket, &socket_msg, MSG_NOSIGNAL | 0x40);
   assert(status != -1);
 
-  log_infof(LIT("-> wl_shm@%d.create_pool: wl_shm_pool=%d"), state->wl_shm, __wayland_current_id);
+  wayland_log_infof(LIT("-> wl_shm@%d.create_pool: wl_shm_pool=%d"), state->wl_shm, __wayland_current_id);
 
   return __wayland_current_id;
 }
@@ -372,7 +386,7 @@ internal void wayland_wl_shm_pool_resize(Socket socket, Wayland_State *state) {
 
   write_any(&writer, &state->shm_pool_size);
 
-  log_infof(LIT("-> wl_shm_pool@%d.resize: size=%d"), state->wl_shm_pool, state->shm_pool_size);
+  wayland_log_infof(LIT("-> wl_shm_pool@%d.resize: size=%d"), state->wl_shm_pool, state->shm_pool_size);
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 }
@@ -390,7 +404,7 @@ internal void wayland_wl_buffer_destroy(Socket socket, u32 buffer) {
   u16 msg_announced_size = WAYLAND_HEADER_SIZE;
   write_any(&writer, &msg_announced_size);
 
-  log_infof(LIT("-> wl_buffer@%d.destroy:"), buffer);
+  wayland_log_infof(LIT("-> wl_buffer@%d.destroy:"), buffer);
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 }
@@ -474,7 +488,7 @@ internal void wayland_xdg_wm_base_pong(Socket socket, Wayland_State *state, u32 
 
   write_any(&writer, &ping);
 
-  log_infof(LIT("-> xdg_wm_base@%d.pong:"), state->xdg_wm_base);
+  wayland_log_infof(LIT("-> xdg_wm_base@%d.pong:"), state->xdg_wm_base);
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 }
@@ -494,7 +508,7 @@ internal void wayland_xdg_surface_ack_configure(Socket socket, Wayland_State *st
 
   write_any(&writer, &configure);
 
-  log_infof(LIT("-> xdg_surface@%d.ack_configure:"), state->xdg_surface);
+  wayland_log_infof(LIT("-> xdg_surface@%d.ack_configure:"), state->xdg_surface);
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 }
@@ -522,7 +536,7 @@ internal u32 wayland_wp_cursor_shape_manager_get_pointer(Socket socket, Wayland_
   
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> wp_cursor_shape_manager@%d.get_pointer: current id=%d"), state->wp_cursor_shape_manager, __wayland_current_id);
+  wayland_log_infof(LIT("-> wp_cursor_shape_manager@%d.get_pointer: current id=%d"), state->wp_cursor_shape_manager, __wayland_current_id);
 
   return __wayland_current_id;
 }
@@ -544,7 +558,7 @@ internal void wayland_wp_cursor_shape_device_set_shape(Socket socket, Wayland_St
   u32 cursor = 1;
   write_any(&writer, &cursor);
 
-  log_infof(LIT("-> wp_cursor_shape_device@%d.set_shape: shape=%d"), state->wp_cursor_shape_device, cursor);
+  wayland_log_infof(LIT("-> wp_cursor_shape_device@%d.set_shape: shape=%d"), state->wp_cursor_shape_device, cursor);
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 }
@@ -567,7 +581,7 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
   u16 announced_size;
   read_any(&reader, &announced_size);
 
-  log_infof(LIT("%d %d %d"), (isize)object_id, (isize)opcode, (isize)announced_size);
+  wayland_log_infof(LIT("%d %d %d"), (isize)object_id, (isize)opcode, (isize)announced_size);
 
   if (object_id == state->wl_registry && opcode == WAYLAND_WL_REGISTRY_EVENT_GLOBAL) {
     u32 name;
@@ -585,7 +599,7 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
     u32 version;
     read_any(&reader, &version);
 
-    log_infof(LIT("name: %d, interface: '%S', version: %d"), name, interface, version);
+    wayland_log_infof(LIT("name: %d, interface: '%S', version: %d"), name, interface, version);
 
     if (string_equal(interface, LIT("wl_shm"))) {
       state->wl_shm = wayland_wl_registry_bind(socket, state->wl_registry, name, interface, version);
@@ -611,7 +625,7 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
     u32 ping;
     read_any(&reader, &ping);
 
-    log_infof(LIT("<- xdg_wm_base@%d.ping:"), state->xdg_wm_base);
+    wayland_log_infof(LIT("<- xdg_wm_base@%d.ping:"), state->xdg_wm_base);
 
     wayland_xdg_wm_base_pong(socket, state, ping);
 
@@ -619,7 +633,7 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
     u32 configure;
     read_any(&reader, &configure);
 
-    log_infof(LIT("<- xdg_surface@%d.configure:"), state->xdg_surface);
+    wayland_log_infof(LIT("<- xdg_surface@%d.configure:"), state->xdg_surface);
 
     wayland_xdg_surface_ack_configure(socket, state, configure);
     state->surface_state = Surface_State_Acked_Configure;
@@ -630,12 +644,12 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
     read_any(&reader, &width);
     read_any(&reader, &height);
 
-    log_infof(LIT("<- xdg_toplevel@%d.configure_bounds: width=%d height=%d"), state->xdg_toplevel, width, height);
+    wayland_log_infof(LIT("<- xdg_toplevel@%d.configure_bounds: width=%d height=%d"), state->xdg_toplevel, width, height);
 
   } else if (object_id == state->wl_buffer && opcode == WAYLAND_WL_BUFFER_EVENT_RELEASE) {
     state->buffer_state = Buffer_State_Released;
 
-    log_infof(LIT("<- wl_buffer@%d.release:"), state->wl_buffer);
+    wayland_log_infof(LIT("<- wl_buffer@%d.release:"), state->wl_buffer);
 
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE) {
     read_any(&reader, &state->w);
@@ -663,7 +677,7 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
     Fd fd = state->fds_in.data[0];
     vector_remove_ordered(&state->fds_in, 0);
 
-    log_infof(LIT("Keymap %d %B %d"), size, format, fd);
+    wayland_log_infof(LIT("Keymap %d %B %d"), size, format, fd);
 
     rawptr data = (rawptr)syscall(SYS_mmap, nil, size, PROT_READ, MAP_PRIVATE, fd, 0);
 
@@ -741,14 +755,14 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
         break;
       }
 
-      log_infof(LIT("Button: %d %B"), button, pressed);
+      wayland_log_infof(LIT("Button: %d %B"), button, pressed);
       break;
     case WAYLAND_WL_POINTER_AXIS_EVENT:
       read_any(&reader, &time);
       read_any(&reader, &axis);
       read_any(&reader, &value);
 
-      log_infof(LIT("Axis: %f %B"), (f32)value / 256.0, axis);
+      wayland_log_infof(LIT("Axis: %f %B"), (f32)value / 256.0, axis);
       break;
 
     case WAYLAND_WL_POINTER_ENTER_EVENT:
@@ -771,7 +785,7 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
 
       read_any(&reader, &capabilities);
 
-      log_infof(LIT("Capabilities: %d"), capabilities);
+      wayland_log_infof(LIT("Capabilities: %d"), capabilities);
     }
 
   } else if (object_id == WAYLAND_DISPLAY_OBJECT_ID && opcode == WAYLAND_WL_DISPLAY_ERROR_EVENT) {
@@ -815,7 +829,7 @@ internal i32 wayland_wl_compositor_create_surface(Socket socket, Wayland_State *
   
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> wl_compositor@%d.create_surface: wl_surface=%d"), state->wl_compositor, __wayland_current_id);
+  wayland_log_infof(LIT("-> wl_compositor@%d.create_surface: wl_surface=%d"), state->wl_compositor, __wayland_current_id);
 
   return __wayland_current_id;
 }
@@ -840,7 +854,7 @@ internal i32 wayland_xdg_wm_base_get_xdg_surface(Socket socket, Wayland_State *s
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> xdg_wm_base@%d.get_xdg_surface: xdg_surface=%d"), state->xdg_wm_base, __wayland_current_id);
+  wayland_log_infof(LIT("-> xdg_wm_base@%d.get_xdg_surface: xdg_surface=%d"), state->xdg_wm_base, __wayland_current_id);
 
   return __wayland_current_id;
 }
@@ -863,7 +877,7 @@ internal i32 wayland_xdg_surface_get_toplevel(Socket socket, Wayland_State *stat
   
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> xdg_surface@%d.get_toplevel: xdg_toplevel=%d"), state->xdg_surface, __wayland_current_id);
+  wayland_log_infof(LIT("-> xdg_surface@%d.get_toplevel: xdg_toplevel=%d"), state->xdg_surface, __wayland_current_id);
 
   return __wayland_current_id;
 }
@@ -883,7 +897,7 @@ internal void wayland_wl_surface_commit(Socket socket, Wayland_State *state) {
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> wl_surface@%d.commit:"), state->wl_surface);
+  wayland_log_infof(LIT("-> wl_surface@%d.commit:"), state->wl_surface);
 }
 
 internal void wayland_wl_surface_attach(Socket socket, Wayland_State *state) {
@@ -907,7 +921,7 @@ internal void wayland_wl_surface_attach(Socket socket, Wayland_State *state) {
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> wl_surface@%d.attach: buffer=%d offset=[%d,%d]"), state->wl_surface, state->wl_buffer, 0, 0);
+  wayland_log_infof(LIT("-> wl_surface@%d.attach: buffer=%d offset=[%d,%d]"), state->wl_surface, state->wl_buffer, 0, 0);
 }
 
 internal void wayland_wl_surface_damage_buffer(Socket socket, Wayland_State *state, i32 offset_x, i32 offset_y, i32 width, i32 height) {
@@ -934,7 +948,7 @@ internal void wayland_wl_surface_damage_buffer(Socket socket, Wayland_State *sta
 
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> wl_surface@%d.damage_buffer: wl_buffer=%d"), state->wl_surface, __wayland_current_id);
+  wayland_log_infof(LIT("-> wl_surface@%d.damage_buffer: wl_buffer=%d"), state->wl_surface, __wayland_current_id);
 }
 
 internal u32 wayland_wl_seat_get_keyboard(Socket socket, Wayland_State *state) {
@@ -957,7 +971,7 @@ internal u32 wayland_wl_seat_get_keyboard(Socket socket, Wayland_State *state) {
   
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> wl_seat@%d.get_keyboard: current id=%d"), state->wl_seat, __wayland_current_id);
+  wayland_log_infof(LIT("-> wl_seat@%d.get_keyboard: current id=%d"), state->wl_seat, __wayland_current_id);
 
   return __wayland_current_id;
 }
@@ -982,7 +996,7 @@ internal u32 wayland_wl_seat_get_pointer(Socket socket, Wayland_State *state) {
   
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> wl_seat@%d.get_pointer: current id=%d"), state->wl_seat, __wayland_current_id);
+  wayland_log_infof(LIT("-> wl_seat@%d.get_pointer: current id=%d"), state->wl_seat, __wayland_current_id);
 
   return __wayland_current_id;
 }
@@ -1018,10 +1032,11 @@ internal void wayland_xdg_toplevel_set_title(Socket socket, Wayland_State *state
   
   (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
 
-  log_infof(LIT("-> xdg_toplevel@%d.set_title: title='%S'"), state->xdg_toplevel, title);
+  wayland_log_infof(LIT("-> xdg_toplevel@%d.set_title: title='%S'"), state->xdg_toplevel, title);
 }
 
 internal void wayland_draw_rect_outlines(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
 
   if (in_range(x, 0, state->w)) {
@@ -1046,6 +1061,7 @@ internal void wayland_draw_rect_outlines(Wayland_State *state, i32 x, i32 y, i32
       pixels[_x + (y + h - 1) * state->w] = color;
     }
   }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void alpha_blend_rgb8(u32 *_dst, u32 _src, u8 _alpha) {
@@ -1069,6 +1085,7 @@ internal void alpha_blend_rgba8(u32 *dst, u32 src) {
 }
 
 internal void wayland_draw_rect_outlines_alpha(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   if ((color & 0xFF) == 0xFF) {
     wayland_draw_rect_outlines(state, x, y, w, h, color);
     return;
@@ -1097,18 +1114,22 @@ internal void wayland_draw_rect_outlines_alpha(Wayland_State *state, i32 x, i32 
       alpha_blend_rgba8(&pixels[_x + (y + h - 1) * state->w], color);
     }
   }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void wayland_draw_rect(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
   for_range(_y, max(y, 0), min(y + h, state->h)) {
     for_range(_x, max(x, 0), min(x + w, state->w)) {
       pixels[_x + _y * state->w] = color;
     }
   }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void wayland_draw_rect_alpha(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   if ((color >> 24) == 0xFF) {
     wayland_draw_rect(state, x, y, w, h, color);
     return;
@@ -1119,9 +1140,11 @@ internal void wayland_draw_rect_alpha(Wayland_State *state, i32 x, i32 y, i32 w,
       alpha_blend_rgba8(&pixels[_x + _y * state->w], color);
     }
   }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void wayland_draw_rect_gradient_v(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 _start, u32 _end) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
 
   Array(u8, 4) start = transmute(type_of(start), _start);
@@ -1138,9 +1161,11 @@ internal void wayland_draw_rect_gradient_v(Wayland_State *state, i32 x, i32 y, i
       alpha_blend_rgba8(&pixels[_x + _y * state->w], transmute(u32, color));
     }
   }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void wayland_draw_rect_gradient_h(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 _start, u32 _end) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
 
   Array(u8, 4) start = transmute(type_of(start), _start);
@@ -1171,9 +1196,11 @@ internal void wayland_draw_rect_gradient_h(Wayland_State *state, i32 x, i32 y, i
       }
     }
   }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal isize wayland_draw_text(Wayland_State *state, String str, u32 color, isize *x, isize *y) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   isize start_x = *x;
 
   u32 *pixels = (u32 *)state->shm_pool_data;
@@ -1214,6 +1241,7 @@ internal isize wayland_draw_text(Wayland_State *state, String str, u32 color, is
       }
     }
   })
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 UI_Context ui_context;
@@ -1224,6 +1252,7 @@ internal u8 __fixed_0_8_sqrt_lut[256] = {0};
 internal u8 __fixed_0_8_smoothstep_lut[256] = {0};
 
 internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   #define UI_SHADOW_RADIUS       16
   #define UI_SHADOW_INV_STRENGTH 2
   #define UI_SHADOW_COLOR        0
@@ -1316,9 +1345,11 @@ internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
       alpha_blend_rgb8(&pixels[rect.x1 + _x + state->w * (_y + rect.y0)], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
     }
   }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void wayland_draw_image(Wayland_State *state, i32 x, i32 y, Image const *image) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   assert(image->pixel_type == PT_u8);
   assert(image->components == 4);
   u32 *pixels = (u32 *)state->shm_pool_data;
@@ -1334,9 +1365,11 @@ internal void wayland_draw_image(Wayland_State *state, i32 x, i32 y, Image const
       alpha_blend_rgba8(&pixels[_x + x + (_y + y) * state->w], pixel);
     }
   }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   // slice_iter(ctx->commands, cmd, _i, {
   //   u32 hash = hash_ui_command(0, *cmd);
   //   // ui_state->command_hashes
@@ -1346,8 +1379,11 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
   slice_iter(ctx->commands, cmd, _i, {
     switch(cmd->type) {
     case UI_Command_Type_None:
+      spall_buffer_begin(&spall_ctx, &spall_buffer, "UI_Command_Type_None", size_of("UI_Command_Type_None") - 1, get_time_in_micros());
+      spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
       break;
     case UI_Command_Type_Gradient:
+      spall_buffer_begin(&spall_ctx, &spall_buffer, "UI_Command_Type_Gradient", size_of("UI_Command_Type_Gradient") - 1, get_time_in_micros());
       rect = cmd->variant.box.rect;
       wayland_draw_rect_gradient_v(
         wl_state,
@@ -1367,8 +1403,10 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
         cmd->variant.box.outline
       );
       wayland_draw_box_shadow(wl_state, rect);
+      spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
       break;
     case UI_Command_Type_Box:
+      spall_buffer_begin(&spall_ctx, &spall_buffer, "UI_Command_Type_Box", size_of("UI_Command_Type_Box") - 1, get_time_in_micros());
       rect = cmd->variant.box.rect;
       wayland_draw_rect_alpha(
         wl_state,
@@ -1387,13 +1425,17 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
         cmd->variant.box.outline
       );
       wayland_draw_box_shadow(wl_state, rect);
+      spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
       break;
     case UI_Command_Type_Text:
+      spall_buffer_begin(&spall_ctx, &spall_buffer, "UI_Command_Type_Text", size_of("UI_Command_Type_Text") - 1, get_time_in_micros());
       x = cmd->variant.text.bounds.x0;
       y = cmd->variant.text.bounds.y1 - font.decender;
       wayland_draw_text(wl_state, cmd->variant.text.text, cmd->variant.text.color, &x, &y);
+      spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
       break;
     case UI_Command_Type_Image:
+      spall_buffer_begin(&spall_ctx, &spall_buffer, "UI_Command_Type_Image", size_of("UI_Command_Type_Image") - 1, get_time_in_micros());
       rect = cmd->variant.image.rect;
       wayland_draw_image(
         wl_state,
@@ -1410,6 +1452,7 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
         cmd->variant.image.outline
       );
       wayland_draw_box_shadow(wl_state, rect);
+      spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
       break;
     }
   });
@@ -1417,21 +1460,20 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
   vector_clear(&ctx->commands);
   ctx->x = 25;
   ctx->y = 25;
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void wayland_render(Wayland_State *state, Directory const *directory) {
+  // spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
-  struct Time time = time_now();
-  i32 t = time.nsec / Millisecond;
 
-  f32 inv_w = 1.0 / state->w;
-  f32 inv_h = 1.0 / state->h;
-
-  for_range(y, 0, state->h) {
-    for_range(x, 0, state->w) {
-      pixels[x + y * state->w] = 0xFF1E2128;
-    }
+  // spall_buffer_begin(&spall_ctx, &spall_buffer, "Clear Background", size_of("Clear Background") - 1, get_time_in_micros());
+  u32 color = 0xFF1E2128;
+  for_range(i, 0, state->w * state->h) {
+    pixels[i] = color;
   }
+  
+  // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   String str = LIT("The quick brown fox jumps over the lazy dog");
   ui_context.mouse.x = state->mouse_x;
@@ -1453,4 +1495,5 @@ internal void wayland_render(Wayland_State *state, Directory const *directory) {
   })
 
   ui_state_render(&ui_context, state);
+  // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }

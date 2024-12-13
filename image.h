@@ -723,9 +723,9 @@ void image_clone_to_rgba8(Image const *in, Image *out, Allocator allocator) {
 
   for_range(y, 0, in->height) {
     for_range(x, 0, in->width) {
+      u8 b = in->pixels.data[(x + y * in->width) * in->components + 0];
       u8 r = in->pixels.data[(x + y * in->width) * in->components + 1];
       u8 g = in->pixels.data[(x + y * in->width) * in->components + 2];
-      u8 b = in->pixels.data[(x + y * in->width) * in->components + 0];
 
       ((u32 *)out->pixels.data)[x + y * out->width] = (0xFF << 24) | (r << 16) | (g << 8) | b;
     }

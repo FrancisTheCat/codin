@@ -47,6 +47,7 @@ static long syscall(long syscall_number, ...) {
   case SYS_shutdown:
   case SYS_memfd_create:
   case SYS_ftruncate:
+  case SYS_pipe2:
     arg0 = __builtin_va_arg(args, long);
     arg1 = __builtin_va_arg(args, long);
     ret  = __syscall2(syscall_number, arg0, arg1);
