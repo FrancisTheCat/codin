@@ -118,7 +118,7 @@ typedef struct SpallBuffer {
     #error "You must #define SPALL_BUFFER_PROFILING_GET_TIME() to profile buffer flushes."
 #endif
 
-SPALL_FN SPALL_FORCEINLINE void spall__buffer_profile(SpallProfile *ctx, SpallBuffer *wb, f64 spall_time_begin, f64 spall_time_end, const char *name, int name_len);
+SPALL_FN SPALL_FORCEINLINE void spall__buffer_profile(SpallProfile *ctx, SpallBuffer *wb, f64 spall_time_begin, f64 spall_time_end, String name);
 #ifdef SPALL_BUFFER_PROFILING
     #define SPALL_BUFFER_PROFILE_BEGIN() f64 spall_time_begin = (SPALL_BUFFER_PROFILING_GET_TIME())
     // Don't call this with anything other than a string literal
@@ -195,10 +195,10 @@ SPALL_FN isize spall_build_header(void *buffer, isize rem_size, f64 timestamp_un
     header->must_be_0 = 0;
     return header_size;
 }
-SPALL_FN SPALL_FORCEINLINE isize spall_build_begin(void *buffer, isize rem_size, const char *name, signed long name_len, const char *args, signed long args_len, f64 when, u32 tid, u32 pid) {
+SPALL_FN SPALL_FORCEINLINE isize spall_build_begin(void *buffer, isize rem_size, String name, String args, f64 when, u32 tid, u32 pid) {
     SpallBeginEventMax *ev = (SpallBeginEventMax *)buffer;
-    u8 trunc_name_len = (u8)SPALL_MIN(name_len, 255); // will be interpreted as truncated in the app (?)
-    u8 trunc_args_len = (u8)SPALL_MIN(args_len, 255); // will be interpreted as truncated in the app (?)
+    u8 trunc_name_len = (u8)SPALL_MIN(name.len, 255); // will be interpreted as truncated in the app (?)
+    u8 trunc_args_len = (u8)SPALL_MIN(args.len, 255); // will be interpreted as truncated in the app (?)
 
     isize ev_size = sizeof(SpallBeginEvent) + trunc_name_len + trunc_args_len;
     if (ev_size > rem_size) {
@@ -212,8 +212,8 @@ SPALL_FN SPALL_FORCEINLINE isize spall_build_begin(void *buffer, isize rem_size,
     ev->event.when = when;
     ev->event.name_length = trunc_name_len;
     ev->event.args_length = trunc_args_len;
-    mem_copy((rawptr)(ev->name_bytes                 ), (rawptr)name, trunc_name_len);
-    mem_copy((rawptr)(ev->name_bytes + trunc_name_len), (rawptr)args, trunc_args_len);
+    mem_copy((rawptr)(ev->name_bytes                 ), (rawptr)name.data, trunc_name_len);
+    mem_copy((rawptr)(ev->name_bytes + trunc_name_len), (rawptr)args.data, trunc_args_len);
 
     return ev_size;
 }
@@ -267,7 +267,7 @@ SPALL_FN b8 spall_flush(SpallProfile *ctx) {
     return true;
 }
 
-SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_begin_args(SpallProfile *ctx, SpallBuffer *wb, const char *name, signed long name_len, const char *args, signed long args_len, f64 when, u32 tid, u32 pid) {
+SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_begin_args(SpallProfile *ctx, SpallBuffer *wb, String name, String args, f64 when, u32 tid, u32 pid) {
 
     if ((wb->head + sizeof(SpallBeginEventMax)) > wb->length) {
         if (!spall__buffer_flush(ctx, wb)) {
@@ -275,17 +275,17 @@ SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_begin_args(SpallProfile *ctx, SpallBu
         }
     }
 
-    wb->head += spall_build_begin((char *)wb->data + wb->head, wb->length - wb->head, name, name_len, args, args_len, when, tid, pid);
+    wb->head += spall_build_begin((char *)wb->data + wb->head, wb->length - wb->head, name, args, when, tid, pid);
 
     return true;
 }
 
-SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_begin_ex(SpallProfile *ctx, SpallBuffer *wb, const char *name, signed long name_len, f64 when, u32 tid, u32 pid) {
-    return spall_buffer_begin_args(ctx, wb, name, name_len, "", 0, when, tid, pid);
+SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_begin_ex(SpallProfile *ctx, SpallBuffer *wb, String name, f64 when, u32 tid, u32 pid) {
+    return spall_buffer_begin_args(ctx, wb, name, LIT(""), when, tid, pid);
 }
 
-SPALL_FN b8 spall_buffer_begin(SpallProfile *ctx, SpallBuffer *wb, const char *name, signed long name_len, f64 when) {
-    return spall_buffer_begin_args(ctx, wb, name, name_len, "", 0, when, 0, 0);
+SPALL_FN b8 spall_buffer_begin(SpallProfile *ctx, SpallBuffer *wb, String name, f64 when) {
+    return spall_buffer_begin_args(ctx, wb, name, LIT(""), when, 0, 0);
 }
 
 SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_end_ex(SpallProfile *ctx, SpallBuffer *wb, f64 when, u32 tid, u32 pid) {
@@ -302,12 +302,12 @@ SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_end_ex(SpallProfile *ctx, SpallBuffer
 
 SPALL_FN b8 spall_buffer_end(SpallProfile *ctx, SpallBuffer *wb, f64 when) { return spall_buffer_end_ex(ctx, wb, when, 0, 0); }
 
-SPALL_FN SPALL_FORCEINLINE void spall__buffer_profile(SpallProfile *ctx, SpallBuffer *wb, f64 spall_time_begin, f64 spall_time_end, const char *name, int name_len) {
+SPALL_FN SPALL_FORCEINLINE void spall__buffer_profile(SpallProfile *ctx, SpallBuffer *wb, f64 spall_time_begin, f64 spall_time_end, String name) {
     // precon: ctx
     // precon: ctx->write
     char temp_buffer_data[2048];
     SpallBuffer temp_buffer = { temp_buffer_data, sizeof(temp_buffer_data) };
-    if (!spall_buffer_begin_ex(ctx, &temp_buffer, name, name_len, spall_time_begin, (u32)(uintptr)wb->data, 4222222222)) return;
+    if (!spall_buffer_begin_ex(ctx, &temp_buffer, name, spall_time_begin, (u32)(uintptr)wb->data, 4222222222)) return;
     if (!spall_buffer_end_ex(ctx, &temp_buffer, spall_time_end, (u32)(uintptr)wb->data, 4222222222)) return;
     if (ctx->write) ctx->write(ctx, temp_buffer_data, temp_buffer.head);
 }

@@ -684,12 +684,13 @@ internal isize fmt_println(String str) {
   (fmt_wprintf(&stdout, format, __VA_ARGS__) + fmt_wprintf(&stdout, LIT("\n")))
 
 #define fmt_wprint(w, str) fmt_wprintf(w, str)
+#define fmt_wprintln(w, str) fmt_wprintf(w, LIT("%S\n"), str)
 #define fmt_wprintfln(w, format, ...)                                          \
   (fmt_wprintf(w, format, __VA_ARGS__) + fmt_wprintf(w, LIT("\n")))
 
 #define fmt_eprint(str) fmt_wprintf(&stderr, LIT("%S"), str)
 #define fmt_eprintln(str)                                                      \
-  (fmt_wprintf(&stderr, LIT("%S"), str) + fmt_wprintf(&stderr, LIT("\n")))
+  fmt_wprintf(&stderr, LIT("%S\n"), str)
 #define fmt_eprintf(format, ...) fmt_wprintf(&stderr, format, __VA_ARGS__)
 #define fmt_eprintfln(format, ...)                                             \
   (fmt_wprintf(&stderr, format, __VA_ARGS__) + fmt_wprintf(&stderr, LIT("\n")))

@@ -1,14 +1,15 @@
 #include "codin.h"
 #include "xkb.h"
 
+#include "wayland.gen.h"
+#include "xdg-shell.gen.h"
+#include "cursor-shape.gen.h"
+
 #include "immintrin.h"
 
 #include "ui.h"
 
 #include "spall.h"
-
-#define wayland_log_infof(format, ...)
-// #define wayland_log_infof log_infof
 
 SpallBuffer spall_buffer;
 SpallProfile spall_ctx;
@@ -20,36 +21,18 @@ f64 get_time_in_micros() {
 #define WAYLAND_DISPLAY_OBJECT_ID                          1
 #define WAYLAND_WL_REGISTRY_EVENT_GLOBAL                   0
 #define WAYLAND_WL_DISPLAY_ERROR_EVENT                     0
-#define WAYLAND_WL_DISPLAY_GET_REGISTRY_OPCODE             1
-#define WAYLAND_WL_REGISTRY_BIND_OPCODE                    0
-
-#define WAYLAND_WL_COMPOSITOR_CREATE_SURFACE_OPCODE        0
 
 #define WAYLAND_XDG_WM_BASE_EVENT_PING                     0
-#define WAYLAND_XDG_WM_BASE_PONG_OPCODE                    3
-#define WAYLAND_XDG_WM_BASE_GET_XDG_SURFACE_OPCODE         2
 
 #define WAYLAND_XDG_SURFACE_EVENT_CONFIGURE                0
-#define WAYLAND_XDG_SURFACE_GET_TOPLEVEL_OPCODE            1
-#define WAYLAND_XDG_SURFACE_ACK_CONFIGURE_OPCODE           4
 
 #define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE               0
 #define WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE                   1
 #define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE_BOUNDS        2
-#define WAYLAND_XDG_TOPLEVEL_SET_TITLE_OPCODE              2
-
-#define WAYLAND_WL_SURFACE_ATTACH_OPCODE                   1
-#define WAYLAND_WL_SURFACE_COMMIT_OPCODE                   6
 
 #define WAYLAND_WL_SHM_POOL_EVENT_FORMAT                   0
-#define WAYLAND_WL_SHM_CREATE_POOL_OPCODE                  0
-#define WAYLAND_WL_SHM_POOL_RESIZE_OPCODE                  2
-#define WAYLAND_WL_SHM_POOL_CREATE_BUFFER_OPCODE           0
 
 #define WAYLAND_WL_BUFFER_EVENT_RELEASE                    0
-#define WAYLAND_WL_BUFFER_DESTROY_OPCODE                   0
-#define WAYLAND_WL_SEAT_GET_POINTER                        0
-#define WAYLAND_WL_SEAT_GET_KEYBOARD                       1
 
 #define WAYLAND_WL_POINTER_ENTER_EVENT                     0
 #define WAYLAND_WL_POINTER_MOTION_EVENT                    2
@@ -59,11 +42,6 @@ f64 get_time_in_micros() {
 #define WAYLAND_WL_KEYBOARD_EVENT_KEY                      3
 #define WAYLAND_WL_KEYBOARD_EVENT_KEYMAP                   0
 
-#define WAYLAND_WP_CURSOR_SHAPE_MANAGER_GET_POINTER_OPCODE 1
-
-#define WAYLAND_WP_CURSOR_SHAPE_DEVICE_SET_SHAPE_OPCODE    1
-
-#define WAYLAND_FORMAT_XRGB8888                            1
 #define WAYLAND_HEADER_SIZE                                8
 #define COLOR_CHANNELS                                     4
 
@@ -148,7 +126,12 @@ struct sockaddr_un {
   char path[108];
 };
 
-internal Socket wayland_display_connect() {
+internal Wayland_Connection wayland_display_connect(Allocator allocator) {
+  Wayland_Connection conn = {0};
+  conn.current_id = 1;
+  vector_init(&conn.builder, 0, 8, allocator);
+  vector_init(&conn.fds, 0, 8, allocator);
+
   String xdg_runtime_dir = get_env(LIT("XDG_RUNTIME_DIR"));
   String wayland_display = get_env(LIT("WAYLAND_DISPLAY"));
 
@@ -157,75 +140,13 @@ internal Socket wayland_display_connect() {
   addr.family = 1;
   string_copy((String) {.data = addr.path, .len = size_of(addr.path) - 1}, socket_path);
 
-  Socket s = syscall(SYS_socket, 1, SOCK_STREAM, 0);
-  assert(s != -1);
+  conn.socket = syscall(SYS_socket, 1, SOCK_STREAM, 0);
+  assert(conn.socket != -1);
 
-  isize connect_status = syscall(SYS_connect, s, &addr, size_of(addr));
+  isize connect_status = syscall(SYS_connect, conn.socket, &addr, size_of(addr));
   assert(connect_status != -1)
 
-  return s;
-}
-
-internal isize wayland_wl_display_get_registry(Socket s) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  u32 object_id = WAYLAND_DISPLAY_OBJECT_ID;
-  write_any(&writer, &object_id);
-
-  u16 opcode = WAYLAND_WL_DISPLAY_GET_REGISTRY_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE + sizeof(__wayland_current_id);
-  write_any(&writer, &msg_announced_size);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  (void)unwrap_err(socket_write(s, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> wl_display@%d.get_registry: wl_registry=%d"), WAYLAND_DISPLAY_OBJECT_ID, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
-internal isize wayland_wl_registry_bind(Socket s, u32 registry, u32 name, String interface, u32 version) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &registry);
-
-  u16 opcode = WAYLAND_WL_REGISTRY_BIND_OPCODE;
-  write_any(&writer, &opcode);
-
-  i32 interface_len = roundup_4(interface.len + 1);
-
-  u16 msg_announced_size =
-    + WAYLAND_HEADER_SIZE
-    + size_of(name)
-    + size_of(interface_len)
-    + interface_len
-    + size_of(version)
-    + size_of(__wayland_current_id);
-  write_any(&writer, &msg_announced_size);
-
-  write_any(&writer, &name);
-  i32 write_len = interface.len + 1;
-  write_any(&writer, &write_len);
-  interface.len = interface_len;
-  write_string(&writer, interface);
-  write_any(&writer, &version);
-  
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  (void)unwrap_err(socket_write(s, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> wl_registry@%d.bind: name=%d interface=%s version=%d wayland_current_id=%d"), registry, name, interface.data, version, __wayland_current_id);
-
-  return __wayland_current_id;
+  return conn;
 }
 
 typedef enum {
@@ -272,143 +193,6 @@ typedef struct {
   b8            keys[Key_MAX_VALUE];
 } Wayland_State;
 
-internal i32 wayland_wl_shm_pool_create_buffer(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_shm_pool);
-
-  u16 opcode = WAYLAND_WL_SHM_POOL_CREATE_BUFFER_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size =
-    + WAYLAND_HEADER_SIZE
-    + size_of(__wayland_current_id)
-    + size_of(i32)
-    + size_of(state->w)
-    + size_of(state->h)
-    + size_of(state->stride)
-    + size_of(u32);
-  write_any(&writer, &msg_announced_size);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  i32 offset = 0;
-  write_any(&writer, &offset);
-  write_any(&writer, &state->w);
-  write_any(&writer, &state->h);
-  write_any(&writer, &state->stride);
-  i32 format = WAYLAND_FORMAT_XRGB8888;
-  write_any(&writer, &format);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> wl_shm_pool@%d.create_buffer: wl_buffer=%d"), state->wl_shm_pool, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
-internal i32 wayland_wl_shm_create_pool(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_shm);
-
-  u16 opcode = WAYLAND_WL_SHM_CREATE_POOL_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size =
-    WAYLAND_HEADER_SIZE + size_of(__wayland_current_id) + size_of(state->shm_pool_size);
-  write_any(&writer, &msg_announced_size);
-
-  assert(builder.len == WAYLAND_HEADER_SIZE);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  File_Info info;
-  file_stat(state->shm_fd, &info);
-  assert(info.size == state->shm_pool_size);
-
-  write_any(&writer, &state->shm_pool_size);
-
-  assert(builder.len == msg_announced_size);
-
-  // I dont even really know what to say about this
-
-  char control_buf[CMSG_SPACE(size_of(state->shm_fd))] __attribute__ ((aligned(8))) = "";
-
-  struct iovec iovec = {
-    .base = builder.data,
-    .len  = (usize)builder.len,
-  };
-
-  struct msghdr socket_msg = {
-    .iov        = &iovec,
-    .iovlen     = 1,
-    .control    = control_buf,
-    .controllen = size_of(control_buf),
-  };
-
-  #define SCM_RIGHTS 1
-
-  struct cmsghdr *cmsg = CMSG_FIRSTHDR(&socket_msg);
-  cmsg->level = SOL_SOCKET;
-  cmsg->type  = SCM_RIGHTS;
-  cmsg->len   = CMSG_LEN(size_of(state->shm_fd));
-
-  mem_copy(CMSG_DATA(cmsg), &state->shm_fd, size_of(state->shm_fd));
-  socket_msg.controllen = CMSG_SPACE(size_of(state->shm_fd));
-
-  isize status = syscall(SYS_sendmsg, socket, &socket_msg, MSG_NOSIGNAL | 0x40);
-  assert(status != -1);
-
-  wayland_log_infof(LIT("-> wl_shm@%d.create_pool: wl_shm_pool=%d"), state->wl_shm, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
-internal void wayland_wl_shm_pool_resize(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_shm_pool);
-
-  u16 opcode = WAYLAND_WL_SHM_POOL_RESIZE_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE + size_of(state->shm_pool_size);
-  write_any(&writer, &msg_announced_size);
-
-  write_any(&writer, &state->shm_pool_size);
-
-  wayland_log_infof(LIT("-> wl_shm_pool@%d.resize: size=%d"), state->wl_shm_pool, state->shm_pool_size);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-}
-
-internal void wayland_wl_buffer_destroy(Socket socket, u32 buffer) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &buffer);
-
-  u16 opcode = WAYLAND_WL_BUFFER_DESTROY_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE;
-  write_any(&writer, &msg_announced_size);
-
-  wayland_log_infof(LIT("-> wl_buffer@%d.destroy:"), buffer);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-}
-
 internal b8 create_shared_memory_file(uintptr size, Wayland_State *state) {
   #define MFD_CLOEXEC       0x0001U
   #define MFD_ALLOW_SEALING	0x0002U
@@ -450,120 +234,10 @@ internal b8 create_shared_memory_file(uintptr size, Wayland_State *state) {
   }
   state->shm_fd = fd;
 
-  // char name[255] = "my_wayland_client0911";
-
-  // int fd = syscall(SYS_open, name, O_RDWR | O_EXCL | O_CREAT | O_TRUNC, 0600);
-  // if (fd == -1) {
-  //   return false;
-  // }
-
-  // if (syscall(SYS_unlink, name) == -1) {
-  //   return false;
-  // }
-
-  // if (syscall(SYS_ftruncate, fd, size) == -1) {
-  //   return false;
-  // }
-
-  // state->shm_pool_data = (u8 *)syscall(SYS_mmap, nil, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  // state->shm_pool_data[0] = 1;
-  // assert(state->shm_pool_data != nil);
-  // state->shm_fd = fd;
-
   return true;
 }
 
-internal void wayland_xdg_wm_base_pong(Socket socket, Wayland_State *state, u32 ping) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->xdg_wm_base);
-
-  u16 opcode = WAYLAND_XDG_WM_BASE_PONG_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE + size_of(ping);
-  write_any(&writer, &msg_announced_size);
-
-  write_any(&writer, &ping);
-
-  wayland_log_infof(LIT("-> xdg_wm_base@%d.pong:"), state->xdg_wm_base);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-}
-
-internal void wayland_xdg_surface_ack_configure(Socket socket, Wayland_State *state, u32 configure) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->xdg_wm_base);
-
-  u16 opcode = WAYLAND_XDG_WM_BASE_PONG_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE + size_of(configure);
-  write_any(&writer, &msg_announced_size);
-
-  write_any(&writer, &configure);
-
-  wayland_log_infof(LIT("-> xdg_surface@%d.ack_configure:"), state->xdg_surface);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-}
-
-internal u32 wayland_wp_cursor_shape_manager_get_pointer(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wp_cursor_shape_manager);
-
-  u16 opcode = WAYLAND_WP_CURSOR_SHAPE_MANAGER_GET_POINTER_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size =
-    + WAYLAND_HEADER_SIZE
-    + size_of(__wayland_current_id)
-    + size_of(state->wl_pointer);
-  write_any(&writer, &msg_announced_size);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-
-  write_any(&writer, &state->wl_pointer);
-  
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> wp_cursor_shape_manager@%d.get_pointer: current id=%d"), state->wp_cursor_shape_manager, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
-internal void wayland_wp_cursor_shape_device_set_shape(Socket socket, Wayland_State *state, u32 serial) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wp_cursor_shape_device);
-
-  u16 opcode = WAYLAND_WP_CURSOR_SHAPE_DEVICE_SET_SHAPE_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE + size_of(serial) + size_of(u32);
-  write_any(&writer, &msg_announced_size);
-
-  write_any(&writer, &serial);
-  u32 cursor = 1;
-  write_any(&writer, &cursor);
-
-  wayland_log_infof(LIT("-> wp_cursor_shape_device@%d.set_shape: shape=%d"), state->wp_cursor_shape_device, cursor);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-}
-
-internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_Slice data) {
+internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *state, Byte_Slice data) {
   if (data.len < 8) {
     fmt_panicf(LIT("Invalid len: %d"), data.len);
   }
@@ -602,23 +276,23 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
     wayland_log_infof(LIT("name: %d, interface: '%S', version: %d"), name, interface, version);
 
     if (string_equal(interface, LIT("wl_shm"))) {
-      state->wl_shm = wayland_wl_registry_bind(socket, state->wl_registry, name, interface, version);
+      state->wl_shm = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
     }
 
     if (string_equal(interface, LIT("xdg_wm_base"))) {
-      state->xdg_wm_base = wayland_wl_registry_bind(socket, state->wl_registry, name, interface, version);
+      state->xdg_wm_base = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
     }
 
     if (string_equal(interface, LIT("wl_compositor"))) {
-      state->wl_compositor = wayland_wl_registry_bind(socket, state->wl_registry, name, interface, version);
+      state->wl_compositor = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
     }
 
     if (string_equal(interface, LIT("wl_seat"))) {
-      state->wl_seat = wayland_wl_registry_bind(socket, state->wl_registry, name, interface, version);
+      state->wl_seat = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
     }
 
     if (string_equal(interface, LIT("wp_cursor_shape_manager_v1"))) {
-      state->wp_cursor_shape_manager = wayland_wl_registry_bind(socket, state->wl_registry, name, interface, version);
+      state->wp_cursor_shape_manager = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
     }
 
   } else if (object_id == state->xdg_wm_base && opcode == WAYLAND_XDG_WM_BASE_EVENT_PING) {
@@ -627,7 +301,7 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
 
     wayland_log_infof(LIT("<- xdg_wm_base@%d.ping:"), state->xdg_wm_base);
 
-    wayland_xdg_wm_base_pong(socket, state, ping);
+    wayland_xdg_wm_base_pong(conn, state->xdg_wm_base, ping);
 
   } else if (object_id == state->xdg_surface && opcode == WAYLAND_XDG_SURFACE_EVENT_CONFIGURE) {
     u32 configure;
@@ -635,7 +309,7 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
 
     wayland_log_infof(LIT("<- xdg_surface@%d.configure:"), state->xdg_surface);
 
-    wayland_xdg_surface_ack_configure(socket, state, configure);
+    wayland_xdg_surface_ack_configure(conn, state->xdg_surface, configure);
     state->surface_state = Surface_State_Acked_Configure;
 
   } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE_BOUNDS) {
@@ -771,10 +445,10 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
 
       if (state->wp_cursor_shape_manager) {
         if (!state->wp_cursor_shape_device) {
-          state->wp_cursor_shape_device = wayland_wp_cursor_shape_manager_get_pointer(socket, state);
+          state->wp_cursor_shape_device = wayland_wp_cursor_shape_manager_v1_get_pointer(conn, state->wp_cursor_shape_manager, state->wl_pointer);
         }
 
-        wayland_wp_cursor_shape_device_set_shape(socket, state, serial);
+        wayland_wp_cursor_shape_device_v1_set_shape(conn, state->wp_cursor_shape_device, serial, Wayland_Wp_Cursor_Shape_Device_V1_Shape_Default);
       }
       
       break;
@@ -811,232 +485,8 @@ internal isize wayland_handle_message(Socket socket, Wayland_State *state, Byte_
   return announced_size;
 }
 
-internal i32 wayland_wl_compositor_create_surface(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_compositor);
-
-  u16 opcode = WAYLAND_WL_COMPOSITOR_CREATE_SURFACE_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE + size_of(__wayland_current_id);
-  write_any(&writer, &msg_announced_size);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> wl_compositor@%d.create_surface: wl_surface=%d"), state->wl_compositor, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
-internal i32 wayland_xdg_wm_base_get_xdg_surface(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->xdg_wm_base);
-
-  u16 opcode = WAYLAND_XDG_WM_BASE_GET_XDG_SURFACE_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE + size_of(__wayland_current_id) + size_of(state->wl_surface);
-  write_any(&writer, &msg_announced_size);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  write_any(&writer, &state->wl_surface);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> xdg_wm_base@%d.get_xdg_surface: xdg_surface=%d"), state->xdg_wm_base, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
-internal i32 wayland_xdg_surface_get_toplevel(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->xdg_surface);
-
-  u16 opcode = WAYLAND_XDG_SURFACE_GET_TOPLEVEL_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE + size_of(__wayland_current_id);
-  write_any(&writer, &msg_announced_size);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> xdg_surface@%d.get_toplevel: xdg_toplevel=%d"), state->xdg_surface, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
-internal void wayland_wl_surface_commit(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_surface);
-
-  u16 opcode = WAYLAND_WL_SURFACE_COMMIT_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE;
-  write_any(&writer, &msg_announced_size);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> wl_surface@%d.commit:"), state->wl_surface);
-}
-
-internal void wayland_wl_surface_attach(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_surface);
-
-  u16 opcode = WAYLAND_WL_SURFACE_ATTACH_OPCODE;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size = WAYLAND_HEADER_SIZE + size_of(state->wl_buffer) + size_of(u32) * 2;
-  write_any(&writer, &msg_announced_size);
-
-  write_any(&writer, &state->wl_buffer);
-  
-  u32 zero;
-  write_any(&writer, &zero);
-  write_any(&writer, &zero);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> wl_surface@%d.attach: buffer=%d offset=[%d,%d]"), state->wl_surface, state->wl_buffer, 0, 0);
-}
-
-internal void wayland_wl_surface_damage_buffer(Socket socket, Wayland_State *state, i32 offset_x, i32 offset_y, i32 width, i32 height) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_surface);
-
-  u16 opcode = 9;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size =
-    + WAYLAND_HEADER_SIZE
-    + size_of(i32) * 2
-    + size_of(state->w)
-    + size_of(state->h);
-  write_any(&writer, &msg_announced_size);
-
-  write_any(&writer, &offset_x);
-  write_any(&writer, &offset_y);
-  write_any(&writer, &width);
-  write_any(&writer, &height);
-
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> wl_surface@%d.damage_buffer: wl_buffer=%d"), state->wl_surface, __wayland_current_id);
-}
-
-internal u32 wayland_wl_seat_get_keyboard(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_seat);
-
-  u16 opcode = WAYLAND_WL_SEAT_GET_KEYBOARD;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size =
-    + WAYLAND_HEADER_SIZE
-    + size_of(__wayland_current_id);
-  write_any(&writer, &msg_announced_size);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> wl_seat@%d.get_keyboard: current id=%d"), state->wl_seat, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
-internal u32 wayland_wl_seat_get_pointer(Socket socket, Wayland_State *state) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->wl_seat);
-
-  u16 opcode = WAYLAND_WL_SEAT_GET_POINTER;
-  write_any(&writer, &opcode);
-
-  u16 msg_announced_size =
-    + WAYLAND_HEADER_SIZE
-    + size_of(__wayland_current_id);
-  write_any(&writer, &msg_announced_size);
-
-  __wayland_current_id += 1;
-  write_any(&writer, &__wayland_current_id);
-  
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> wl_seat@%d.get_pointer: current id=%d"), state->wl_seat, __wayland_current_id);
-
-  return __wayland_current_id;
-}
-
-internal void wayland_xdg_toplevel_set_title(Socket socket, Wayland_State *state, String title) {
-  Builder builder;
-  builder_init(&builder, 0, 64, context.temp_allocator);
-  Writer writer = writer_from_builder(&builder);
-
-  write_any(&writer, &state->xdg_toplevel);
-
-  u16 opcode = WAYLAND_XDG_TOPLEVEL_SET_TITLE_OPCODE;
-  write_any(&writer, &opcode);
-
-  i32 title_len = roundup_4(title.len + 1);
-
-  u16 msg_announced_size =
-    + WAYLAND_HEADER_SIZE
-    + size_of(title_len)
-    + title_len;
-  write_any(&writer, &msg_announced_size);
-
-  i32 write_len = title.len + 1;
-  write_any(&writer, &write_len);
-  write_string(&writer, title);
-  for_range(i, title.len, title_len) {
-    write_byte(&writer, 0);
-  }
-
-  assert(builder.len == roundup_4(builder.len));
-
-  write_entire_file_path(LIT("dump.hex"), builder_to_bytes(builder));
-  
-  (void)unwrap_err(socket_write(socket, builder_to_bytes(builder)));
-
-  wayland_log_infof(LIT("-> xdg_toplevel@%d.set_title: title='%S'"), state->xdg_toplevel, title);
-}
-
 internal void wayland_draw_rect_outlines(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
 
   if (in_range(x, 0, state->w)) {
@@ -1085,7 +535,7 @@ internal void alpha_blend_rgba8(u32 *dst, u32 src) {
 }
 
 internal void wayland_draw_rect_outlines_alpha(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   if ((color & 0xFF) == 0xFF) {
     wayland_draw_rect_outlines(state, x, y, w, h, color);
     return;
@@ -1118,7 +568,7 @@ internal void wayland_draw_rect_outlines_alpha(Wayland_State *state, i32 x, i32 
 }
 
 internal void wayland_draw_rect(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
   for_range(_y, max(y, 0), min(y + h, state->h)) {
     for_range(_x, max(x, 0), min(x + w, state->w)) {
@@ -1129,7 +579,7 @@ internal void wayland_draw_rect(Wayland_State *state, i32 x, i32 y, i32 w, i32 h
 }
 
 internal void wayland_draw_rect_alpha(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   if ((color >> 24) == 0xFF) {
     wayland_draw_rect(state, x, y, w, h, color);
     return;
@@ -1144,7 +594,7 @@ internal void wayland_draw_rect_alpha(Wayland_State *state, i32 x, i32 y, i32 w,
 }
 
 internal void wayland_draw_rect_gradient_v(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 _start, u32 _end) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
 
   Array(u8, 4) start = transmute(type_of(start), _start);
@@ -1165,7 +615,7 @@ internal void wayland_draw_rect_gradient_v(Wayland_State *state, i32 x, i32 y, i
 }
 
 internal void wayland_draw_rect_gradient_h(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 _start, u32 _end) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
 
   Array(u8, 4) start = transmute(type_of(start), _start);
@@ -1199,8 +649,8 @@ internal void wayland_draw_rect_gradient_h(Wayland_State *state, i32 x, i32 y, i
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal isize wayland_draw_text(Wayland_State *state, String str, u32 color, isize *x, isize *y) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+internal isize wayland_draw_text(Wayland_State *state, BMF_Font const *font, String str, u32 color, isize *x, isize *y) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   isize start_x = *x;
 
   u32 *pixels = (u32 *)state->shm_pool_data;
@@ -1211,7 +661,7 @@ internal isize wayland_draw_text(Wayland_State *state, String str, u32 color, is
     if (*c == '\n') {
       *x = start_x;
     }
-    b8 ok = bmf_get_baked_quad_i(&font, *c, x, y, &q);
+    b8 ok = bmf_get_baked_quad_i(font, *c, x, y, &q);
 
     if (q.x0 >= state->w) {
       break;
@@ -1236,7 +686,7 @@ internal isize wayland_draw_text(Wayland_State *state, String str, u32 color, is
           break;
         }
 
-        u16 alpha = font.atlas.data[_u + _v * font.atlas_width];
+        u16 alpha = font->atlas.data[_u + _v * font->atlas_width];
         alpha_blend_rgb8(&pixels[_x + _y * state->w], color, (alpha * color_alpha) >> 8);
       }
     }
@@ -1252,7 +702,7 @@ internal u8 __fixed_0_8_sqrt_lut[256] = {0};
 internal u8 __fixed_0_8_smoothstep_lut[256] = {0};
 
 internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   #define UI_SHADOW_RADIUS       16
   #define UI_SHADOW_INV_STRENGTH 2
   #define UI_SHADOW_COLOR        0
@@ -1349,7 +799,7 @@ internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
 }
 
 internal void wayland_draw_image(Wayland_State *state, i32 x, i32 y, Image const *image) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   assert(image->pixel_type == PT_u8);
   assert(image->components == 4);
   u32 *pixels = (u32 *)state->shm_pool_data;
@@ -1368,8 +818,30 @@ internal void wayland_draw_image(Wayland_State *state, i32 x, i32 y, Image const
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
+internal void wayland_draw_image_scaled(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, Image const *image) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  assert(image->pixel_type == PT_u8);
+  assert(image->components == 4);
+  u32 *pixels = (u32 *)state->shm_pool_data;
+  for_range(_y, 0, h) {
+    isize iy = (_y * image->height) / h;
+    if (_y + y >= state->h) {
+      break;
+    }
+    for_range(_x, 0, w) {
+      isize ix = (_x * image->width) / w;
+      if (_x + x >= state->w) {
+        break;
+      }
+      u32 pixel = ((u32 *)image->pixels.data)[ix + iy * image->width];
+      alpha_blend_rgba8(&pixels[_x + x + (_y + y) * state->w], pixel);
+    }
+  }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+}
+
 internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   // slice_iter(ctx->commands, cmd, _i, {
   //   u32 hash = hash_ui_command(0, *cmd);
   //   // ui_state->command_hashes
@@ -1379,11 +851,11 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
   slice_iter(ctx->commands, cmd, _i, {
     switch(cmd->type) {
     case UI_Command_Type_None:
-      spall_buffer_begin(&spall_ctx, &spall_buffer, "UI_Command_Type_None", size_of("UI_Command_Type_None") - 1, get_time_in_micros());
+      spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("UI_Command_Type_None") ,get_time_in_micros());
       spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
       break;
     case UI_Command_Type_Gradient:
-      spall_buffer_begin(&spall_ctx, &spall_buffer, "UI_Command_Type_Gradient", size_of("UI_Command_Type_Gradient") - 1, get_time_in_micros());
+      spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("UI_Command_Type_Gradient"), get_time_in_micros());
       rect = cmd->variant.box.rect;
       wayland_draw_rect_gradient_v(
         wl_state,
@@ -1406,7 +878,7 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
       spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
       break;
     case UI_Command_Type_Box:
-      spall_buffer_begin(&spall_ctx, &spall_buffer, "UI_Command_Type_Box", size_of("UI_Command_Type_Box") - 1, get_time_in_micros());
+      spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("UI_Command_Type_Box"), get_time_in_micros());
       rect = cmd->variant.box.rect;
       wayland_draw_rect_alpha(
         wl_state,
@@ -1428,14 +900,14 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
       spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
       break;
     case UI_Command_Type_Text:
-      spall_buffer_begin(&spall_ctx, &spall_buffer, "UI_Command_Type_Text", size_of("UI_Command_Type_Text") - 1, get_time_in_micros());
-      x = cmd->variant.text.bounds.x0;
-      y = cmd->variant.text.bounds.y1 - font.decender;
-      wayland_draw_text(wl_state, cmd->variant.text.text, cmd->variant.text.color, &x, &y);
+      spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("UI_Command_Type_Text"), get_time_in_micros());
+      x = cmd->variant.text.bounds.x0 + ctx->font.decender;
+      y = cmd->variant.text.bounds.y1 - ctx->font.decender;
+      wayland_draw_text(wl_state, &ctx->font, cmd->variant.text.text, cmd->variant.text.color, &x, &y);
       spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
       break;
     case UI_Command_Type_Image:
-      spall_buffer_begin(&spall_ctx, &spall_buffer, "UI_Command_Type_Image", size_of("UI_Command_Type_Image") - 1, get_time_in_micros());
+      spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("UI_Command_Type_Image"), get_time_in_micros());
       rect = cmd->variant.image.rect;
       wayland_draw_image(
         wl_state,
@@ -1464,16 +936,16 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
 }
 
 internal void wayland_render(Wayland_State *state, Directory const *directory) {
-  // spall_buffer_begin(&spall_ctx, &spall_buffer, __FUNCTION__, size_of(__FUNCTION__) - 1, get_time_in_micros());
+  // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
 
-  // spall_buffer_begin(&spall_ctx, &spall_buffer, "Clear Background", size_of("Clear Background") - 1, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("Clear Background"), get_time_in_micros());
   u32 color = 0xFF1E2128;
   for_range(i, 0, state->w * state->h) {
     pixels[i] = color;
   }
   
-  // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   String str = LIT("The quick brown fox jumps over the lazy dog");
   ui_context.mouse.x = state->mouse_x;
@@ -1485,8 +957,22 @@ internal void wayland_render(Wayland_State *state, Directory const *directory) {
   ui_context.mouse.buttons[0] = state->mouse_buttons[0];
   ui_context.mouse.buttons[1] = state->mouse_buttons[1];
 
+  ui_context.horizontal = true;
+
   ui_label(&ui_context, fps_string);
+
+  local_persist struct Time last_time = {0};
+  struct Time curr_time = time_now();
+  isize diff = curr_time.nsec - last_time.nsec;
+
+  ui_label(&ui_context, fmt_tprintf(LIT("%fms"), (f32)((f64)diff / Millisecond)));
+  last_time = curr_time;
+
   ui_label(&ui_context, str);
+
+  ui_context.horizontal = false;
+  ui_context.x  = 25;
+  ui_context.y += ui_context.spacing + ui_context.font.single_h + ui_context.font.decender;
 
   ui_image(&ui_context, (UI_Image) {.index = 0});
 

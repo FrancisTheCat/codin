@@ -2,8 +2,6 @@
 #include "bad_font.h"
 #include "image.h"
 
-static BMF_Font font;
-
 typedef struct {
   i32 x0;
   i32 y0;
@@ -109,19 +107,40 @@ typedef struct {
   Vector(UI_Command) commands;
   i32                width, height;
   i32                x, y;
+  i32                spacing;
+  b8                 horizontal;
   struct {
     i32 x, y;
     b8  buttons[2];
   } mouse;
+  BMF_Font           font;
   Slice(u32)         command_hashes;
   Slice(u32)         prev_command_hashes;
   Vector(Image)      images;
   u32                colors[UI_Color_MAX];
 } UI_Context;
 
+internal Rectangle ui_insert_rect(UI_Context *ctx, isize width, isize height) {
+  Rectangle rect;
+  rect.x0 = ctx->x;
+  rect.y0 = ctx->y;
+
+  if (ctx->horizontal) {
+    rect.x1 = ctx->x + width;
+    rect.y1 = ctx->y + height;
+    ctx->x += width + ctx->spacing;
+    return rect;
+  } else {
+    rect.x1 = ctx->x + width;
+    rect.y1 = ctx->y + height;
+    ctx->y += height + ctx->spacing;
+    return rect;
+  }
+}
+
 #define UI_HASH_CELL_SIZE 32
 
-internal void ui_context_init(UI_Context *ctx, isize width, isize height, Allocator allocator) {
+internal void ui_context_init(UI_Context *ctx, BMF_Font font, isize width, isize height, Allocator allocator) {
   isize n_cells = ((width  + UI_HASH_CELL_SIZE - 1) / UI_HASH_CELL_SIZE) *
                   ((height + UI_HASH_CELL_SIZE - 1) / UI_HASH_CELL_SIZE);
   slice_init(&ctx->command_hashes,      n_cells, allocator);
@@ -129,8 +148,10 @@ internal void ui_context_init(UI_Context *ctx, isize width, isize height, Alloca
   vector_init(&ctx->commands, 0, 8, allocator);
   vector_init(&ctx->images, 0, 8, allocator);
 
-  ctx->width  = width;
-  ctx->height = height;
+  ctx->font    = font;
+  ctx->width   = width;
+  ctx->height  = height;
+  ctx->spacing = font.decender;
 
   ctx->colors[UI_Color_Background            ] = 0xFF000000;
   ctx->colors[UI_Color_Image_Border          ] = 0xFF62AEEF;
@@ -167,14 +188,13 @@ internal b8 ui_mouse_in_rect(UI_Context *ctx, Rectangle const *rect) {
 }
 
 internal b8 ui_button(UI_Context *ctx, String text) {
-  i32 width = bmf_measure_text(&font, text);
+  i32 width = bmf_measure_text(&ctx->font, text);
   UI_Command cmd;
-  Rectangle rect = (Rectangle) {
-    .x0 = ctx->x,
-    .y0 = ctx->y,
-    .x1 = ctx->width - 25,
-    .y1 = ctx->y + font.single_h + font.decender,
-  };
+  Rectangle rect = ui_insert_rect(
+    ctx,
+    width + ctx->font.decender * 2,
+    ctx->font.single_h + ctx->font.decender
+  );
 
   UI_Color color         = UI_Color_Button;
   UI_Color color_2       = UI_Color_Button_2;
@@ -204,31 +224,26 @@ internal b8 ui_button(UI_Context *ctx, String text) {
   };
   vector_append(&ctx->commands, cmd);
 
-  rect.x0 += font.decender;
-
-  cmd.type        = UI_Command_Type_Text;
+  cmd.type         = UI_Command_Type_Text;
   cmd.variant.text = (UI_Command_Text) {
     .text   = text,
     .bounds = rect,
     .color  = ctx->colors[text_color],
   };
 
-  ctx->y += font.single_h * 2 + font.decender;
-  
   vector_append(&ctx->commands, cmd);
 
   return color == UI_Color_Button_Clicked;
 }
 
 internal void ui_label(UI_Context *ctx, String text) {
-  i32 width = bmf_measure_text(&font, text);
+  i32 width = bmf_measure_text(&ctx->font, text);
   UI_Command cmd;
-  Rectangle rect = (Rectangle) {
-    .x0 = ctx->x,
-    .y0 = ctx->y,
-    .x1 = ctx->x + width + font.decender * 2,
-    .y1 = ctx->y + font.single_h + font.decender,
-  };
+  Rectangle rect = ui_insert_rect(
+    ctx,
+    width + ctx->font.decender * 2,
+    ctx->font.single_h + ctx->font.decender
+  );
 
   UI_Color color         = UI_Color_Label;
   UI_Color text_color    = UI_Color_Label_Text;
@@ -242,8 +257,6 @@ internal void ui_label(UI_Context *ctx, String text) {
   };
   vector_append(&ctx->commands, cmd);
 
-  rect.x0 += font.decender;
-
   cmd.type        = UI_Command_Type_Text;
   cmd.variant.text = (UI_Command_Text) {
     .text   = text,
@@ -251,8 +264,6 @@ internal void ui_label(UI_Context *ctx, String text) {
     .color  = ctx->colors[text_color],
   };
 
-  ctx->y += font.single_h * 2 + font.decender;
-  
   vector_append(&ctx->commands, cmd);
 }
 
@@ -265,12 +276,7 @@ internal UI_Image ui_create_image(UI_Context *ctx, Image image) {
 internal void ui_image(UI_Context *ctx, UI_Image img) {
   UI_Command cmd;
   Image *image = &ctx->images.data[img.index];
-  Rectangle rect = (Rectangle) {
-    .x0 = ctx->x,
-    .y0 = ctx->y,
-    .x1 = ctx->x + (i32)image->width,
-    .y1 = ctx->y + (i32)image->height,
-  };
+  Rectangle rect = ui_insert_rect(ctx, (i32)image->width, (i32)image->height);
 
   cmd.type          = UI_Command_Type_Image;
   cmd.variant.image = (UI_Command_Image) {
@@ -279,6 +285,28 @@ internal void ui_image(UI_Context *ctx, UI_Image img) {
     .image   = img,
   };
   vector_append(&ctx->commands, cmd);
-
-  ctx->y += font.single_h + image->height;
 }
+
+// Rectangle cut_left(Rectangle* rect, i32 a) {
+//     i32 x0 = rect->x0;
+//     rect->x0 = min(rect->x1, rect->x0 + a);
+//     return (Rectangle){ x0, rect->y0, rect->x0, rect->y1 };
+// }
+
+// Rectangle cut_right(Rectangle* rect, i32 a) {
+//     i32 x1 = rect->x1;
+//     rect->x1 = max(rect->x0, rect->x1 - a);
+//     return (Rectangle){ rect->x1, rect->y0, x1, rect->y1 };
+// }
+
+// Rectangle cut_top(Rectangle* rect, i32 a) {
+//     i32 y0 = rect->y0;
+//     rect->y0 = min(rect->y1, rect->y0 + a);
+//     return (Rectangle){ rect->x0, y0, rect->x1, rect->y0 };
+// }
+
+// Rectangle cut_bottom(Rectangle* rect, i32 a) {
+//     i32 y1 = rect->y1;
+//     rect->y1 = max(rect->y0, rect->y1 - a);
+//     return (Rectangle){ rect->x0, rect->y1, rect->x1, y1 };
+// }

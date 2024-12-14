@@ -349,8 +349,6 @@ internal void __runtime_cleanup();
 
 #include "dynlib.h"
 
-#include "wayland.h"
-
 internal _Thread_local Growing_Arena_Allocator __default_temp_allocator_arena;
 internal _Thread_local Default_Allocator       __default_heap_allocator;
 

@@ -1,5 +1,13 @@
 #include "codin.h"
 
+internal b8 rune_is_upper(rune r) {
+  return 'A' <= r && r <= 'Z';
+}
+
+internal b8 rune_is_lower(rune r) {
+  return 'a' <= r && r <= 'z';
+}
+
 internal b8 rune_is_alpha(rune r) {
   return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z');
 }
@@ -174,5 +182,12 @@ internal Byte_Slice string_to_bytes(String str) {
   return (Byte_Slice) {
     .data = (byte *)str.data,
     .len  = str.len,
+  };
+}
+
+internal String bytes_to_string(Byte_Slice bytes) {
+  return (String) {
+    .data = (char *)bytes.data,
+    .len  = bytes.len,
   };
 }

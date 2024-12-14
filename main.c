@@ -1,6 +1,9 @@
 #include "codin.h"
 #include "image.h"
 #include "iter.h"
+#include "xml.h"
+#include "wayland.h"
+
 #include "math.h"
 
 b8 test_sort() {
@@ -249,7 +252,7 @@ int main() {
 
 	spall_buffer_init(&spall_ctx, &spall_buffer);
 
-  spall_buffer_begin(&spall_ctx, &spall_buffer, "read_directory", 14, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_directory"), get_time_in_micros());
   Directory directory = unwrap_err(read_directory_path(LIT("."), context.allocator));
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
@@ -261,7 +264,7 @@ int main() {
     max_size_len = max(fmt_file_size_w(nil, file->size), max_size_len);
   });
 
-  spall_buffer_begin(&spall_ctx, &spall_buffer, "sort", 4, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("sort"), get_time_in_micros());
   sort_slice_by(directory, i, j, string_compare_lexicographic(directory.data[i].name, directory.data[j].name));
       // ((dir.data[i].is_dir != dir.data[j].is_dir)
       //      ? dir.data[i].is_dir
@@ -277,7 +280,7 @@ int main() {
     *(char *)s = ' ';
   });
 
-  spall_buffer_begin(&spall_ctx, &spall_buffer, "print_directory", 15, get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("print_directory"), get_time_in_micros());
   {
     Builder buffer;
     builder_init(&buffer, 0, 8, context.temp_allocator);
@@ -415,157 +418,27 @@ int main() {
 
   // context.logger.proc = nil;
 
-  Byte_Slice font_data = unwrap_err(read_entire_file_path(LIT("out12.bmf"), context.allocator));
-  b8 font_ok = bmf_load_font(font_data, &font);
-  assert(font_ok);
-
-  Socket wl_socket = wayland_display_connect();
+  Wayland_Connection wl_connection = wayland_display_connect(context.allocator);
   Wayland_State state = {
-      .wl_registry = wayland_wl_display_get_registry(wl_socket),
-      .w = 64,
-      .h = 64,
+      .wl_registry = wayland_wl_display_get_registry(&wl_connection, 1),
+      .w      = 64,
+      .h      = 64,
       .stride = 64 * COLOR_CHANNELS,
   };
-
-  // VkApplicationInfo appInfo = {0};
-  // appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-  // appInfo.pApplicationName = "Hello Vulkan";
-  // appInfo.applicationVersion = VK_MAKE_VERSION(1, 4, 0);
-  // appInfo.pEngineName = "No Engine, No Libraries";
-  // appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  // appInfo.apiVersion = VK_API_VERSION_1_0;
-
-  // Slice(cstring) validationLayers = SLICE_VAL(type_of(validationLayers), {"VK_LAYER_KHRONOS_validation"});
-  // Slice(cstring) enabledExtensions = SLICE_VAL(type_of(enabledExtensions), {"VK_EXT_debug_utils", "VK_KHR_wayland_surface"});
-  
-  // VkInstanceCreateInfo createInfo = {0};
-  // createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-  // createInfo.pApplicationInfo = &appInfo;
-  // createInfo.enabledLayerCount = validationLayers.len;
-  // createInfo.ppEnabledLayerNames = validationLayers.data;
-  // createInfo.enabledExtensionCount = enabledExtensions.len;
-  // createInfo.ppEnabledExtensionNames = enabledExtensions.data;
-
-  // VkInstance instance;
-  // VkResult result = vkCreateInstance(&createInfo, nil, &instance);
-  // assert(result == VK_SUCCESS);
-
-  // VkDebugUtilsMessengerEXT debugMessenger;
-  // VkDebugUtilsMessengerCreateInfoEXT dbgCreateInfo = {0};
-  // dbgCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-  // dbgCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-  //                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-  //                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-  // dbgCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-  //                             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-  //                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-  // dbgCreateInfo.pfnUserCallback = debugCallback;
-
-  // u32 extensionCount = 0;
-  // vkEnumerateInstanceExtensionProperties(nil, &extensionCount, nil);
-  // Slice(VkExtensionProperties) extensions = slice_make(type_of(extensions), extensionCount, context.temp_allocator);
-  // vkEnumerateInstanceExtensionProperties(nil, &extensionCount, extensions.data);
-
-  // slice_iter(extensions, extension, _i, {
-  //   log_infof(LIT("%s"), extension->extensionName);
-  // })
-
-  // vkCreateDebugUtilsMessengerEXT(instance, &dbgCreateInfo, nil, &debugMessenger);
-
-  // u32 deviceCount = 0;
-  // vkEnumeratePhysicalDevices(instance, &deviceCount, nil);
-  // Slice(VkPhysicalDevice) devices = slice_make(type_of(devices), deviceCount, context.temp_allocator);
-  // vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data);
-
-  // VkPhysicalDeviceProperties properties;
-  // VkPhysicalDeviceFeatures features;
-  // slice_iter(devices, device, _i, {
-  //   vkGetPhysicalDeviceProperties(*device, &properties);
-  //   log_infof(LIT("Device Name: %s"), properties.deviceName);
-  //   log_infof(LIT("Device Type: %d"), properties.deviceType);
-  //   log_infof(LIT("Max Texture Size: %d"), properties.limits.maxImageDimension2D);
-
-  //   vkGetPhysicalDeviceFeatures(*device, &features);
-  //   log_infof(LIT("Geometry Shaders: %B"), features.geometryShader);
-  //   log_infof(LIT("multiDrawIndirect: %B"), features.multiDrawIndirect);
-  // })
-
-  // VkPhysicalDevice physicalDevice = devices.data[0];
-
-  // // uint32_t layerCount;
-  // // vkEnumerateInstanceLayerProperties(&layerCount, nil);
-  // // Slice(VkLayerProperties) availableLayers = slice_make(type_of(availableLayers), layerCount, context.temp_allocator);
-  // // vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data);
-
-  // // slice_iter(availableLayers, availableLayer, _i, {
-  // //   log_infof(LIT("%s"), availableLayer->layerName);
-  // //   log_infof(LIT("%s"), availableLayer->description);
-  // // })
-
-  // u32 queueFamilyCount = 0;
-  // vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nil);
-  // Slice(VkQueueFamilyProperties) queueFamilies = slice_make(type_of(queueFamilies), queueFamilyCount, context.temp_allocator);
-  // vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data);
-
-  // slice_iter(queueFamilies, family, i, {
-  //   if (family->queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-  //     log_infof(LIT("GRAPHICS: %d"), i);
-  //   }
-  //   if (family->queueFlags & VK_QUEUE_COMPUTE_BIT) {
-  //     log_infof(LIT("COMPUTE: %d"), i);
-  //   }
-  //   if (family->queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR) {
-  //     log_infof(LIT("VIDEO_DECODE: %d"), i);
-  //   }
-  //   if (family->queueFlags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR) {
-  //     log_infof(LIT("VIDEO_ENCODE: %d"), i);
-  //   }
-  // })
-
-  // VkDevice device;
-
-  // VkDeviceQueueCreateInfo queueCreateInfo = {0};
-  // queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-  // queueCreateInfo.queueFamilyIndex = 0;
-  // queueCreateInfo.queueCount = 1;
-  // f32 queuePriority = 1;
-  // queueCreateInfo.pQueuePriorities = &queuePriority;
-
-  // VkPhysicalDeviceFeatures deviceFeatures = {0};
-
-  // VkDeviceCreateInfo deviceCreateInfo = {0};
-  // deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  // deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
-  // deviceCreateInfo.queueCreateInfoCount = 1;
-  // deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
-
-  // if (vkCreateDevice(physicalDevice, &deviceCreateInfo, nil, &device)) {
-  //   log_fatal(LIT("Failed to create physical device"));
-  // }
-
-  // VkQueue graphicsQueue;
-  // vkGetDeviceQueue(device, 0, 0, &graphicsQueue);
-
-  // VkSurfaceKHR surface;
-  // VkWaylandSurfaceCreateInfoKHR surfaceCreateInfo = {0};
-  // surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
-  // // surfaceCreateInfo.display = 
-  // if (vkCreateWaylandSurfaceKHR(instance, &surfaceCreateInfo, nil, &surface)) {
-  //   log_fatal(LIT("Failed to create wayland surface"));
-  // }
-
-  // vkDestroyDevice(device, nil);
-  // vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nil);
-  // vkDestroyInstance(instance, nil);
-  // return 0;
+  wayland_wl_display_sync(&wl_connection, 1);
 
   // Single buffering.
   state.shm_pool_size = state.h * state.stride;
   b8 shm_ok = create_shared_memory_file(state.shm_pool_size, &state);
   assert(shm_ok);
 
-  ui_context_init(&ui_context, 1, 1, context.allocator);
-  Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("orange.ppm"), context.temp_allocator));
+  Byte_Slice font_data = unwrap_err(read_entire_file_path(LIT("out12.bmf"), context.allocator));
+  BMF_Font font;
+  b8 font_ok = bmf_load_font(font_data, &font);
+  assert(font_ok);
+
+  ui_context_init(&ui_context, font, 1, 1, context.allocator);
+  Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("flame.ppm"), context.temp_allocator));
   Image backing_image;
   Image rgba8_image;
   b8 ok = ppm_load_bytes(image_data, &backing_image);
@@ -573,8 +446,6 @@ int main() {
   image_clone_to_rgba8(&backing_image, &rgba8_image, context.allocator);
   assert(ok);
   UI_Image image = ui_create_image(&ui_context, rgba8_image);
-
-  // vector_init(&state.fds_in, 0, 8, context.allocator);
 
   struct Time last_fps_print = time_now();
   isize frames_since_print = 0;
@@ -597,6 +468,34 @@ int main() {
   }
 
   while (!state.should_close) {
+    if (wl_connection.builder.len) {
+      Byte_Slice control_buf;
+      slice_init(&control_buf, CMSG_SPACE(wl_connection.fds.len * size_of(int)), context.temp_allocator);
+      struct iovec iov = {
+        .base = wl_connection.builder.data,
+        .len  = wl_connection.builder.len,
+      };
+      struct msghdr msg = {
+        .name       = nil,
+        .namelen    = 0,
+        .control    = control_buf.data,
+        .controllen = control_buf.len,
+        .iov        = &iov,
+        .iovlen     = 1,
+      };
+
+      struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+      cmsg->level = SOL_SOCKET;
+      cmsg->type  = 1;
+      cmsg->len   = CMSG_LEN(wl_connection.fds.len * size_of(int));
+      mem_copy(CMSG_DATA(cmsg), wl_connection.fds.data, wl_connection.fds.len * size_of(int));
+
+      syscall(SYS_sendmsg, wl_connection.socket, &msg, MSG_NOSIGNAL);
+
+      vector_clear(&wl_connection.builder);
+      vector_clear(&wl_connection.fds);
+    }
+
     byte _read_buf[4096] = {0};
     byte _control_buf[256] = {0};
     Byte_Slice read_buf = {.data = _read_buf, .len = size_of(_read_buf)};
@@ -610,7 +509,7 @@ int main() {
       .iov        = &iov,
       .iovlen     = 1,
     };
-    read_buf.len = syscall(SYS_recvmsg, wl_socket, &msg, 0);
+    read_buf.len = syscall(SYS_recvmsg, wl_connection.socket, &msg, 0);
 
     struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
     while (chdr) {
@@ -619,32 +518,32 @@ int main() {
     }
 
     while (read_buf.len > 0) {
-      read_buf = slice_range(read_buf, wayland_handle_message(wl_socket, &state, read_buf), read_buf.len);
+      read_buf = slice_range(read_buf, wayland_handle_message(&wl_connection, &state, read_buf), read_buf.len);
     }
 
     if (state.wl_compositor != 0 && state.wl_shm != 0 && state.xdg_wm_base != 0 && state.wl_surface == 0) {
-      state.wl_surface   = wayland_wl_compositor_create_surface(wl_socket, &state);
-      state.xdg_surface  = wayland_xdg_wm_base_get_xdg_surface(wl_socket,  &state);
-      state.xdg_toplevel = wayland_xdg_surface_get_toplevel(wl_socket,     &state);
+      state.wl_surface   = wayland_wl_compositor_create_surface(&wl_connection, state.wl_compositor);
+      state.xdg_surface  = wayland_xdg_wm_base_get_xdg_surface(&wl_connection,  state.xdg_wm_base, state.wl_surface);
+      state.xdg_toplevel = wayland_xdg_surface_get_toplevel(&wl_connection,     state.xdg_surface);
 
-      wayland_wl_surface_commit(wl_socket, &state);
+      wayland_wl_surface_commit(&wl_connection, state.wl_surface);
     }
 
     if (state.wl_seat) {
       if (!state.wl_keyboard) {
-        state.wl_keyboard = wayland_wl_seat_get_keyboard(wl_socket, &state);
+        state.wl_keyboard = wayland_wl_seat_get_keyboard(&wl_connection, state.wl_seat);
       }
       if (!state.wl_pointer) {
-        state.wl_pointer = wayland_wl_seat_get_pointer(wl_socket, &state);
+        state.wl_pointer = wayland_wl_seat_get_pointer(&wl_connection, state.wl_seat);
       }
     }
 
     if (state.surface_state == Surface_State_Acked_Configure && state.buffer_state == Buffer_State_Released) {
       if (!state.wl_shm_pool) {
-        state.wl_shm_pool = wayland_wl_shm_create_pool(wl_socket, &state);
+        state.wl_shm_pool = wayland_wl_shm_create_pool(&wl_connection, state.wl_shm, state.shm_fd, state.shm_pool_size);
       }
       if (!state.wl_buffer) {
-        state.wl_buffer = wayland_wl_shm_pool_create_buffer(wl_socket, &state);
+        state.wl_buffer = wayland_wl_shm_pool_create_buffer(&wl_connection, state.wl_shm_pool, 0, state.w, state.h, state.stride, Wayland_Wl_Shm_Format_Xrgb8888);
       }
 
       state.surface_state = Surface_State_Attached;
@@ -652,7 +551,7 @@ int main() {
     }
 
     if (state.surface_state == Surface_State_Attached && state.should_resize && state.buffer_state == Buffer_State_Released) {
-      wayland_wl_buffer_destroy(wl_socket, state.wl_buffer);
+      wayland_wl_buffer_destroy(&wl_connection, state.wl_buffer);
 
       state.stride = state.w * COLOR_CHANNELS;
 
@@ -668,10 +567,10 @@ int main() {
         state.shm_pool_data =
           (u8 *)syscall(SYS_mmap, nil, state.shm_pool_size, PROT_READ | PROT_WRITE, MAP_SHARED, state.shm_fd, 0);
         assert(state.shm_pool_data);
-        wayland_wl_shm_pool_resize(wl_socket, &state);
+        wayland_wl_shm_pool_resize(&wl_connection, state.wl_shm_pool, state.shm_pool_size);
       }
     
-      state.wl_buffer = wayland_wl_shm_pool_create_buffer(wl_socket, &state);
+      state.wl_buffer = wayland_wl_shm_pool_create_buffer(&wl_connection, state.wl_shm_pool, 0, state.w, state.h, state.stride, Wayland_Wl_Shm_Format_Xrgb8888);
 
       state.buffer_state  = Buffer_State_Released;
       state.should_resize = false;
@@ -685,16 +584,16 @@ int main() {
           string_delete(fps_string, context.allocator);
         }
         fps_string = fmt_aprintf(context.allocator, LIT("FPS: %d"), frames_since_print);
-        wayland_xdg_toplevel_set_title(wl_socket, &state, fps_string);
+        wayland_xdg_toplevel_set_title(&wl_connection, state.xdg_toplevel, fps_string);
         last_fps_print = time_now();
         frames_since_print = 0;
       }
 
       wayland_render(&state, &directory);
 
-      wayland_wl_surface_attach(wl_socket, &state);
-      wayland_wl_surface_damage_buffer(wl_socket, &state, 0, 0, state.w, state.h);
-      wayland_wl_surface_commit(wl_socket, &state);
+      wayland_wl_surface_attach(&wl_connection, state.wl_surface, state.wl_buffer, 0, 0);
+      wayland_wl_surface_damage_buffer(&wl_connection, state.wl_surface, 0, 0, state.w, state.h);
+      wayland_wl_surface_commit(&wl_connection, state.wl_surface);
 
       state.buffer_state = Buffer_State_Busy;
     }
