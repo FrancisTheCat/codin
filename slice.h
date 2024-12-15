@@ -160,3 +160,16 @@ internal isize bytes_copy(Byte_Slice dst, Byte_Slice src) {
   mem_copy(dst.data, src.data, n);
   return n;
 }
+
+#define slice_reinterpret(S, _slice) ({                                        \
+  type_of(_slice) __slice_reinterpret_slice = _slice;                          \
+  S __slice_reinterpret_dummy;                                                 \
+  (S) {                                                                        \
+    .data =                                                                    \
+      (type_of(__slice_reinterpret_dummy.data))__slice_reinterpret_slice.data, \
+    .len =                                                                     \
+      (isize)(__slice_reinterpret_slice.len *                                  \
+      size_of(*__slice_reinterpret_slice.data) /                               \
+      size_of(*__slice_reinterpret_dummy.data)),                               \
+  };                                                                           \
+})

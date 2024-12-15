@@ -922,7 +922,7 @@ UI_Context ui_context;
 String fps_string = {0};
 
 internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Directory const *directory) {
-  // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
 
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("Clear Background"), get_time_in_micros());
@@ -977,5 +977,5 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
   }
 
   ui_state_render(&ui_context, state);
-  // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
