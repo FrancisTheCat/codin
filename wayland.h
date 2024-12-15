@@ -1,11 +1,10 @@
 #include "codin.h"
 #include "xkb.h"
+#include "wayland_gen_common.h"
 
 #include "wayland.gen.h"
 #include "xdg-shell.gen.h"
 #include "cursor-shape.gen.h"
-
-#include "immintrin.h"
 
 #include "ui.h"
 
@@ -14,36 +13,15 @@
 SpallBuffer spall_buffer;
 SpallProfile spall_ctx;
 
+#define spall_buffer_begin(...)
+#define spall_buffer_end(...)
+
 f64 get_time_in_micros() {
   return (f64)(time_now().nsec) / Microsecond;
 }
 
-#define WAYLAND_DISPLAY_OBJECT_ID                          1
-#define WAYLAND_WL_REGISTRY_EVENT_GLOBAL                   0
-#define WAYLAND_WL_DISPLAY_ERROR_EVENT                     0
-
-#define WAYLAND_XDG_WM_BASE_EVENT_PING                     0
-
-#define WAYLAND_XDG_SURFACE_EVENT_CONFIGURE                0
-
-#define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE               0
-#define WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE                   1
-#define WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE_BOUNDS        2
-
-#define WAYLAND_WL_SHM_POOL_EVENT_FORMAT                   0
-
-#define WAYLAND_WL_BUFFER_EVENT_RELEASE                    0
-
-#define WAYLAND_WL_POINTER_ENTER_EVENT                     0
-#define WAYLAND_WL_POINTER_MOTION_EVENT                    2
-#define WAYLAND_WL_POINTER_BUTTON_EVENT                    3
-#define WAYLAND_WL_POINTER_AXIS_EVENT                      4
-
-#define WAYLAND_WL_KEYBOARD_EVENT_KEY                      3
-#define WAYLAND_WL_KEYBOARD_EVENT_KEYMAP                   0
-
-#define WAYLAND_HEADER_SIZE                                8
-#define COLOR_CHANNELS                                     4
+#define WAYLAND_HEADER_SIZE 8
+#define COLOR_CHANNELS      4
 
 
 u32 __wayland_current_id = 1;
@@ -119,14 +97,47 @@ struct cmsghdr * __cmsg_nxthdr(struct msghdr *__mhdr, struct cmsghdr *__cmsg) {
   return __cmsg;
 }
 
-#define roundup_4(n) (((n) + 3) & -4)
+internal void wayland_connection_flush(Wayland_Connection *conn) {
+  if (conn->builder.len) {
+    Byte_Slice control_buf;
+    slice_init(&control_buf, CMSG_SPACE(conn->fds.len * size_of(int)), context.temp_allocator);
+    struct iovec iov = {
+      .base = conn->builder.data,
+      .len  = (usize)conn->builder.len,
+    };
+    struct msghdr msg = {
+      .name       = nil,
+      .namelen    = 0,
+      .iov        = &iov,
+      .iovlen     = 1,
+      .control    = control_buf.data,
+      .controllen = (usize)control_buf.len,
+    };
 
-struct sockaddr_un {
-  u16 family;
-  char path[108];
-};
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+    cmsg->level = SOL_SOCKET;
+    cmsg->type  = 1;
+    cmsg->len   = CMSG_LEN(conn->fds.len * size_of(int));
+    mem_copy(CMSG_DATA(cmsg), conn->fds.data, conn->fds.len * size_of(int));
+
+    syscall(SYS_sendmsg, conn->socket, &msg, MSG_NOSIGNAL);
+
+    vector_clear(&conn->builder);
+    vector_clear(&conn->fds);
+  }
+}
+
+internal void wayland_connection_destroy(Wayland_Connection const *conn) {
+  vector_delete(conn->builder);
+  vector_delete(conn->fds);
+}
 
 internal Wayland_Connection wayland_display_connect(Allocator allocator) {
+  struct sockaddr_un {
+    u16 family;
+    char path[108];
+  };
+
   Wayland_Connection conn = {0};
   conn.current_id = 1;
   vector_init(&conn.builder, 0, 8, allocator);
@@ -257,7 +268,7 @@ internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *s
 
   wayland_log_infof(LIT("%d %d %d"), (isize)object_id, (isize)opcode, (isize)announced_size);
 
-  if (object_id == state->wl_registry && opcode == WAYLAND_WL_REGISTRY_EVENT_GLOBAL) {
+  if (object_id == state->wl_registry && opcode == Wayland_Wl_Registry_Event_Global) {
     u32 name;
     read_any(&reader, &name);
 
@@ -295,7 +306,7 @@ internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *s
       state->wp_cursor_shape_manager = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
     }
 
-  } else if (object_id == state->xdg_wm_base && opcode == WAYLAND_XDG_WM_BASE_EVENT_PING) {
+  } else if (object_id == state->xdg_wm_base && opcode == Wayland_Xdg_Wm_Base_Event_Ping) {
     u32 ping;
     read_any(&reader, &ping);
 
@@ -303,7 +314,7 @@ internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *s
 
     wayland_xdg_wm_base_pong(conn, state->xdg_wm_base, ping);
 
-  } else if (object_id == state->xdg_surface && opcode == WAYLAND_XDG_SURFACE_EVENT_CONFIGURE) {
+  } else if (object_id == state->xdg_surface && opcode == Wayland_Xdg_Surface_Event_Configure) {
     u32 configure;
     read_any(&reader, &configure);
 
@@ -312,79 +323,98 @@ internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *s
     wayland_xdg_surface_ack_configure(conn, state->xdg_surface, configure);
     state->surface_state = Surface_State_Acked_Configure;
 
-  } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE_BOUNDS) {
-    u32 width;
-    u32 height;
-    read_any(&reader, &width);
-    read_any(&reader, &height);
+  } else if (object_id == state->xdg_toplevel) {
+    switch ((Wayland_Xdg_Toplevel_Event)opcode) {
+    case Wayland_Xdg_Toplevel_Event_Configure_Bounds:
+      u32 width;
+      u32 height;
+      read_any(&reader, &width);
+      read_any(&reader, &height);
+      wayland_log_infof(LIT("<- xdg_toplevel@%d.configure_bounds: width=%d height=%d"), state->xdg_toplevel, width, height);
+      break;
 
-    wayland_log_infof(LIT("<- xdg_toplevel@%d.configure_bounds: width=%d height=%d"), state->xdg_toplevel, width, height);
+    case Wayland_Xdg_Toplevel_Event_Configure:
+      read_any(&reader, &state->w);
+      read_any(&reader, &state->h);
 
-  } else if (object_id == state->wl_buffer && opcode == WAYLAND_WL_BUFFER_EVENT_RELEASE) {
+      state->w = max(state->w, 1);
+      state->h = max(state->h, 1);
+
+      state->should_resize = true;
+      break;
+
+    case Wayland_Xdg_Toplevel_Event_Close:
+      state->should_close = true;
+      break;
+
+    default:
+      break;
+    }
+
+  } else if (object_id == state->wl_buffer && opcode == Wayland_Wl_Buffer_Event_Release) {
     state->buffer_state = Buffer_State_Released;
 
     wayland_log_infof(LIT("<- wl_buffer@%d.release:"), state->wl_buffer);
 
-  } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CONFIGURE) {
-    read_any(&reader, &state->w);
-    read_any(&reader, &state->h);
+  } else if (object_id == state->wl_keyboard) {
+    switch ((Wayland_Wl_Keyboard_Event)opcode) {
+    case Wayland_Wl_Keyboard_Event_Keymap:
+      u32 format, size;
+      Fd fd;
+      rawptr data;
+      Byte_Slice kmdata;
 
-    state->w = max(state->w, 1);
-    state->h = max(state->h, 1);
+      read_any(&reader, &format);
+      read_any(&reader, &size);
 
-    state->should_resize = true;
-  } else if (object_id == state->xdg_toplevel && opcode == WAYLAND_XDG_TOPLEVEL_EVENT_CLOSE) {
-    state->should_close = true;
-
-  } else if (object_id == state->wl_keyboard && opcode == WAYLAND_WL_KEYBOARD_EVENT_KEYMAP) {
-    u32 format;
-    u32 size;
-
-    read_any(&reader, &format);
-    read_any(&reader, &size);
-
-    if (!state->fds_in.len) {
-      log_fatal(LIT("FUCK (we should have recieved an fd for this event, but we didnt, this is probably our fault)"));
-      trap();
-    }
-
-    Fd fd = state->fds_in.data[0];
-    vector_remove_ordered(&state->fds_in, 0);
-
-    wayland_log_infof(LIT("Keymap %d %B %d"), size, format, fd);
-
-    rawptr data = (rawptr)syscall(SYS_mmap, nil, size, PROT_READ, MAP_PRIVATE, fd, 0);
-
-    Byte_Slice kmdata = {
-      .data = (byte *)data,
-      .len  = size,
-    };
-    write_entire_file_path(LIT("keymap.txt"), kmdata);
-
-    parse_key_codes(transmute(String, kmdata), &state->keymap, context.allocator);
-
-  } else if (object_id == state->wl_keyboard && opcode == WAYLAND_WL_KEYBOARD_EVENT_KEY) {
-    u32 serial;
-    u32 time;
-    u32 key;
-    b32 pressed;
-
-    read_any(&reader, &serial);
-    read_any(&reader, &time);
-    read_any(&reader, &key);
-    read_any(&reader, &pressed);
-
-    if (key + 8 < state->keymap.len) {
-      if (state->keymap.data[key + 8]) {
-        state->keys[state->keymap.data[key + 8]] = pressed;
+      if (!state->fds_in.len) {
+        log_fatal(LIT("FUCK (we should have recieved an fd for this event, but we didnt, this is probably our fault)"));
+        trap();
       }
 
-      if (state->keymap.data[key + 8] == Key_Escape && pressed) {
-        state->should_close = true;
-      }
+      fd = state->fds_in.data[0];
+      vector_remove_ordered(&state->fds_in, 0);
 
-      fmt_println(get_key_name(state->keymap.data[key + 8]));
+      wayland_log_infof(LIT("Keymap %d %B %d"), size, format, fd);
+
+      data = (rawptr)syscall(SYS_mmap, nil, size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+      kmdata = (Byte_Slice) {
+        .data = (byte *)data,
+        .len  = size,
+      };
+      write_entire_file_path(LIT("keymap.txt"), kmdata);
+
+      parse_key_codes(transmute(String, kmdata), &state->keymap, context.allocator);
+      break;
+    case Wayland_Wl_Keyboard_Event_Key:
+      u32 serial;
+      u32 time;
+      u32 key;
+      b32 pressed;
+
+      read_any(&reader, &serial);
+      read_any(&reader, &time);
+      read_any(&reader, &key);
+      read_any(&reader, &pressed);
+
+      if (key + 8 < state->keymap.len) {
+        if (state->keymap.data[key + 8]) {
+          state->keys[state->keymap.data[key + 8]] = pressed;
+        }
+
+        if (state->keymap.data[key + 8] == Key_Escape && pressed) {
+          state->should_close = true;
+        }
+
+        fmt_println(get_key_name(state->keymap.data[key + 8]));
+      }
+      break;
+      
+    default:
+      break;
     }
+
   } else if (object_id == state->wl_pointer) {
     u32 serial, time, button, axis;
     i32 x, y, value;
@@ -392,8 +422,8 @@ internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *s
     f32 fx, fy;
     u32 surface;
 
-    switch (opcode) {
-    case WAYLAND_WL_POINTER_MOTION_EVENT:
+    switch ((Wayland_Wl_Pointer_Event)opcode) {
+    case Wayland_Wl_Pointer_Event_Motion:
       read_any(&reader, &time);
       read_any(&reader, &x);
       read_any(&reader, &y);
@@ -404,7 +434,7 @@ internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *s
       state->mouse_x = fx;
       state->mouse_y = fy;
       break;
-    case WAYLAND_WL_POINTER_BUTTON_EVENT:
+    case Wayland_Wl_Pointer_Event_Button:
       read_any(&reader, &serial);
       read_any(&reader, &time);
       read_any(&reader, &button);
@@ -431,7 +461,7 @@ internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *s
 
       wayland_log_infof(LIT("Button: %d %B"), button, pressed);
       break;
-    case WAYLAND_WL_POINTER_AXIS_EVENT:
+    case Wayland_Wl_Pointer_Event_Axis:
       read_any(&reader, &time);
       read_any(&reader, &axis);
       read_any(&reader, &value);
@@ -439,7 +469,7 @@ internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *s
       wayland_log_infof(LIT("Axis: %f %B"), (f32)value / 256.0, axis);
       break;
 
-    case WAYLAND_WL_POINTER_ENTER_EVENT:
+    case Wayland_Wl_Pointer_Event_Enter:
       read_any(&reader, &serial);
       read_any(&reader, &surface);
 
@@ -450,11 +480,13 @@ internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *s
 
         wayland_wp_cursor_shape_device_v1_set_shape(conn, state->wp_cursor_shape_device, serial, Wayland_Wp_Cursor_Shape_Device_V1_Shape_Default);
       }
-      
+      break;
+
+    default:
       break;
     }
   } else if (object_id == state->wl_seat) {
-    if (opcode == 0) {
+    if (opcode == Wayland_Wl_Seat_Event_Capabilities) {
       u32 capabilities;
 
       read_any(&reader, &capabilities);
@@ -462,7 +494,7 @@ internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *s
       wayland_log_infof(LIT("Capabilities: %d"), capabilities);
     }
 
-  } else if (object_id == WAYLAND_DISPLAY_OBJECT_ID && opcode == WAYLAND_WL_DISPLAY_ERROR_EVENT) {
+  } else if (object_id == 1 && opcode == Wayland_Wl_Display_Event_Error) {
     u32 target_object_id;
     read_any(&reader, &target_object_id);
 
@@ -662,6 +694,9 @@ internal isize wayland_draw_text(Wayland_State *state, BMF_Font const *font, Str
       *x = start_x;
     }
     b8 ok = bmf_get_baked_quad_i(font, *c, x, y, &q);
+    if (!ok) {
+      bmf_get_baked_quad_i(font, '!', x, y, &q);
+    }
 
     if (q.x0 >= state->w) {
       break;
@@ -694,13 +729,6 @@ internal isize wayland_draw_text(Wayland_State *state, BMF_Font const *font, Str
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-UI_Context ui_context;
-
-String fps_string = {0};
-
-internal u8 __fixed_0_8_sqrt_lut[256] = {0};
-internal u8 __fixed_0_8_smoothstep_lut[256] = {0};
-
 internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   #define UI_SHADOW_RADIUS       16
@@ -709,7 +737,6 @@ internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
 
   // input: squared distance to completely shadowed region
   #define UI_SHADOW_FUNC(x2) (x2 / UI_SHADOW_INV_STRENGTH)
-  // #define UI_SHADOW_FUNC(x2) (__fixed_0_8_smoothstep_lut[__fixed_0_8_sqrt_lut[x2]] / UI_SHADOW_INV_STRENGTH)
 
   u32 *pixels = (u32 *)state->shm_pool_data;
   for_range(_y, 0, UI_SHADOW_RADIUS) {
@@ -935,7 +962,11 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal void wayland_render(Wayland_State *state, Directory const *directory) {
+UI_Context ui_context;
+
+String fps_string = {0};
+
+internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Directory const *directory) {
   // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
 
@@ -974,11 +1005,21 @@ internal void wayland_render(Wayland_State *state, Directory const *directory) {
   ui_context.x  = 25;
   ui_context.y += ui_context.spacing + ui_context.font.single_h + ui_context.font.decender;
 
-  ui_image(&ui_context, (UI_Image) {.index = 0});
+  // ui_image(&ui_context, (UI_Image) {.index = 0});
 
-  slice_iter(*directory, file, _i, {
-    ui_button(&ui_context, file->name);
-  })
+  // slice_iter(*directory, file, _i, {
+  //   if (ui_button(&ui_context, file->name)) {
+  //     // Process_Creation_Args pargs = DEFAULT_PROCESS_ARGS;
+  //     // pargs.args = SLICE_VAL(Process_Args, {LIT("/bin/xdg-open"), file->name});
+  //     // unwrap_err(process_create(LIT("/bin/xdg-open"), &pargs));
+  //   }
+  // })
+
+  for_range(c, 1, Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out + 1) {
+    if (ui_button(&ui_context, wayland_wp_cursor_shape_device_v1_shape_string((Wayland_Wp_Cursor_Shape_Device_V1_Shape)c))) {
+      wayland_wp_cursor_shape_device_v1_set_shape(conn, state->wp_cursor_shape_device, 0, (Wayland_Wp_Cursor_Shape_Device_V1_Shape)c);
+    }
+  }
 
   ui_state_render(&ui_context, state);
   // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());

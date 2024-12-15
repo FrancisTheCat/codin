@@ -36,7 +36,7 @@
   })
 
 #define slice_delete(slice, allocator)                                         \
-  { mem_free(slice.data, slice.len * sizeof(slice.data[0]), allocator); }
+  { mem_free((rawptr)slice.data, slice.len * sizeof(slice.data[0]), allocator); }
 
 #define slice_from_pointer(pointer, _len)                                      \
   ({                                                                           \

@@ -191,3 +191,14 @@ internal String bytes_to_string(Byte_Slice bytes) {
     .len  = bytes.len,
   };
 }
+
+internal String string_to_lower(String str, Allocator allocator) {
+  Slice(char) out = slice_make(type_of(out), str.len, allocator);
+  slice_iter(out, c, i, {
+     *c = str.data[i];
+     if (rune_is_upper(*c)) {
+       *c += 'a' - 'A';
+     }
+   })
+  return transmute(String, out);
+}

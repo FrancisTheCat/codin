@@ -111,6 +111,7 @@ typedef struct {
   b8                 horizontal;
   struct {
     i32 x, y;
+    b8  hovering;
     b8  buttons[2];
   } mouse;
   BMF_Font           font;
@@ -176,6 +177,7 @@ internal void ui_context_destroy(UI_Context *ctx, Allocator allocator) {
   slice_delete(ctx->command_hashes,      allocator);
   slice_delete(ctx->prev_command_hashes, allocator);
   vector_delete(ctx->commands);
+  vector_delete(ctx->images);
 }
 
 internal b8 ui_mouse_in_rect(UI_Context *ctx, Rectangle const *rect) {
@@ -203,15 +205,16 @@ internal b8 ui_button(UI_Context *ctx, String text) {
   
   if (ui_mouse_in_rect(ctx, &rect)) {
     if (ctx->mouse.buttons[0]) {
-      *(isize *)&color         += 8;
-      *(isize *)&color_2       += 8;
-      *(isize *)&text_color    += 8;
-      *(isize *)&outline_color += 8;
+      GB_STATIC_ASSERT(size_of(i32) == size_of(UI_Color));
+      *(i32 *)&color         += 8;
+      *(i32 *)&color_2       += 8;
+      *(i32 *)&text_color    += 8;
+      *(i32 *)&outline_color += 8;
     } else {
-      *(isize *)&color         += 4;
-      *(isize *)&color_2       += 4;
-      *(isize *)&text_color    += 4;
-      *(isize *)&outline_color += 4;
+      *(i32 *)&color         += 4;
+      *(i32 *)&color_2       += 4;
+      *(i32 *)&text_color    += 4;
+      *(i32 *)&outline_color += 4;
     }
   }
 

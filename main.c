@@ -4,8 +4,6 @@
 #include "xml.h"
 #include "wayland.h"
 
-#include "math.h"
-
 b8 test_sort() {
   Slice(isize) sorting_array;
   slice_init(&sorting_array, 1e4, context.allocator);
@@ -190,42 +188,6 @@ b8 test_hash_map() {
   return true;
 }
 
-// static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-//     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-//     VkDebugUtilsMessageTypeFlagsEXT messageType,
-//     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-//     void* pUserData) {
-
-//     log_errorf(LIT("validation layer: '%s'"),pCallbackData->pMessage);
-
-//     return VK_FALSE;
-// }
-
-// VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(
-//     VkInstance                                  instance,
-//     const VkDebugUtilsMessengerCreateInfoEXT*   pCreateInfo,
-//     const VkAllocationCallbacks*                pAllocator,
-//     VkDebugUtilsMessengerEXT*                   pMessenger) {
-//   PFN_vkCreateDebugUtilsMessengerEXT func =
-//     (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-//   if (func) {
-//     return func(instance, pCreateInfo, pAllocator, pMessenger);
-//   } else {
-//     return VK_ERROR_EXTENSION_NOT_PRESENT;
-//   }
-// }
-
-// VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(
-//     VkInstance                                  instance,
-//     VkDebugUtilsMessengerEXT                    pMessenger,
-//     const VkAllocationCallbacks*                pAllocator) {
-//   PFN_vkDestroyDebugUtilsMessengerEXT func =
-//     (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-//   if (func) {
-//     func(instance, pMessenger, pAllocator);
-//   }
-// }
-
 b8 spall_write_callback(SpallProfile *self, const void *data, isize length) {
   return file_write((Fd)self->data, (Byte_Slice) {.data = (byte *)data, .len = length}).err == OSE_None;
 }
@@ -241,7 +203,7 @@ int main() {
   context.logger = create_file_logger(1);
 
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
-  spall_ctx = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
+  spall_ctx   = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
 
 	int buffer_size = 1 * 1024 * 1024;
 	byte *buffer = mem_alloc(buffer_size, context.allocator).value;
@@ -310,30 +272,6 @@ int main() {
 
   fmt_printfln(LIT("PI: %.8f"), 3.14159265359);
   fmt_printfln(LIT("E:  %.8f"), 2.71828182846);
-
-  // directory_delete(dir, context.allocator);
-
-  // Process_Creation_Args pargs = DEFAULT_PROCESS_ARGS;
-  // pargs.args = SLICE_VAL(Process_Args, {LIT("/bin/echo"), LIT("HELLO FROM ECHO")});
-  // Pid pid = unwrap_err(process_create(LIT("/bin/echo"), &pargs));
-
-  // process_wait(pid);
-
-  // pargs = DEFAULT_PROCESS_ARGS;
-  // pargs.args = SLICE_VAL(Process_Args, {LIT("/bin/xdg-open"), LIT("test.ppm")});
-  // pid = unwrap_err(process_create(LIT("/bin/xdg-open"), &pargs));
-
-  // process_wait(pid);
-
-  // pargs = DEFAULT_PROCESS_ARGS;
-  // pargs.args = SLICE_VAL(Process_Args, {LIT("/bin/alacritty")});
-  // pid = unwrap_err(process_create(LIT("/bin/alacritty"), &pargs));
-
-  // process_wait(pid);
-
-  // return 0;
-
-  fmt_println(LIT(""));
 
   Test_Context tc;
   test_context_init(&tc, context.allocator);
@@ -450,51 +388,8 @@ int main() {
   struct Time last_fps_print = time_now();
   isize frames_since_print = 0;
 
-  for_range(_i, 0, 256) {
-    u8 i = _i;
-
-    f32 f = sqrtf((f32)i / 255.0);
-
-    __fixed_0_8_sqrt_lut[i] = (u8)(f * 255);
-  }
-
-  for_range(_i, 0, 256) {
-    u8 i = _i;
-
-    f32 x = (f32)i / 255.0;
-
-    f32 f = x * x * (3.0f - 2.0f * x);
-    __fixed_0_8_smoothstep_lut[i] = (u8)(f * 255);
-  }
-
   while (!state.should_close) {
-    if (wl_connection.builder.len) {
-      Byte_Slice control_buf;
-      slice_init(&control_buf, CMSG_SPACE(wl_connection.fds.len * size_of(int)), context.temp_allocator);
-      struct iovec iov = {
-        .base = wl_connection.builder.data,
-        .len  = wl_connection.builder.len,
-      };
-      struct msghdr msg = {
-        .name       = nil,
-        .namelen    = 0,
-        .control    = control_buf.data,
-        .controllen = control_buf.len,
-        .iov        = &iov,
-        .iovlen     = 1,
-      };
-
-      struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-      cmsg->level = SOL_SOCKET;
-      cmsg->type  = 1;
-      cmsg->len   = CMSG_LEN(wl_connection.fds.len * size_of(int));
-      mem_copy(CMSG_DATA(cmsg), wl_connection.fds.data, wl_connection.fds.len * size_of(int));
-
-      syscall(SYS_sendmsg, wl_connection.socket, &msg, MSG_NOSIGNAL);
-
-      vector_clear(&wl_connection.builder);
-      vector_clear(&wl_connection.fds);
-    }
+    wayland_connection_flush(&wl_connection);
 
     byte _read_buf[4096] = {0};
     byte _control_buf[256] = {0};
@@ -589,7 +484,7 @@ int main() {
         frames_since_print = 0;
       }
 
-      wayland_render(&state, &directory);
+      wayland_render(&wl_connection, &state, &directory);
 
       wayland_wl_surface_attach(&wl_connection, state.wl_surface, state.wl_buffer, 0, 0);
       wayland_wl_surface_damage_buffer(&wl_connection, state.wl_surface, 0, 0, state.w, state.h);
@@ -604,10 +499,17 @@ int main() {
   directory_delete(directory, context.allocator);
   ui_context_destroy(&ui_context, context.allocator);
 
+  wayland_connection_destroy(&wl_connection);
+
+  vector_delete(state.fds_in);
+  slice_delete(rgba8_image.pixels, context.allocator);
+  slice_delete(font_data, context.allocator);
+  slice_delete(fps_string, context.allocator);
+
 	spall_buffer_quit(&spall_ctx, &spall_buffer);
 	mem_free((rawptr)buffer, buffer_size, context.allocator);
 	spall_quit(&spall_ctx);
-  
+
   tracking_allocator_fmt_results_w(&stdout, &track);
   tracking_allocator_destroy(track);
 

@@ -152,3 +152,12 @@ internal b8 xml_parse_file(String data, XML_Object *out, Allocator allocator) {
   isize n = xml_parse_object(data, out, allocator);
   return n <= data.len;
 }
+
+internal String xml_get_property(XML_Object const *xml, String key) {
+  slice_iter(xml->properties, p, _i, {
+    if (string_equal(p->key, key)) {
+      return p->value;
+    }
+  })
+  return (String) {0};
+}
