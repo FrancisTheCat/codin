@@ -4,7 +4,6 @@
 #include "wayland-gen/wayland.h"
 #include "wayland-gen/xdg-shell.h"
 #include "wayland-gen/cursor-shape.h"
-#include "wayland-gen/linux-dmabuf.h"
 
 #include "ui.h"
 
