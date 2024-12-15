@@ -69,11 +69,23 @@ typedef enum {
   Key_F23,
   Key_F24,
 
+  Key_Comma,
+  Key_Period,
+  Key_Slash,
+  Key_Semicolon,
+  Key_Quote,
+
+  Key_Left,
+  Key_Right,
+  Key_Up,
+  Key_Down,
+
   Key_Space,
   Key_Escape,
   Key_Return,
   Key_Backspace,
   Key_Tab,
+  Key_Caps_Lock,
 
   Key_LShift,
   Key_RShift,
@@ -81,11 +93,8 @@ typedef enum {
   Key_RControl,
   Key_LAlt,
   Key_RAlt,
-
-  Key_Comma,
-  Key_Period,
-  Key_Semicolon,
-  Key_Quote,
+  Key_LSuper,
+  Key_RSuper,
 
   Key_MAX_VALUE,
 } Key;
@@ -226,6 +235,8 @@ internal String get_key_name(Key key) {
     return LIT("Key_Backspace");
   case Key_Tab:
     return LIT("Key_Tab");
+  case Key_Caps_Lock:
+    return LIT("Key_Caps_Lock");
   case Key_LShift:
     return LIT("Key_LShift");
   case Key_RShift:
@@ -238,16 +249,31 @@ internal String get_key_name(Key key) {
     return LIT("Key_LAlt");
   case Key_RAlt:
     return LIT("Key_RAlt");
+  case Key_LSuper:
+    return LIT("Key_LSuper");
+  case Key_RSuper:
+    return LIT("Key_RSuper");
   case Key_Comma:
     return LIT("Key_Comma");
   case Key_Period:
     return LIT("Key_Period");
+  case Key_Slash:
+    return LIT("Key_Slash");
   case Key_Semicolon:
     return LIT("Key_Semicolon");
   case Key_Quote:
     return LIT("Key_Quote");
+  case Key_Left:
+    return LIT("Key_Left");
+  case Key_Right:
+    return LIT("Key_Right");
+  case Key_Up:
+    return LIT("Key_Up");
+  case Key_Down:
+    return LIT("Key_Down");
   case Key_MAX_VALUE:
     return LIT("Key_MAX_VALUE");
+    break;
   }
 
   return LIT("Key_<Invalid>");
@@ -322,11 +348,31 @@ struct {
   { Key_Y, "y" },
   { Key_Z, "z" },
 
+  { Key_Semicolon, "semicolon" },
+  { Key_Comma,     "comma"     },
+  { Key_Period,    "period"    },
+  { Key_Slash,     "slash"     },
+
+  { Key_Left,      "Left"      },
+  { Key_Right,     "Right"     },
+  { Key_Up,        "Up"        },
+  { Key_Down,      "Down"      },
+
   { Key_Space,     "space"     },
   { Key_Escape,    "Escape"    },
   { Key_Return,    "Return"    },
   { Key_Backspace, "BackSpace" },
   { Key_Tab,       "Tab"       },
+  { Key_Caps_Lock, "Caps_Lock" },
+
+  { Key_LShift,    "Shift_L"   },
+  { Key_RShift,    "Shift_R"   },
+  { Key_LControl,  "Control_L" },
+  { Key_RControl,  "Control_R" },
+  { Key_LAlt,      "Alt_L"     },
+  { Key_RAlt,      "Alt_R"     },
+  { Key_LSuper,    "Super_L"   },
+  { Key_RSuper,    "Super_R"   },
 };
 
 typedef enum {
@@ -355,10 +401,6 @@ typedef struct {
   isize          number;
 } XKB_Token;
 
-typedef struct {
-  Slice(XKB_Token) tokens;
-} XKB_Parser;
-
 internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocator) {
   Vector(XKB_Token) tokens;
   vector_init(&tokens, 0, 8, context.temp_allocator);
@@ -377,6 +419,7 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
     case '\r':
     case '\t':
     case ' ':
+    case 0:
       current += 1;
       break;
 

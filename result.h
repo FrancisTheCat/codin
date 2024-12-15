@@ -18,9 +18,9 @@
 
 #define or_return(_maybe, other)                                               \
   ({                                                                           \
-    type_of(_maybe) maybe = _maybe;                                            \
-    typeof(maybe.value) ret;                                                   \
-    if (!(maybe).ok) {                                                         \
+    type_of(_maybe) maybe = (_maybe);                                          \
+    type_of(maybe.value) ret;                                                  \
+    if (!maybe.ok) {                                                           \
       return other;                                                            \
     } else {                                                                   \
       ret = maybe.value;                                                       \

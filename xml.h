@@ -149,8 +149,28 @@ internal isize xml_parse_object(String data, XML_Object *out, Allocator allocato
 }
 
 internal b8 xml_parse_file(String data, XML_Object *out, Allocator allocator) {
-  isize n = xml_parse_object(data, out, allocator);
-  return n <= data.len;
+  int current = 0;
+  while (_xml_rune_is_whitespace(data.data[current])) {
+    current += 1;
+  }
+  if (data.data[current] != '<') {
+    return false;
+  }
+  if (data.data[current + 1] == '?') {
+    current += 2;
+    while (data.data[current] != '?') {
+      current += 1;
+    }
+    current += 1;
+    if (data.data[current] != '>') {
+      return false;
+    }
+    current += 1;
+    while (_xml_rune_is_whitespace(data.data[current])) {
+      current += 1;
+    }
+  }
+  return xml_parse_object(slice_start(data, current), out, allocator) != -1;
 }
 
 internal String xml_get_property(XML_Object const *xml, String key) {

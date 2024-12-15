@@ -130,14 +130,14 @@
     }                                                                          \
   }
 
-internal Byte_Slice _slice_to_bytes(rawptr data, isize size, isize count) {
+internal Byte_Slice pointer_to_bytes(rawptr data, isize size, isize count) {
   return (Byte_Slice){
       (byte *)data,
       size * count,
   };
 }
 #define slice_to_bytes(slice)                                                  \
-  _slice_to_bytes((rawptr)(slice).data, size_of((slice).data[0]), (slice).len)
+  pointer_to_bytes((rawptr)(slice).data, size_of((slice).data[0]), (slice).len)
 
 #define slice_iter(slice, elem, i, BLOCK)                                      \
   for (isize i = 0; i < (slice).len; i++) {                                    \

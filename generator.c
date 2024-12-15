@@ -259,6 +259,169 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
   fmt_wprintln(w, LIT("}\n"));
 }
 
+void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml, isize event_id) {
+  String prefix_lower = string_to_lower(prefix, context.temp_allocator);
+  String event_name   = xml_get_property(xml, LIT("name"));
+
+  b8 has_allocator_arg = false;
+
+  Builder body_builder; // lol
+  builder_init(&body_builder, 0, 8, context.temp_allocator);
+  Writer  bw = writer_from_builder(&body_builder);
+
+  Builder debug_builder;
+  builder_init(&debug_builder, 0, 8, context.temp_allocator);
+  Writer  dw = writer_from_builder(&debug_builder);
+
+  Builder debug_format_builder;
+  builder_init(&debug_format_builder, 0, 8, context.temp_allocator);
+  Writer  fw = writer_from_builder(&debug_format_builder);
+
+  fmt_wprintf(w, LIT("internal isize wayland_parse_event_%S_%S(Byte_Slice data"), prefix_lower, event_name);
+  slice_iter(xml->children, child, i, {
+    if (!string_equal(child->type, LIT("arg"))) {
+      continue;
+    }
+
+    String arg_name = xml_get_property(child, LIT("name"));
+    String arg_type = xml_get_property(child, LIT("type"));
+    String arg_enum = xml_get_property(child, LIT("enum"));
+    
+    if (arg_enum.len) {
+      String enum_name = arg_enum;
+      isize dot = string_index_byte(enum_name, '.');
+      if (dot == -1) {
+        enum_name = string_to_ada_case(
+          fmt_tprintf(LIT("Wayland_%S_%S"), prefix, arg_enum),
+          context.temp_allocator
+        );
+      } else {
+        enum_name = string_to_ada_case(
+          fmt_tprintf(LIT("Wayland_%S_%S"), slice_end(arg_enum, dot), slice_start(arg_enum, dot + 1)),
+          context.temp_allocator
+        );
+      }
+      fmt_wprintf(w, LIT(", %S *%S"), enum_name, arg_name);
+      fmt_wprintfln(&bw, LIT("\tu32 %S_value;"), arg_name, arg_name);
+      fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, &%S_value), -1);"), arg_name);
+      fmt_wprintfln(&bw, LIT("\t*%S = (%S)%S_value;"), arg_name, enum_name, arg_name);
+
+      fmt_wprintf(&fw, LIT(" %S=%%S"), arg_name);
+      fmt_wprintf(&dw, LIT(", %S_string(*%S)"), string_to_lower(enum_name, context.temp_allocator), arg_name);
+            
+    } else {
+      if (string_equal(arg_type, LIT("int"))) {
+        fmt_wprintf(w,     LIT(", i32 *%S"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, %S), -1);"), arg_name);
+
+        fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
+        fmt_wprintf(&dw, LIT(", *%S"), arg_name);
+
+      } else if (string_equal(arg_type, LIT("uint"))) {
+        fmt_wprintf(w,     LIT(", u32 *%S"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, %S), -1);"), arg_name);
+
+        fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
+        fmt_wprintf(&dw, LIT(", *%S"), arg_name);
+
+      } else if (string_equal(arg_type, LIT("object"))) {
+        fmt_wprintf(w,     LIT(", u32 *%S"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, %S), -1);"), arg_name);
+
+        fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
+        fmt_wprintf(&dw, LIT(", *%S"), arg_name);
+
+      } else if (string_equal(arg_type, LIT("fixed"))) {
+        fmt_wprintf(w,     LIT(", f32 *%S"), arg_name);
+        fmt_wprintfln(&bw, LIT("\ti32 %S_fixed;"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, &%S_fixed), -1);"), arg_name);
+        fmt_wprintfln(&bw, LIT("\t*%S = (f64)%S_fixed / 256.0;"), arg_name, arg_name);
+
+        fmt_wprintf(&fw, LIT(" %S=%%f"), arg_name);
+        fmt_wprintf(&dw, LIT(", *%S"), arg_name);
+
+      } else if (string_equal(arg_type, LIT("string"))) {
+        fmt_wprintf(w,     LIT(", String *%S"), arg_name);
+
+        fmt_wprintfln(&bw, LIT("\tu32 %S_len;"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, &%S_len), -1);"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tslice_init(%S, %S_len, allocator);"), arg_name, arg_name);
+        fmt_wprintfln(&bw, LIT("\tor_return(read_bytes(&r, string_to_bytes(*%S)), -1);"), arg_name, arg_name);
+        fmt_wprintfln(&bw, LIT("\t%S->len -= 1;"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tif (%S_len %% 4) {"), arg_name);
+        fmt_wprintfln(&bw, LIT("\t\tbyte %S_pad_buf[4];"), arg_name, arg_name);
+        fmt_wprintfln(&bw, LIT("\t\tor_return(read_bytes(&r, (Byte_Slice) {.data = %S_pad_buf, .len = 4 - (%S_len %% 4) }), -1);"), arg_name, arg_name);
+        fmt_wprintln(&bw, LIT("\t}"));
+
+        has_allocator_arg = true;
+
+        fmt_wprintf(&fw, LIT(" %S=%%S"), arg_name);
+        fmt_wprintf(&dw, LIT(", *%S"), arg_name);
+
+      } else if (string_equal(arg_type, LIT("fd"))) {
+        fmt_wprintf(w,     LIT(", Fd *%S"), arg_name);
+        // fmt_wprintfln(&bw, LIT("\tvector_append(&wc->fds, %S)"), arg_name);
+
+        // fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
+        // fmt_wprintf(&dw, LIT(", %S"), arg_name);
+
+      } else if (string_equal(arg_type, LIT("new_id"))) {
+        fmt_wprintf(w,     LIT(", u32 *%S"), arg_name);
+        // fmt_wprintln(&bw, LIT("\twc->current_id  += 1;"));
+        // fmt_wprintln(&bw, LIT("\tu32 return_value = wc->current_id;"));
+        // fmt_wprintln(&bw, LIT("\twrite_any(w, &return_value);"));
+
+        // fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
+        // fmt_wprint(&dw, LIT(", return_value"));
+
+      } else if (string_equal(arg_type, LIT("array"))) {
+        fmt_wprintf(w,     LIT(", Byte_Slice *%S"), arg_name);
+
+        fmt_wprintfln(&bw, LIT("\tu32 %S_len;"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, &%S_len), -1);"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tslice_init(%S, %S_len, allocator);"), arg_name, arg_name);
+        fmt_wprintfln(&bw, LIT("\tor_return(read_bytes(&r, *%S), -1);"), arg_name, arg_name);
+        fmt_wprintfln(&bw, LIT("\tif (%S_len %% 4) {"), arg_name);
+        fmt_wprintfln(&bw, LIT("\t\tbyte %S_pad_buf[4];"), arg_name, arg_name);
+        fmt_wprintfln(&bw, LIT("\t\tor_return(read_bytes(&r, (Byte_Slice) {.data = %S_pad_buf, .len = 4 - (%S_len %% 4) }), -1);"), arg_name, arg_name);
+        fmt_wprintln(&bw, LIT("\t}"));
+
+        has_allocator_arg = true;
+
+        // fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
+        // fmt_wprint(&dw, LIT(", return_value"));
+
+      } else {
+        unimplemented();
+      }
+    }
+  })
+
+  if (has_allocator_arg) {
+    fmt_wprint(w,  LIT(", Allocator allocator"));
+  }
+  fmt_wprintln(w,  LIT(") {"));
+  fmt_wprintln(w,  LIT("\tReader r = buffer_reader(&data);"));
+  fmt_wprintln(w,  LIT("\tu32 _object_id;"));
+  fmt_wprintln(w,  LIT("\tu16 _opcode, _msg_size;"));
+  fmt_wprintln(w,  LIT("\tor_return(read_any(&r, &_object_id), -1);"));
+  fmt_wprintln(w,  LIT("\tor_return(read_any(&r, &_opcode),    -1);"));
+  fmt_wprintln(w,  LIT("\tor_return(read_any(&r, &_msg_size),  -1);"));
+  fmt_wprintfln(w, LIT("\tassert(_opcode == %d);"), event_id);
+  fmt_wprint(w,    builder_to_string(body_builder));
+
+  fmt_wprintfln(w,
+    LIT("\twayland_log_infof(LIT(\"<- %S@%%d.%S:%S\"), _object_id%S);"),
+    prefix_lower,
+    event_name,
+    builder_to_string(debug_format_builder),
+    builder_to_string(debug_builder)
+  );
+
+  fmt_wprintln(w,  LIT("\treturn _msg_size;"));
+  fmt_wprintln(w,  LIT("}\n"));
+}
+
 void generate_events(Writer const *w, String prefix, XML_Object const *xml) {
   prefix = string_to_ada_case(prefix, context.temp_allocator);
 
@@ -273,6 +436,10 @@ void generate_events(Writer const *w, String prefix, XML_Object const *xml) {
     return;
   }
 
+  Builder parser_builder;
+  builder_init(&parser_builder, 0, 8, context.temp_allocator);
+  Writer  pw = writer_from_builder(&parser_builder);
+
   fmt_wprintln(w, LIT("typedef enum {"));
 
   isize event_id = 0;
@@ -282,10 +449,13 @@ void generate_events(Writer const *w, String prefix, XML_Object const *xml) {
     }
     String event_name = xml_get_property(child, LIT("name"));
     fmt_wprintfln(w, LIT("\tWayland_%S_Event_%S = %d,"), prefix, string_to_ada_case(event_name, context.temp_allocator), event_id);
+    generate_event_parser(&pw, prefix, child, event_id);
     event_id += 1;
   });
 
   fmt_wprintfln(w, LIT("} Wayland_%S_Event;\n"), prefix);
+
+  fmt_wprint(w, builder_to_string(parser_builder));
 }
 
 int main() {
@@ -303,6 +473,7 @@ int main() {
 
   fmt_wprint(&w, LIT(
     "// Generated from XML\n"
+    "\n"
     "#include \"codin.h\"\n"
     "#include \"wayland_gen_common.h\"\n"
     "\n"
