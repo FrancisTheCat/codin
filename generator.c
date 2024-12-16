@@ -193,7 +193,7 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
 
       } else if (string_equal(arg_type, LIT("fd"))) {
         fmt_wprintf(w,     LIT(", Fd %S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tvector_append(&wc->fds, %S)"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tvector_append(&wc->fds_out, %S);"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         fmt_wprintf(&dw, LIT(", %S"), arg_name);
@@ -277,7 +277,7 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
   builder_init(&debug_format_builder, 0, 8, context.temp_allocator);
   Writer  fw = writer_from_builder(&debug_format_builder);
 
-  fmt_wprintf(w, LIT("internal isize wayland_parse_event_%S_%S(Byte_Slice data"), prefix_lower, event_name);
+  fmt_wprintf(w, LIT("internal isize wayland_parse_event_%S_%S(Wayland_Connection *conn"), prefix_lower, event_name);
   slice_iter(xml->children, child, i, {
     if (!string_equal(child->type, LIT("arg"))) {
       continue;
@@ -351,7 +351,7 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
         fmt_wprintfln(&bw, LIT("\tif (%S_len %% 4) {"), arg_name);
         fmt_wprintfln(&bw, LIT("\t\tbyte %S_pad_buf[4];"), arg_name, arg_name);
         fmt_wprintfln(&bw, LIT("\t\tor_return(read_bytes(&r, (Byte_Slice) {.data = %S_pad_buf, .len = 4 - (%S_len %% 4) }), -1);"), arg_name, arg_name);
-        fmt_wprintln(&bw, LIT("\t}"));
+        fmt_wprintln(&bw,  LIT("\t}"));
 
         has_allocator_arg = true;
 
@@ -360,19 +360,22 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
 
       } else if (string_equal(arg_type, LIT("fd"))) {
         fmt_wprintf(w,     LIT(", Fd *%S"), arg_name);
-        // fmt_wprintfln(&bw, LIT("\tvector_append(&wc->fds, %S)"), arg_name);
+        fmt_wprintfln(&bw, LIT("\t*%S = conn->fds_in.data[0];"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tvector_remove_ordered(&conn->fds_in, 0);"), arg_name);
 
-        // fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
-        // fmt_wprintf(&dw, LIT(", %S"), arg_name);
+        fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
+        fmt_wprintf(&dw, LIT(", *%S"), arg_name);
 
       } else if (string_equal(arg_type, LIT("new_id"))) {
-        fmt_wprintf(w,     LIT(", u32 *%S"), arg_name);
+        // fmt_wprintf(w,    LIT(", u32 *%S"), arg_name);
         // fmt_wprintln(&bw, LIT("\twc->current_id  += 1;"));
-        // fmt_wprintln(&bw, LIT("\tu32 return_value = wc->current_id;"));
-        // fmt_wprintln(&bw, LIT("\twrite_any(w, &return_value);"));
+        // fmt_wprintfln(&bw, LIT("\tu32 return_value = wc->current_id;"));
+        // fmt_wprintfln(&bw, LIT("\tread_any(w, &%S);"), arg_name);
 
         // fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
-        // fmt_wprint(&dw, LIT(", return_value"));
+        // fmt_wprintf(&dw, LIT(", *%S"), arg_name);
+
+        // unimplemented();
 
       } else if (string_equal(arg_type, LIT("array"))) {
         fmt_wprintf(w,     LIT(", Byte_Slice *%S"), arg_name);
@@ -384,7 +387,7 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
         fmt_wprintfln(&bw, LIT("\tif (%S_len %% 4) {"), arg_name);
         fmt_wprintfln(&bw, LIT("\t\tbyte %S_pad_buf[4];"), arg_name, arg_name);
         fmt_wprintfln(&bw, LIT("\t\tor_return(read_bytes(&r, (Byte_Slice) {.data = %S_pad_buf, .len = 4 - (%S_len %% 4) }), -1);"), arg_name, arg_name);
-        fmt_wprintln(&bw, LIT("\t}"));
+        fmt_wprintln(&bw,  LIT("\t}"));
 
         has_allocator_arg = true;
 
@@ -401,12 +404,14 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
     fmt_wprint(w,  LIT(", Allocator allocator"));
   }
   fmt_wprintln(w,  LIT(") {"));
-  fmt_wprintln(w,  LIT("\tReader r = buffer_reader(&data);"));
+  fmt_wprintln(w,  LIT("\tByte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);"));
+  fmt_wprintln(w,  LIT("\tReader     r     = buffer_reader(&_data);"));
   fmt_wprintln(w,  LIT("\tu32 _object_id;"));
   fmt_wprintln(w,  LIT("\tu16 _opcode, _msg_size;"));
   fmt_wprintln(w,  LIT("\tor_return(read_any(&r, &_object_id), -1);"));
   fmt_wprintln(w,  LIT("\tor_return(read_any(&r, &_opcode),    -1);"));
   fmt_wprintln(w,  LIT("\tor_return(read_any(&r, &_msg_size),  -1);"));
+  fmt_wprintln(w,  LIT("\tconn->start += _msg_size;"));
   fmt_wprintfln(w, LIT("\tassert(_opcode == %d);"), event_id);
   fmt_wprint(w,    builder_to_string(body_builder));
 

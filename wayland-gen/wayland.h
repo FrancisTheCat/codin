@@ -879,13 +879,15 @@ typedef enum {
 	Wayland_Wl_Display_Event_Delete_Id = 1,
 } Wayland_Wl_Display_Event;
 
-internal isize wayland_parse_event_wl_display_error(Byte_Slice data, u32 *object_id, u32 *code, String *message, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_display_error(Wayland_Connection *conn, u32 *object_id, u32 *code, String *message, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, object_id), -1);
 	or_return(read_any(&r, code), -1);
@@ -902,13 +904,15 @@ internal isize wayland_parse_event_wl_display_error(Byte_Slice data, u32 *object
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_display_delete_id(Byte_Slice data, u32 *id) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_display_delete_id(Wayland_Connection *conn, u32 *id) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	or_return(read_any(&r, id), -1);
 	wayland_log_infof(LIT("<- wl_display@%d.delete_id: id=%d"), _object_id, *id);
@@ -947,13 +951,15 @@ typedef enum {
 	Wayland_Wl_Registry_Event_Global_Remove = 1,
 } Wayland_Wl_Registry_Event;
 
-internal isize wayland_parse_event_wl_registry_global(Byte_Slice data, u32 *name, String *interface, u32 *version, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_registry_global(Wayland_Connection *conn, u32 *name, String *interface, u32 *version, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, name), -1);
 	u32 interface_len;
@@ -970,13 +976,15 @@ internal isize wayland_parse_event_wl_registry_global(Byte_Slice data, u32 *name
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_registry_global_remove(Byte_Slice data, u32 *name) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_registry_global_remove(Wayland_Connection *conn, u32 *name) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	or_return(read_any(&r, name), -1);
 	wayland_log_infof(LIT("<- wl_registry@%d.global_remove: name=%d"), _object_id, *name);
@@ -987,13 +995,15 @@ typedef enum {
 	Wayland_Wl_Callback_Event_Done = 0,
 } Wayland_Wl_Callback_Event;
 
-internal isize wayland_parse_event_wl_callback_done(Byte_Slice data, u32 *callback_data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_callback_done(Wayland_Connection *conn, u32 *callback_data) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, callback_data), -1);
 	wayland_log_infof(LIT("<- wl_callback@%d.done: callback_data=%d"), _object_id, *callback_data);
@@ -1096,7 +1106,7 @@ internal u32 wayland_wl_shm_create_pool(Wayland_Connection *wc, u32 wl_shm, Fd f
 	wc->current_id  += 1;
 	u32 return_value = wc->current_id;
 	write_any(w, &return_value);
-	vector_append(&wc->fds, fd)
+	vector_append(&wc->fds_out, fd);
 	write_any(w, &size);
 
 	wayland_log_infof(LIT("-> wl_shm@%d.create_pool: id=%d fd=%d size=%d"), wl_shm, return_value, fd, size);
@@ -1120,13 +1130,15 @@ typedef enum {
 	Wayland_Wl_Shm_Event_Format = 0,
 } Wayland_Wl_Shm_Event;
 
-internal isize wayland_parse_event_wl_shm_format(Byte_Slice data, Wayland_Wl_Shm_Format *format) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_shm_format(Wayland_Connection *conn, Wayland_Wl_Shm_Format *format) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	u32 format_value;
 	or_return(read_any(&r, &format_value), -1);
@@ -1152,13 +1164,15 @@ typedef enum {
 	Wayland_Wl_Buffer_Event_Release = 0,
 } Wayland_Wl_Buffer_Event;
 
-internal isize wayland_parse_event_wl_buffer_release(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_buffer_release(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	wayland_log_infof(LIT("<- wl_buffer@%d.release:"), _object_id);
 	return _msg_size;
@@ -1203,7 +1217,7 @@ internal void wayland_wl_data_offer_receive(Wayland_Connection *wc, u32 wl_data_
 	for_range(i, mime_type.len, mime_type_size) {
 		write_byte(w, 0);
 	}
-	vector_append(&wc->fds, fd)
+	vector_append(&wc->fds_out, fd);
 
 	wayland_log_infof(LIT("-> wl_data_offer@%d.receive: mime_type=%S fd=%d"), wl_data_offer, mime_type, fd);
 }
@@ -1257,13 +1271,15 @@ typedef enum {
 	Wayland_Wl_Data_Offer_Event_Action = 2,
 } Wayland_Wl_Data_Offer_Event;
 
-internal isize wayland_parse_event_wl_data_offer_offer(Byte_Slice data, String *mime_type, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_offer_offer(Wayland_Connection *conn, String *mime_type, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	u32 mime_type_len;
 	or_return(read_any(&r, &mime_type_len), -1);
@@ -1278,13 +1294,15 @@ internal isize wayland_parse_event_wl_data_offer_offer(Byte_Slice data, String *
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_offer_source_actions(Byte_Slice data, Wayland_Wl_Data_Device_Manager_Dnd_Action *source_actions) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_offer_source_actions(Wayland_Connection *conn, Wayland_Wl_Data_Device_Manager_Dnd_Action *source_actions) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	u32 source_actions_value;
 	or_return(read_any(&r, &source_actions_value), -1);
@@ -1293,13 +1311,15 @@ internal isize wayland_parse_event_wl_data_offer_source_actions(Byte_Slice data,
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_offer_action(Byte_Slice data, Wayland_Wl_Data_Device_Manager_Dnd_Action *dnd_action) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_offer_action(Wayland_Connection *conn, Wayland_Wl_Data_Device_Manager_Dnd_Action *dnd_action) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	u32 dnd_action_value;
 	or_return(read_any(&r, &dnd_action_value), -1);
@@ -1366,13 +1386,15 @@ typedef enum {
 	Wayland_Wl_Data_Source_Event_Action = 5,
 } Wayland_Wl_Data_Source_Event;
 
-internal isize wayland_parse_event_wl_data_source_target(Byte_Slice data, String *mime_type, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_source_target(Wayland_Connection *conn, String *mime_type, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	u32 mime_type_len;
 	or_return(read_any(&r, &mime_type_len), -1);
@@ -1387,13 +1409,15 @@ internal isize wayland_parse_event_wl_data_source_target(Byte_Slice data, String
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_source_send(Byte_Slice data, String *mime_type, Fd *fd, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_source_send(Wayland_Connection *conn, String *mime_type, Fd *fd, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	u32 mime_type_len;
 	or_return(read_any(&r, &mime_type_len), -1);
@@ -1404,53 +1428,63 @@ internal isize wayland_parse_event_wl_data_source_send(Byte_Slice data, String *
 		byte mime_type_pad_buf[4];
 		or_return(read_bytes(&r, (Byte_Slice) {.data = mime_type_pad_buf, .len = 4 - (mime_type_len % 4) }), -1);
 	}
-	wayland_log_infof(LIT("<- wl_data_source@%d.send: mime_type=%S"), _object_id, *mime_type);
+	*fd = conn->fds_in.data[0];
+	vector_remove_ordered(&conn->fds_in, 0);
+	wayland_log_infof(LIT("<- wl_data_source@%d.send: mime_type=%S fd=%d"), _object_id, *mime_type, *fd);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_source_cancelled(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_source_cancelled(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	wayland_log_infof(LIT("<- wl_data_source@%d.cancelled:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_source_dnd_drop_performed(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_source_dnd_drop_performed(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 3);
 	wayland_log_infof(LIT("<- wl_data_source@%d.dnd_drop_performed:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_source_dnd_finished(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_source_dnd_finished(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 4);
 	wayland_log_infof(LIT("<- wl_data_source@%d.dnd_finished:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_source_action(Byte_Slice data, Wayland_Wl_Data_Device_Manager_Dnd_Action *dnd_action) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_source_action(Wayland_Connection *conn, Wayland_Wl_Data_Device_Manager_Dnd_Action *dnd_action) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 5);
 	u32 dnd_action_value;
 	or_return(read_any(&r, &dnd_action_value), -1);
@@ -1513,25 +1547,29 @@ typedef enum {
 	Wayland_Wl_Data_Device_Event_Selection = 5,
 } Wayland_Wl_Data_Device_Event;
 
-internal isize wayland_parse_event_wl_data_device_data_offer(Byte_Slice data, u32 *id) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_device_data_offer(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	wayland_log_infof(LIT("<- wl_data_device@%d.data_offer:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_device_enter(Byte_Slice data, u32 *serial, u32 *surface, f32 *x, f32 *y, u32 *id) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_device_enter(Wayland_Connection *conn, u32 *serial, u32 *surface, f32 *x, f32 *y, u32 *id) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	or_return(read_any(&r, serial), -1);
 	or_return(read_any(&r, surface), -1);
@@ -1546,25 +1584,29 @@ internal isize wayland_parse_event_wl_data_device_enter(Byte_Slice data, u32 *se
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_device_leave(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_device_leave(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	wayland_log_infof(LIT("<- wl_data_device@%d.leave:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_device_motion(Byte_Slice data, u32 *time, f32 *x, f32 *y) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_device_motion(Wayland_Connection *conn, u32 *time, f32 *x, f32 *y) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 3);
 	or_return(read_any(&r, time), -1);
 	i32 x_fixed;
@@ -1577,25 +1619,29 @@ internal isize wayland_parse_event_wl_data_device_motion(Byte_Slice data, u32 *t
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_device_drop(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_device_drop(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 4);
 	wayland_log_infof(LIT("<- wl_data_device@%d.drop:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_data_device_selection(Byte_Slice data, u32 *id) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_data_device_selection(Wayland_Connection *conn, u32 *id) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 5);
 	or_return(read_any(&r, id), -1);
 	wayland_log_infof(LIT("<- wl_data_device@%d.selection: id=%d"), _object_id, *id);
@@ -1831,26 +1877,30 @@ typedef enum {
 	Wayland_Wl_Shell_Surface_Event_Popup_Done = 2,
 } Wayland_Wl_Shell_Surface_Event;
 
-internal isize wayland_parse_event_wl_shell_surface_ping(Byte_Slice data, u32 *serial) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_shell_surface_ping(Wayland_Connection *conn, u32 *serial) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, serial), -1);
 	wayland_log_infof(LIT("<- wl_shell_surface@%d.ping: serial=%d"), _object_id, *serial);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_shell_surface_configure(Byte_Slice data, Wayland_Wl_Shell_Surface_Resize *edges, i32 *width, i32 *height) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_shell_surface_configure(Wayland_Connection *conn, Wayland_Wl_Shell_Surface_Resize *edges, i32 *width, i32 *height) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	u32 edges_value;
 	or_return(read_any(&r, &edges_value), -1);
@@ -1861,13 +1911,15 @@ internal isize wayland_parse_event_wl_shell_surface_configure(Byte_Slice data, W
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_shell_surface_popup_done(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_shell_surface_popup_done(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	wayland_log_infof(LIT("<- wl_shell_surface@%d.popup_done:"), _object_id);
 	return _msg_size;
@@ -2045,52 +2097,60 @@ typedef enum {
 	Wayland_Wl_Surface_Event_Preferred_Buffer_Transform = 3,
 } Wayland_Wl_Surface_Event;
 
-internal isize wayland_parse_event_wl_surface_enter(Byte_Slice data, u32 *output) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_surface_enter(Wayland_Connection *conn, u32 *output) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, output), -1);
 	wayland_log_infof(LIT("<- wl_surface@%d.enter: output=%d"), _object_id, *output);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_surface_leave(Byte_Slice data, u32 *output) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_surface_leave(Wayland_Connection *conn, u32 *output) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	or_return(read_any(&r, output), -1);
 	wayland_log_infof(LIT("<- wl_surface@%d.leave: output=%d"), _object_id, *output);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_surface_preferred_buffer_scale(Byte_Slice data, i32 *factor) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_surface_preferred_buffer_scale(Wayland_Connection *conn, i32 *factor) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	or_return(read_any(&r, factor), -1);
 	wayland_log_infof(LIT("<- wl_surface@%d.preferred_buffer_scale: factor=%d"), _object_id, *factor);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_surface_preferred_buffer_transform(Byte_Slice data, Wayland_Wl_Output_Transform *transform) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_surface_preferred_buffer_transform(Wayland_Connection *conn, Wayland_Wl_Output_Transform *transform) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 3);
 	u32 transform_value;
 	or_return(read_any(&r, &transform_value), -1);
@@ -2168,13 +2228,15 @@ typedef enum {
 	Wayland_Wl_Seat_Event_Name = 1,
 } Wayland_Wl_Seat_Event;
 
-internal isize wayland_parse_event_wl_seat_capabilities(Byte_Slice data, Wayland_Wl_Seat_Capability *capabilities) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_seat_capabilities(Wayland_Connection *conn, Wayland_Wl_Seat_Capability *capabilities) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	u32 capabilities_value;
 	or_return(read_any(&r, &capabilities_value), -1);
@@ -2183,13 +2245,15 @@ internal isize wayland_parse_event_wl_seat_capabilities(Byte_Slice data, Wayland
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_seat_name(Byte_Slice data, String *name, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_seat_name(Wayland_Connection *conn, String *name, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	u32 name_len;
 	or_return(read_any(&r, &name_len), -1);
@@ -2248,13 +2312,15 @@ typedef enum {
 	Wayland_Wl_Pointer_Event_Axis_Relative_Direction = 10,
 } Wayland_Wl_Pointer_Event;
 
-internal isize wayland_parse_event_wl_pointer_enter(Byte_Slice data, u32 *serial, u32 *surface, f32 *surface_x, f32 *surface_y) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_enter(Wayland_Connection *conn, u32 *serial, u32 *surface, f32 *surface_x, f32 *surface_y) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, serial), -1);
 	or_return(read_any(&r, surface), -1);
@@ -2268,13 +2334,15 @@ internal isize wayland_parse_event_wl_pointer_enter(Byte_Slice data, u32 *serial
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_pointer_leave(Byte_Slice data, u32 *serial, u32 *surface) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_leave(Wayland_Connection *conn, u32 *serial, u32 *surface) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	or_return(read_any(&r, serial), -1);
 	or_return(read_any(&r, surface), -1);
@@ -2282,13 +2350,15 @@ internal isize wayland_parse_event_wl_pointer_leave(Byte_Slice data, u32 *serial
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_pointer_motion(Byte_Slice data, u32 *time, f32 *surface_x, f32 *surface_y) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_motion(Wayland_Connection *conn, u32 *time, f32 *surface_x, f32 *surface_y) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	or_return(read_any(&r, time), -1);
 	i32 surface_x_fixed;
@@ -2301,13 +2371,15 @@ internal isize wayland_parse_event_wl_pointer_motion(Byte_Slice data, u32 *time,
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_pointer_button(Byte_Slice data, u32 *serial, u32 *time, u32 *button, Wayland_Wl_Pointer_Button_State *state) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_button(Wayland_Connection *conn, u32 *serial, u32 *time, u32 *button, Wayland_Wl_Pointer_Button_State *state) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 3);
 	or_return(read_any(&r, serial), -1);
 	or_return(read_any(&r, time), -1);
@@ -2319,13 +2391,15 @@ internal isize wayland_parse_event_wl_pointer_button(Byte_Slice data, u32 *seria
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_pointer_axis(Byte_Slice data, u32 *time, Wayland_Wl_Pointer_Axis *axis, f32 *value) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_axis(Wayland_Connection *conn, u32 *time, Wayland_Wl_Pointer_Axis *axis, f32 *value) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 4);
 	or_return(read_any(&r, time), -1);
 	u32 axis_value;
@@ -2338,25 +2412,29 @@ internal isize wayland_parse_event_wl_pointer_axis(Byte_Slice data, u32 *time, W
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_pointer_frame(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_frame(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 5);
 	wayland_log_infof(LIT("<- wl_pointer@%d.frame:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_pointer_axis_source(Byte_Slice data, Wayland_Wl_Pointer_Axis_Source *axis_source) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_axis_source(Wayland_Connection *conn, Wayland_Wl_Pointer_Axis_Source *axis_source) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 6);
 	u32 axis_source_value;
 	or_return(read_any(&r, &axis_source_value), -1);
@@ -2365,13 +2443,15 @@ internal isize wayland_parse_event_wl_pointer_axis_source(Byte_Slice data, Wayla
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_pointer_axis_stop(Byte_Slice data, u32 *time, Wayland_Wl_Pointer_Axis *axis) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_axis_stop(Wayland_Connection *conn, u32 *time, Wayland_Wl_Pointer_Axis *axis) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 7);
 	or_return(read_any(&r, time), -1);
 	u32 axis_value;
@@ -2381,13 +2461,15 @@ internal isize wayland_parse_event_wl_pointer_axis_stop(Byte_Slice data, u32 *ti
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_pointer_axis_discrete(Byte_Slice data, Wayland_Wl_Pointer_Axis *axis, i32 *discrete) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_axis_discrete(Wayland_Connection *conn, Wayland_Wl_Pointer_Axis *axis, i32 *discrete) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 8);
 	u32 axis_value;
 	or_return(read_any(&r, &axis_value), -1);
@@ -2397,13 +2479,15 @@ internal isize wayland_parse_event_wl_pointer_axis_discrete(Byte_Slice data, Way
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_pointer_axis_value120(Byte_Slice data, Wayland_Wl_Pointer_Axis *axis, i32 *value120) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_axis_value120(Wayland_Connection *conn, Wayland_Wl_Pointer_Axis *axis, i32 *value120) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 9);
 	u32 axis_value;
 	or_return(read_any(&r, &axis_value), -1);
@@ -2413,13 +2497,15 @@ internal isize wayland_parse_event_wl_pointer_axis_value120(Byte_Slice data, Way
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_pointer_axis_relative_direction(Byte_Slice data, Wayland_Wl_Pointer_Axis *axis, Wayland_Wl_Pointer_Axis_Relative_Direction *direction) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_pointer_axis_relative_direction(Wayland_Connection *conn, Wayland_Wl_Pointer_Axis *axis, Wayland_Wl_Pointer_Axis_Relative_Direction *direction) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 10);
 	u32 axis_value;
 	or_return(read_any(&r, &axis_value), -1);
@@ -2453,29 +2539,35 @@ typedef enum {
 	Wayland_Wl_Keyboard_Event_Repeat_Info = 5,
 } Wayland_Wl_Keyboard_Event;
 
-internal isize wayland_parse_event_wl_keyboard_keymap(Byte_Slice data, Wayland_Wl_Keyboard_Keymap_Format *format, Fd *fd, u32 *size) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_keyboard_keymap(Wayland_Connection *conn, Wayland_Wl_Keyboard_Keymap_Format *format, Fd *fd, u32 *size) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	u32 format_value;
 	or_return(read_any(&r, &format_value), -1);
 	*format = (Wayland_Wl_Keyboard_Keymap_Format)format_value;
+	*fd = conn->fds_in.data[0];
+	vector_remove_ordered(&conn->fds_in, 0);
 	or_return(read_any(&r, size), -1);
-	wayland_log_infof(LIT("<- wl_keyboard@%d.keymap: format=%S size=%d"), _object_id, wayland_wl_keyboard_keymap_format_string(*format), *size);
+	wayland_log_infof(LIT("<- wl_keyboard@%d.keymap: format=%S fd=%d size=%d"), _object_id, wayland_wl_keyboard_keymap_format_string(*format), *fd, *size);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_keyboard_enter(Byte_Slice data, u32 *serial, u32 *surface, Byte_Slice *keys, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_keyboard_enter(Wayland_Connection *conn, u32 *serial, u32 *surface, Byte_Slice *keys, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	or_return(read_any(&r, serial), -1);
 	or_return(read_any(&r, surface), -1);
@@ -2491,13 +2583,15 @@ internal isize wayland_parse_event_wl_keyboard_enter(Byte_Slice data, u32 *seria
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_keyboard_leave(Byte_Slice data, u32 *serial, u32 *surface) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_keyboard_leave(Wayland_Connection *conn, u32 *serial, u32 *surface) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	or_return(read_any(&r, serial), -1);
 	or_return(read_any(&r, surface), -1);
@@ -2505,13 +2599,15 @@ internal isize wayland_parse_event_wl_keyboard_leave(Byte_Slice data, u32 *seria
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_keyboard_key(Byte_Slice data, u32 *serial, u32 *time, u32 *key, Wayland_Wl_Keyboard_Key_State *state) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_keyboard_key(Wayland_Connection *conn, u32 *serial, u32 *time, u32 *key, Wayland_Wl_Keyboard_Key_State *state) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 3);
 	or_return(read_any(&r, serial), -1);
 	or_return(read_any(&r, time), -1);
@@ -2523,13 +2619,15 @@ internal isize wayland_parse_event_wl_keyboard_key(Byte_Slice data, u32 *serial,
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_keyboard_modifiers(Byte_Slice data, u32 *serial, u32 *mods_depressed, u32 *mods_latched, u32 *mods_locked, u32 *group) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_keyboard_modifiers(Wayland_Connection *conn, u32 *serial, u32 *mods_depressed, u32 *mods_latched, u32 *mods_locked, u32 *group) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 4);
 	or_return(read_any(&r, serial), -1);
 	or_return(read_any(&r, mods_depressed), -1);
@@ -2540,13 +2638,15 @@ internal isize wayland_parse_event_wl_keyboard_modifiers(Byte_Slice data, u32 *s
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_keyboard_repeat_info(Byte_Slice data, i32 *rate, i32 *delay) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_keyboard_repeat_info(Wayland_Connection *conn, i32 *rate, i32 *delay) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 5);
 	or_return(read_any(&r, rate), -1);
 	or_return(read_any(&r, delay), -1);
@@ -2577,13 +2677,15 @@ typedef enum {
 	Wayland_Wl_Touch_Event_Orientation = 6,
 } Wayland_Wl_Touch_Event;
 
-internal isize wayland_parse_event_wl_touch_down(Byte_Slice data, u32 *serial, u32 *time, u32 *surface, i32 *id, f32 *x, f32 *y) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_touch_down(Wayland_Connection *conn, u32 *serial, u32 *time, u32 *surface, i32 *id, f32 *x, f32 *y) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, serial), -1);
 	or_return(read_any(&r, time), -1);
@@ -2599,13 +2701,15 @@ internal isize wayland_parse_event_wl_touch_down(Byte_Slice data, u32 *serial, u
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_touch_up(Byte_Slice data, u32 *serial, u32 *time, i32 *id) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_touch_up(Wayland_Connection *conn, u32 *serial, u32 *time, i32 *id) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	or_return(read_any(&r, serial), -1);
 	or_return(read_any(&r, time), -1);
@@ -2614,13 +2718,15 @@ internal isize wayland_parse_event_wl_touch_up(Byte_Slice data, u32 *serial, u32
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_touch_motion(Byte_Slice data, u32 *time, i32 *id, f32 *x, f32 *y) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_touch_motion(Wayland_Connection *conn, u32 *time, i32 *id, f32 *x, f32 *y) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	or_return(read_any(&r, time), -1);
 	or_return(read_any(&r, id), -1);
@@ -2634,37 +2740,43 @@ internal isize wayland_parse_event_wl_touch_motion(Byte_Slice data, u32 *time, i
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_touch_frame(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_touch_frame(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 3);
 	wayland_log_infof(LIT("<- wl_touch@%d.frame:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_touch_cancel(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_touch_cancel(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 4);
 	wayland_log_infof(LIT("<- wl_touch@%d.cancel:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_touch_shape(Byte_Slice data, i32 *id, f32 *major, f32 *minor) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_touch_shape(Wayland_Connection *conn, i32 *id, f32 *major, f32 *minor) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 5);
 	or_return(read_any(&r, id), -1);
 	i32 major_fixed;
@@ -2677,13 +2789,15 @@ internal isize wayland_parse_event_wl_touch_shape(Byte_Slice data, i32 *id, f32 
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_touch_orientation(Byte_Slice data, i32 *id, f32 *orientation) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_touch_orientation(Wayland_Connection *conn, i32 *id, f32 *orientation) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 6);
 	or_return(read_any(&r, id), -1);
 	i32 orientation_fixed;
@@ -2715,13 +2829,15 @@ typedef enum {
 	Wayland_Wl_Output_Event_Description = 5,
 } Wayland_Wl_Output_Event;
 
-internal isize wayland_parse_event_wl_output_geometry(Byte_Slice data, i32 *x, i32 *y, i32 *physical_width, i32 *physical_height, Wayland_Wl_Output_Subpixel *subpixel, String *make, String *model, Wayland_Wl_Output_Transform *transform, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_output_geometry(Wayland_Connection *conn, i32 *x, i32 *y, i32 *physical_width, i32 *physical_height, Wayland_Wl_Output_Subpixel *subpixel, String *make, String *model, Wayland_Wl_Output_Transform *transform, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, x), -1);
 	or_return(read_any(&r, y), -1);
@@ -2755,13 +2871,15 @@ internal isize wayland_parse_event_wl_output_geometry(Byte_Slice data, i32 *x, i
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_output_mode(Byte_Slice data, Wayland_Wl_Output_Mode *flags, i32 *width, i32 *height, i32 *refresh) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_output_mode(Wayland_Connection *conn, Wayland_Wl_Output_Mode *flags, i32 *width, i32 *height, i32 *refresh) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	u32 flags_value;
 	or_return(read_any(&r, &flags_value), -1);
@@ -2773,38 +2891,44 @@ internal isize wayland_parse_event_wl_output_mode(Byte_Slice data, Wayland_Wl_Ou
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_output_done(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_output_done(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	wayland_log_infof(LIT("<- wl_output@%d.done:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_output_scale(Byte_Slice data, i32 *factor) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_output_scale(Wayland_Connection *conn, i32 *factor) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 3);
 	or_return(read_any(&r, factor), -1);
 	wayland_log_infof(LIT("<- wl_output@%d.scale: factor=%d"), _object_id, *factor);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_output_name(Byte_Slice data, String *name, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_output_name(Wayland_Connection *conn, String *name, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 4);
 	u32 name_len;
 	or_return(read_any(&r, &name_len), -1);
@@ -2819,13 +2943,15 @@ internal isize wayland_parse_event_wl_output_name(Byte_Slice data, String *name,
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_wl_output_description(Byte_Slice data, String *description, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_wl_output_description(Wayland_Connection *conn, String *description, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 5);
 	u32 description_len;
 	or_return(read_any(&r, &description_len), -1);

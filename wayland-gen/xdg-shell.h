@@ -363,13 +363,15 @@ typedef enum {
 	Wayland_Xdg_Wm_Base_Event_Ping = 0,
 } Wayland_Xdg_Wm_Base_Event;
 
-internal isize wayland_parse_event_xdg_wm_base_ping(Byte_Slice data, u32 *serial) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_xdg_wm_base_ping(Wayland_Connection *conn, u32 *serial) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, serial), -1);
 	wayland_log_infof(LIT("<- xdg_wm_base@%d.ping: serial=%d"), _object_id, *serial);
@@ -607,13 +609,15 @@ typedef enum {
 	Wayland_Xdg_Surface_Event_Configure = 0,
 } Wayland_Xdg_Surface_Event;
 
-internal isize wayland_parse_event_xdg_surface_configure(Byte_Slice data, u32 *serial) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_xdg_surface_configure(Wayland_Connection *conn, u32 *serial) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, serial), -1);
 	wayland_log_infof(LIT("<- xdg_surface@%d.configure: serial=%d"), _object_id, *serial);
@@ -841,13 +845,15 @@ typedef enum {
 	Wayland_Xdg_Toplevel_Event_Wm_Capabilities = 3,
 } Wayland_Xdg_Toplevel_Event;
 
-internal isize wayland_parse_event_xdg_toplevel_configure(Byte_Slice data, i32 *width, i32 *height, Byte_Slice *states, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_xdg_toplevel_configure(Wayland_Connection *conn, i32 *width, i32 *height, Byte_Slice *states, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, width), -1);
 	or_return(read_any(&r, height), -1);
@@ -863,25 +869,29 @@ internal isize wayland_parse_event_xdg_toplevel_configure(Byte_Slice data, i32 *
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_xdg_toplevel_close(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_xdg_toplevel_close(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	wayland_log_infof(LIT("<- xdg_toplevel@%d.close:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_xdg_toplevel_configure_bounds(Byte_Slice data, i32 *width, i32 *height) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_xdg_toplevel_configure_bounds(Wayland_Connection *conn, i32 *width, i32 *height) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	or_return(read_any(&r, width), -1);
 	or_return(read_any(&r, height), -1);
@@ -889,13 +899,15 @@ internal isize wayland_parse_event_xdg_toplevel_configure_bounds(Byte_Slice data
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_xdg_toplevel_wm_capabilities(Byte_Slice data, Byte_Slice *capabilities, Allocator allocator) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_xdg_toplevel_wm_capabilities(Wayland_Connection *conn, Byte_Slice *capabilities, Allocator allocator) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 3);
 	u32 capabilities_len;
 	or_return(read_any(&r, &capabilities_len), -1);
@@ -958,13 +970,15 @@ typedef enum {
 	Wayland_Xdg_Popup_Event_Repositioned = 2,
 } Wayland_Xdg_Popup_Event;
 
-internal isize wayland_parse_event_xdg_popup_configure(Byte_Slice data, i32 *x, i32 *y, i32 *width, i32 *height) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_xdg_popup_configure(Wayland_Connection *conn, i32 *x, i32 *y, i32 *width, i32 *height) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 0);
 	or_return(read_any(&r, x), -1);
 	or_return(read_any(&r, y), -1);
@@ -974,25 +988,29 @@ internal isize wayland_parse_event_xdg_popup_configure(Byte_Slice data, i32 *x, 
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_xdg_popup_popup_done(Byte_Slice data) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_xdg_popup_popup_done(Wayland_Connection *conn) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 1);
 	wayland_log_infof(LIT("<- xdg_popup@%d.popup_done:"), _object_id);
 	return _msg_size;
 }
 
-internal isize wayland_parse_event_xdg_popup_repositioned(Byte_Slice data, u32 *token) {
-	Reader r = buffer_reader(&data);
+internal isize wayland_parse_event_xdg_popup_repositioned(Wayland_Connection *conn, u32 *token) {
+	Byte_Slice _data = slice_range(conn->buffer, conn->start, conn->end);
+	Reader     r     = buffer_reader(&_data);
 	u32 _object_id;
 	u16 _opcode, _msg_size;
 	or_return(read_any(&r, &_object_id), -1);
 	or_return(read_any(&r, &_opcode),    -1);
 	or_return(read_any(&r, &_msg_size),  -1);
+	conn->start += _msg_size;
 	assert(_opcode == 2);
 	or_return(read_any(&r, token), -1);
 	wayland_log_infof(LIT("<- xdg_popup@%d.repositioned: token=%d"), _object_id, *token);

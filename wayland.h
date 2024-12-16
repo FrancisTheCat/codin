@@ -5,6 +5,9 @@
 #include "wayland-gen/xdg-shell.h"
 #include "wayland-gen/cursor-shape.h"
 
+#define WAYLAND_HEADER_SIZE 8
+#define COLOR_CHANNELS      4
+
 #include "ui.h"
 
 #include "spall.h"
@@ -19,8 +22,19 @@ f64 get_time_in_micros() {
   return (f64)(time_now().nsec) / Microsecond;
 }
 
-#define WAYLAND_HEADER_SIZE 8
-#define COLOR_CHANNELS      4
+internal b8 wayland_peek_event_info(Wayland_Connection *conn, u32 *object, u16 *event) {
+  if (conn->end - conn->start < WAYLAND_HEADER_SIZE) {
+    return false;
+  }
+  u16 size;
+  mem_copy(&size,  &conn->buffer.data[conn->start + size_of(u32) + size_of(u16)], size_of(size));
+  if (size > conn->end - conn->start) {
+    return false;
+  }
+  mem_copy(object, &conn->buffer.data[conn->start + 0], size_of(*object));
+  mem_copy(event,  &conn->buffer.data[conn->start + size_of(u32)], size_of(*event));
+  return true;
+}
 
 #define CMSG_DATA(cmsg) ((void *)((struct cmsghdr *)cmsg + 1))
 
@@ -92,10 +106,48 @@ struct cmsghdr * __cmsg_nxthdr(struct msghdr *__mhdr, struct cmsghdr *__cmsg) {
   return __cmsg;
 }
 
+internal isize wayland_recieve_messages(Wayland_Connection *conn) {
+  local_persist byte _control_buf[256] = {0};
+  struct iovec iov = {
+    .base = conn->buffer.data,
+    .len  = conn->buffer.len,
+  };
+  struct msghdr msg = {
+    .iov        = &iov,
+    .iovlen     = 1,
+    .control    = _control_buf,
+    .controllen = size_of(_control_buf),
+  };
+  conn->end   = syscall(SYS_recvmsg, conn->socket, &msg, 0);
+  conn->start = 0;
+
+  struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
+  while (chdr) {
+    vector_append(&conn->fds_in, *(i32 *)CMSG_DATA(chdr));
+    chdr = CMSG_NXTHDR(&msg, chdr);
+  }
+
+  return conn->end;
+}
+
+internal void wayland_skip_event(Wayland_Connection *conn) {
+  if (conn->end - conn->start < WAYLAND_HEADER_SIZE) {
+    trap();
+    return;
+  }
+  u16 size;
+  mem_copy(&size, &conn->buffer.data[conn->start + size_of(u32) + size_of(u16)], size_of(size));
+  if (size > conn->end - conn->start) {
+    trap();
+    return;
+  }
+  conn->start += size;
+}
+
 internal void wayland_connection_flush(Wayland_Connection *conn) {
   if (conn->builder.len) {
     Byte_Slice control_buf;
-    slice_init(&control_buf, CMSG_SPACE(conn->fds.len * size_of(int)), context.temp_allocator);
+    slice_init(&control_buf, CMSG_SPACE(conn->fds_out.len * size_of(int)), context.temp_allocator);
     struct iovec iov = {
       .base = conn->builder.data,
       .len  = (usize)conn->builder.len,
@@ -112,31 +164,33 @@ internal void wayland_connection_flush(Wayland_Connection *conn) {
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
     cmsg->level = SOL_SOCKET;
     cmsg->type  = 1;
-    cmsg->len   = CMSG_LEN(conn->fds.len * size_of(int));
-    mem_copy(CMSG_DATA(cmsg), conn->fds.data, conn->fds.len * size_of(int));
+    cmsg->len   = CMSG_LEN(conn->fds_out.len * size_of(int));
+    mem_copy(CMSG_DATA(cmsg), conn->fds_out.data, conn->fds_out.len * size_of(int));
 
     syscall(SYS_sendmsg, conn->socket, &msg, MSG_NOSIGNAL);
 
     vector_clear(&conn->builder);
-    vector_clear(&conn->fds);
+    vector_clear(&conn->fds_out);
   }
 }
 
 internal void wayland_connection_destroy(Wayland_Connection const *conn) {
   vector_delete(conn->builder);
-  vector_delete(conn->fds);
+  vector_delete(conn->fds_in);
+  vector_delete(conn->fds_out);
 }
 
-internal Wayland_Connection wayland_display_connect(Allocator allocator) {
+internal b8 wayland_display_connect(Allocator allocator, Byte_Slice buffer, Wayland_Connection *conn) {
   struct sockaddr_un {
     u16 family;
     char path[108];
   };
 
-  Wayland_Connection conn = {0};
-  conn.current_id = 1;
-  vector_init(&conn.builder, 0, 8, allocator);
-  vector_init(&conn.fds, 0, 8, allocator);
+  conn->current_id = 1;
+  vector_init(&conn->builder, 0, 8, allocator);
+  vector_init(&conn->fds_in,  0, 8, allocator);
+  vector_init(&conn->fds_out, 0, 8, allocator);
+  conn->buffer = buffer;
 
   String xdg_runtime_dir = get_env(LIT("XDG_RUNTIME_DIR"));
   String wayland_display = get_env(LIT("WAYLAND_DISPLAY"));
@@ -146,13 +200,17 @@ internal Wayland_Connection wayland_display_connect(Allocator allocator) {
   addr.family = 1;
   string_copy((String) {.data = addr.path, .len = size_of(addr.path) - 1}, socket_path);
 
-  conn.socket = syscall(SYS_socket, 1, SOCK_STREAM, 0);
-  assert(conn.socket != -1);
+  conn->socket = syscall(SYS_socket, 1, SOCK_STREAM, 0);
+  if (conn->socket < 0) {
+    return false;
+  }
 
-  isize connect_status = syscall(SYS_connect, conn.socket, &addr, size_of(addr));
-  assert(connect_status != -1)
+  isize connect_status = syscall(SYS_connect, conn->socket, &addr, size_of(addr));
+  if (connect_status < 0) {
+    return false;
+  }
 
-  return conn;
+  return true;
 }
 
 typedef enum {
@@ -174,16 +232,15 @@ typedef struct {
   u32           wl_shm;
   u32           wl_shm_pool;
   u32           wl_buffer;
-  u32           xdg_wm_base;
-  u32           xdg_surface;
   u32           wl_compositor;
   u32           wl_surface;
+  u32           xdg_wm_base;
+  u32           xdg_surface;
   u32           xdg_toplevel;
   u32           wp_cursor_shape_manager;
   u32           wp_cursor_shape_device;
   u32           stride;
-  i32           w;
-  i32           h;
+  i32           w, h;
   u32           shm_pool_size;
   i32           shm_fd;
   u8           *shm_pool_data;
@@ -243,233 +300,219 @@ internal b8 create_shared_memory_file(uintptr size, Wayland_State *state) {
   return true;
 }
 
-internal isize wayland_handle_message(Wayland_Connection *conn, Wayland_State *state, Byte_Slice data) {
+internal void wayland_handle_events(Wayland_Connection *conn, Wayland_State *state) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
-  if (data.len < 8) {
-    fmt_panicf(LIT("Invalid len: %d"), data.len);
-  }
-
-  Byte_Slice data_copy = data;
-
-  isize data_len = data.len;
-
-  Reader reader = buffer_reader(&data);
 
   u32 object_id;
-  read_any(&reader, &object_id);
-
   u16 opcode;
-  read_any(&reader, &opcode);
+  while (wayland_peek_event_info(conn, &object_id, &opcode)) {
+    if (object_id == state->wl_registry && opcode == Wayland_Wl_Registry_Event_Global) {
+      u32 name, version;
+      String interface;
 
-  u16 announced_size;
-  read_any(&reader, &announced_size);
+      wayland_parse_event_wl_registry_global(conn, &name, &interface, &version, context.temp_allocator);
 
-  if (object_id == state->wl_registry && opcode == Wayland_Wl_Registry_Event_Global) {
-    u32 name, version;
-    String interface;
-
-    wayland_parse_event_wl_registry_global(data_copy, &name, &interface, &version, context.temp_allocator);
-
-    if (string_equal(interface, LIT("wl_shm"))) {
-      state->wl_shm = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
-    }
-
-    if (string_equal(interface, LIT("xdg_wm_base"))) {
-      state->xdg_wm_base = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
-    }
-
-    if (string_equal(interface, LIT("wl_compositor"))) {
-      state->wl_compositor = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
-    }
-
-    if (string_equal(interface, LIT("wl_seat"))) {
-      state->wl_seat = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
-    }
-
-    if (string_equal(interface, LIT("wp_cursor_shape_manager_v1"))) {
-      state->wp_cursor_shape_manager = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
-    }
-
-  } else if (object_id == state->xdg_wm_base && opcode == Wayland_Xdg_Wm_Base_Event_Ping) {
-    u32 serial;
-    wayland_parse_event_xdg_wm_base_ping(data_copy, &serial);
-    wayland_xdg_wm_base_pong(conn, state->xdg_wm_base, serial);
-
-  } else if (object_id == state->xdg_surface && opcode == Wayland_Xdg_Surface_Event_Configure) {
-    u32 serial;
-    wayland_parse_event_xdg_surface_configure(data_copy, &serial);
-    wayland_xdg_surface_ack_configure(conn, state->xdg_surface, serial);
-    state->surface_state = Surface_State_Acked_Configure;
-
-  } else if (object_id == state->xdg_toplevel) {
-    switch ((Wayland_Xdg_Toplevel_Event)opcode) {
-    case Wayland_Xdg_Toplevel_Event_Configure_Bounds:
-      i32 width;
-      i32 height;
-      wayland_parse_event_xdg_toplevel_configure_bounds(data_copy, &width, &height);
-      break;
-
-    case Wayland_Xdg_Toplevel_Event_Configure:
-      Byte_Slice states;
-      wayland_parse_event_xdg_toplevel_configure(data_copy, &state->w, &state->h, &states, context.temp_allocator);
-
-      state->w = max(state->w, 1);
-      state->h = max(state->h, 1);
-
-      state->should_resize = true;
-      break;
-
-    case Wayland_Xdg_Toplevel_Event_Close:
-      state->should_close = true;
-      break;
-
-    default:
-      break;
-    }
-
-  } else if (object_id == state->wl_buffer && opcode == Wayland_Wl_Buffer_Event_Release) {
-    wayland_parse_event_wl_buffer_release(data_copy);
-    state->buffer_state = Buffer_State_Released;
-
-  } else if (object_id == state->wl_keyboard) {
-    switch ((Wayland_Wl_Keyboard_Event)opcode) {
-    case Wayland_Wl_Keyboard_Event_Keymap:
-      u32 format, size;
-      Fd fd;
-      rawptr data;
-      Byte_Slice kmdata;
-
-      read_any(&reader, &format);
-      read_any(&reader, &size);
-
-      if (!state->fds_in.len) {
-        log_fatal(LIT("FUCK (we should have recieved an fd for this event, but we didnt, this is probably our fault)"));
-        trap();
+      if (string_equal(interface, LIT("wl_shm"))) {
+        state->wl_shm = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
       }
 
-      fd = state->fds_in.data[0];
-      vector_remove_ordered(&state->fds_in, 0);
+      if (string_equal(interface, LIT("xdg_wm_base"))) {
+        state->xdg_wm_base = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
+      }
 
-      wayland_log_infof(LIT("Keymap %d %B %d"), size, format, fd);
+      if (string_equal(interface, LIT("wl_compositor"))) {
+        state->wl_compositor = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
+      }
 
-      data = (rawptr)syscall(SYS_mmap, nil, size, PROT_READ, MAP_PRIVATE, fd, 0);
+      if (string_equal(interface, LIT("wl_seat"))) {
+        state->wl_seat = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
+      }
 
-      kmdata = (Byte_Slice) {
-        .data = (byte *)data,
-        .len  = size,
-      };
-      write_entire_file_path(LIT("keymap.txt"), kmdata);
+      if (string_equal(interface, LIT("wp_cursor_shape_manager_v1"))) {
+        state->wp_cursor_shape_manager = wayland_wl_registry_bind(conn, state->wl_registry, name, interface, version);
+      }
 
-      parse_key_codes(transmute(String, kmdata), &state->keymap, context.allocator);
-      break;
-
-    case Wayland_Wl_Keyboard_Event_Key:
+    } else if (object_id == state->xdg_wm_base && opcode == Wayland_Xdg_Wm_Base_Event_Ping) {
       u32 serial;
-      u32 time;
-      u32 key;
-      Wayland_Wl_Keyboard_Key_State key_state;
+      wayland_parse_event_xdg_wm_base_ping(conn, &serial);
+      wayland_xdg_wm_base_pong(conn, state->xdg_wm_base, serial);
 
-      wayland_parse_event_wl_keyboard_key(data_copy, &serial, &time, &key, &key_state);
+    } else if (object_id == state->xdg_surface && opcode == Wayland_Xdg_Surface_Event_Configure) {
+      u32 serial;
+      wayland_parse_event_xdg_surface_configure(conn, &serial);
+      wayland_xdg_surface_ack_configure(conn, state->xdg_surface, serial);
+      state->surface_state = Surface_State_Acked_Configure;
 
-      if (key + 8 < state->keymap.len) {
-        if (state->keymap.data[key + 8]) {
-          state->keys[state->keymap.data[key + 8]] = key_state == Wayland_Wl_Keyboard_Key_State_Pressed;
-        }
+    } else if (object_id == state->xdg_toplevel) {
+      switch ((Wayland_Xdg_Toplevel_Event)opcode) {
+      case Wayland_Xdg_Toplevel_Event_Configure_Bounds:
+        i32 width;
+        i32 height;
+        wayland_parse_event_xdg_toplevel_configure_bounds(conn, &width, &height);
+        break;
 
-        if (state->keymap.data[key + 8] == Key_Escape && key_state == Wayland_Wl_Keyboard_Key_State_Pressed) {
-          state->should_close = true;
-        }
+      case Wayland_Xdg_Toplevel_Event_Configure:
+        Byte_Slice states;
+        wayland_parse_event_xdg_toplevel_configure(conn, &state->w, &state->h, &states, context.temp_allocator);
 
-        fmt_println(get_key_name(state->keymap.data[key + 8]));
+        state->w = max(state->w, 1);
+        state->h = max(state->h, 1);
+
+        state->should_resize = true;
+        break;
+
+      case Wayland_Xdg_Toplevel_Event_Close:
+        state->should_close = true;
+        break;
+
+      default:
+        wayland_skip_event(conn);
+        break;
       }
-      break;
 
-    case Wayland_Wl_Keyboard_Event_Enter:
-      u32 surface;
-      Byte_Slice keys;
+    } else if (object_id == state->wl_buffer && opcode == Wayland_Wl_Buffer_Event_Release) {
+      wayland_parse_event_wl_buffer_release(conn);
+      state->buffer_state = Buffer_State_Released;
 
-      wayland_parse_event_wl_keyboard_enter(data_copy, &serial, &surface, &keys, context.temp_allocator);
+    } else if (object_id == state->wl_keyboard) {
+      switch ((Wayland_Wl_Keyboard_Event)opcode) {
+      case Wayland_Wl_Keyboard_Event_Keymap:
+        Wayland_Wl_Keyboard_Keymap_Format format;
+        u32 size;
+        Fd fd;
+        rawptr data;
+        Byte_Slice kmdata;
 
-      break;
+        wayland_parse_event_wl_keyboard_keymap(conn, &format, &fd, &size);
+
+        data = (rawptr)syscall(SYS_mmap, nil, size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+        kmdata = (Byte_Slice) {
+          .data = (byte *)data,
+          .len  = size,
+        };
+        write_entire_file_path(LIT("keymap.txt"), kmdata);
+
+        parse_key_codes(transmute(String, kmdata), &state->keymap, context.allocator);
+        break;
+
+      case Wayland_Wl_Keyboard_Event_Key:
+        u32 serial;
+        u32 time;
+        u32 key;
+        Wayland_Wl_Keyboard_Key_State key_state;
+
+        wayland_parse_event_wl_keyboard_key(conn, &serial, &time, &key, &key_state);
+
+        if (key + 8 < state->keymap.len) {
+          if (state->keymap.data[key + 8]) {
+            state->keys[state->keymap.data[key + 8]] = key_state == Wayland_Wl_Keyboard_Key_State_Pressed;
+          }
+
+          if (state->keymap.data[key + 8] == Key_Escape && key_state == Wayland_Wl_Keyboard_Key_State_Pressed) {
+            state->should_close = true;
+          }
+
+          fmt_println(get_key_name(state->keymap.data[key + 8]));
+        }
+        break;
+
+      case Wayland_Wl_Keyboard_Event_Enter:
+        u32 surface;
+        Byte_Slice keys;
+
+        wayland_parse_event_wl_keyboard_enter(conn, &serial, &surface, &keys, context.temp_allocator);
+        break;
       
-    default:
-      break;
-    }
-
-  } else if (object_id == state->wl_pointer) {
-    u32 serial, time, button;
-    Wayland_Wl_Pointer_Axis axis;
-    Wayland_Wl_Pointer_Button_State button_state;
-    f32 x, y, value;
-    u32 surface;
-
-    switch ((Wayland_Wl_Pointer_Event)opcode) {
-    case Wayland_Wl_Pointer_Event_Motion:
-      wayland_parse_event_wl_pointer_motion(data_copy, &time, &x, &y);
-
-      state->mouse_x = x;
-      state->mouse_y = y;
-
-      break;
-    case Wayland_Wl_Pointer_Event_Button:
-      wayland_parse_event_wl_pointer_button(data_copy, &serial, &time, &button, &button_state);
-
-      #define BTN_MOUSE   0x110
-      #define BTN_LEFT    0x110
-      #define BTN_RIGHT   0x111
-      #define BTN_MIDDLE  0x112
-      #define BTN_SIDE    0x113
-      #define BTN_EXTRA   0x114
-      #define BTN_FORWARD 0x115
-      #define BTN_BACK    0x116
-      #define BTN_TASK    0x117
-
-      switch (button) {
-      case BTN_LEFT:
-        state->mouse_buttons[0] = button_state == Wayland_Wl_Pointer_Button_State_Pressed;
-        break;
-      case BTN_RIGHT:
-        state->mouse_buttons[1] = button_state == Wayland_Wl_Pointer_Button_State_Pressed;
+      default:
+        wayland_skip_event(conn);
         break;
       }
 
-      break;
-    case Wayland_Wl_Pointer_Event_Axis:
-      wayland_parse_event_wl_pointer_axis(data_copy, &time, &axis, &value);
+    } else if (object_id == state->wl_pointer) {
+      u32 serial, time, button;
+      Wayland_Wl_Pointer_Axis axis;
+      Wayland_Wl_Pointer_Button_State button_state;
+      f32 x, y, value;
+      u32 surface;
 
-      break;
+      switch ((Wayland_Wl_Pointer_Event)opcode) {
+      case Wayland_Wl_Pointer_Event_Motion:
+        wayland_parse_event_wl_pointer_motion(conn, &time, &x, &y);
 
-    case Wayland_Wl_Pointer_Event_Enter:
-      wayland_parse_event_wl_pointer_enter(data_copy, &serial, &surface, &x, &y);
+        state->mouse_x = x;
+        state->mouse_y = y;
 
-      if (state->wp_cursor_shape_manager) {
-        if (!state->wp_cursor_shape_device) {
-          state->wp_cursor_shape_device = wayland_wp_cursor_shape_manager_v1_get_pointer(conn, state->wp_cursor_shape_manager, state->wl_pointer);
+        break;
+      case Wayland_Wl_Pointer_Event_Button:
+        wayland_parse_event_wl_pointer_button(conn, &serial, &time, &button, &button_state);
+
+        #define BTN_MOUSE   0x110
+        #define BTN_LEFT    0x110
+        #define BTN_RIGHT   0x111
+        #define BTN_MIDDLE  0x112
+        #define BTN_SIDE    0x113
+        #define BTN_EXTRA   0x114
+        #define BTN_FORWARD 0x115
+        #define BTN_BACK    0x116
+        #define BTN_TASK    0x117
+
+        switch (button) {
+        case BTN_LEFT:
+          state->mouse_buttons[0] = button_state == Wayland_Wl_Pointer_Button_State_Pressed;
+          break;
+        case BTN_RIGHT:
+          state->mouse_buttons[1] = button_state == Wayland_Wl_Pointer_Button_State_Pressed;
+          break;
         }
 
-        wayland_wp_cursor_shape_device_v1_set_shape(conn, state->wp_cursor_shape_device, serial, Wayland_Wp_Cursor_Shape_Device_V1_Shape_Default);
+        break;
+      case Wayland_Wl_Pointer_Event_Axis:
+        wayland_parse_event_wl_pointer_axis(conn, &time, &axis, &value);
+
+        break;
+
+      case Wayland_Wl_Pointer_Event_Enter:
+        wayland_parse_event_wl_pointer_enter(conn, &serial, &surface, &x, &y);
+
+        if (state->wp_cursor_shape_manager) {
+          if (!state->wp_cursor_shape_device) {
+            state->wp_cursor_shape_device = wayland_wp_cursor_shape_manager_v1_get_pointer(conn, state->wp_cursor_shape_manager, state->wl_pointer);
+          }
+
+          wayland_wp_cursor_shape_device_v1_set_shape(conn, state->wp_cursor_shape_device, serial, Wayland_Wp_Cursor_Shape_Device_V1_Shape_Default);
+        }
+        break;
+
+      default:
+        wayland_skip_event(conn);
+        break;
       }
-      break;
+    } else if (object_id == state->wl_seat) {
+      switch ((Wayland_Wl_Seat_Event)opcode) {
+      case Wayland_Wl_Seat_Event_Capabilities:
+        Wayland_Wl_Seat_Capability capabilities;
+        wayland_parse_event_wl_seat_capabilities(conn, &capabilities);
+        break;
+      case Wayland_Wl_Seat_Event_Name:
+        String name;
+        wayland_parse_event_wl_seat_name(conn, &name, context.temp_allocator);
+        log_infof(LIT("'%S'"), name);
+        break;
+      }
 
-    default:
-      break;
+    } else if (object_id == 1 && opcode == Wayland_Wl_Display_Event_Error) {
+      u32 target_object_id, code;
+      String message;
+      wayland_parse_event_wl_display_error(conn, &target_object_id, &code, &message, context.temp_allocator);
+      log_fatalf(LIT("Fatal error: object = %d, code = %d, error = '%S'"), target_object_id, code, message);
+      trap();
+    } else {
+      wayland_skip_event(conn);
     }
-  } else if (object_id == state->wl_seat) {
-    if (opcode == Wayland_Wl_Seat_Event_Capabilities) {
-      Wayland_Wl_Seat_Capability capabilities;
-      wayland_parse_event_wl_seat_capabilities(data_copy, &capabilities);
-    }
-
-  } else if (object_id == 1 && opcode == Wayland_Wl_Display_Event_Error) {
-    u32 target_object_id, code;
-    String message;
-    wayland_parse_event_wl_display_error(data_copy, &target_object_id, &code, &message, context.temp_allocator);
-    log_fatalf(LIT("Fatal error: object = %d, code = %d, error = '%S'"), target_object_id, code, message);
-    trap();
   }
 
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
-  return announced_size;
 }
 
 internal void wayland_draw_rect_outlines(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {

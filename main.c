@@ -356,7 +356,10 @@ int main() {
 
   // context.logger.proc = nil;
 
-  Wayland_Connection wl_connection = wayland_display_connect(context.allocator);
+  byte _connection_buffer[4096];
+  Wayland_Connection wl_connection;
+  b8 conn_ok = wayland_display_connect(context.allocator, (Byte_Slice) {.data = _connection_buffer, .len = size_of(_connection_buffer)}, &wl_connection);
+  assert(conn_ok);
   Wayland_State state = {
       .wl_registry = wayland_wl_display_get_registry(&wl_connection, 1),
       .w      = 64,
@@ -390,31 +393,8 @@ int main() {
 
   while (!state.should_close) {
     wayland_connection_flush(&wl_connection);
-
-    byte _read_buf[4096] = {0};
-    byte _control_buf[256] = {0};
-    Byte_Slice read_buf = {.data = _read_buf, .len = size_of(_read_buf)};
-    struct iovec iov = {
-      .base = _read_buf,
-      .len  = size_of(_read_buf),
-    };
-    struct msghdr msg = {
-      .control    = _control_buf,
-      .controllen = size_of(_control_buf),
-      .iov        = &iov,
-      .iovlen     = 1,
-    };
-    read_buf.len = syscall(SYS_recvmsg, wl_connection.socket, &msg, 0);
-
-    struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
-    while (chdr) {
-      vector_append(&state.fds_in, *(i32 *)CMSG_DATA(chdr));
-      chdr = CMSG_NXTHDR(&msg, chdr);
-    }
-
-    while (read_buf.len > 0) {
-      read_buf = slice_range(read_buf, wayland_handle_message(&wl_connection, &state, read_buf), read_buf.len);
-    }
+    wayland_recieve_messages(&wl_connection);
+    wayland_handle_events(&wl_connection, &state);
 
     if (state.wl_compositor != 0 && state.wl_shm != 0 && state.xdg_wm_base != 0 && state.wl_surface == 0) {
       state.wl_surface   = wayland_wl_compositor_create_surface(&wl_connection, state.wl_compositor);
@@ -501,10 +481,11 @@ int main() {
 
   wayland_connection_destroy(&wl_connection);
 
-  vector_delete(state.fds_in);
   slice_delete(rgba8_image.pixels, context.allocator);
   slice_delete(font_data, context.allocator);
-  slice_delete(fps_string, context.allocator);
+  if (fps_string.len) {
+    slice_delete(fps_string, context.allocator);
+  }
 
 	spall_buffer_quit(&spall_ctx, &spall_buffer);
 	mem_free((rawptr)buffer, buffer_size, context.allocator);
