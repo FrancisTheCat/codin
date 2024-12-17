@@ -130,6 +130,7 @@
     }                                                                          \
   }
 
+[[nodiscard]]
 internal Byte_Slice pointer_to_bytes(rawptr data, isize size, isize count) {
   return (Byte_Slice){
       (byte *)data,
@@ -146,6 +147,7 @@ internal Byte_Slice pointer_to_bytes(rawptr data, isize size, isize count) {
   }                                                                            \
   
 
+[[nodiscard]]
 internal Byte_Slice bytes_concatenate(Byte_Slice a, Byte_Slice b,
                                       Allocator allocator) {
   Byte_Slice data;

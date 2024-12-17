@@ -69,6 +69,7 @@ internal void default_file_logger_proc(
   mutex_unlock(&_log_mutex);
 }
 
+[[nodiscard]]
 internal Logger create_file_logger(Fd handle) {
   return (Logger) {
     .data = transmute(rawptr, handle),

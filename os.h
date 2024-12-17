@@ -6,6 +6,7 @@ typedef Slice(String) Process_Env;
 internal Process_Args os_args;
 internal Process_Env  os_env;
 
+[[nodiscard]]
 internal String get_env(String key) {
   slice_iter(os_env, str, _i, {
     isize i = string_index(*str, key);
@@ -39,6 +40,7 @@ typedef enum {
   OSE_Other,
 } OS_Error;
 
+[[nodiscard]]
 internal String os_error_string(OS_Error err) {
   switch (err) {
   case OSE_None:
@@ -129,6 +131,7 @@ internal OS_Result_Pid _create_process(String path, Process_Creation_Args const 
   #include "os_linux.h"
 #endif
 
+[[nodiscard]]
 internal OS_Result_Int file_read(Fd fd, Byte_Slice buf) {
   return _read(fd, buf);
 }
@@ -147,6 +150,7 @@ internal OS_Error file_stat(Fd file, File_Info *info) {
   return _stat(file, info);
 }
 
+[[nodiscard]]
 internal OS_Result_Bytes read_entire_file_fd(Fd fd, Allocator allocator) {
   OS_Result_Bytes result = {0};
   File_Info fi;
@@ -161,6 +165,7 @@ internal OS_Result_Bytes read_entire_file_fd(Fd fd, Allocator allocator) {
   return result;
 }
 
+[[nodiscard]]
 internal OS_Result_Bytes read_entire_file_path(String path,
                                                Allocator allocator) {
   OS_Result_Bytes result = {0};
@@ -188,10 +193,12 @@ internal OS_Error write_entire_file_path(String path, Byte_Slice data) {
   return err;
 }
 
+[[nodiscard]]
 internal OS_Result_Dir read_directory_fd(Fd fd, Allocator allocator) {
   return _read_dir(fd, allocator);
 }
 
+[[nodiscard]]
 internal OS_Result_Dir read_directory_path(String path, Allocator allocator) {
   OS_Result_Dir result = {0};
   Fd fd = or_return_err(file_open(path, FP_Read));
@@ -224,6 +231,7 @@ internal Maybe_Int writer_file_proc(rawptr handle, Byte_Slice data) {
   return result_to_maybe(Maybe_Int, _write(*(Fd *)&handle, data));
 }
 
+[[nodiscard]]
 internal Writer writer_from_handle(Fd handle) {
   Writer w;
   w.data = *(rawptr *)&handle;
@@ -238,6 +246,7 @@ internal Maybe_Int file_reader_proc(rawptr handle, Byte_Slice buf) {
   return result_to_maybe(Maybe_Int, file_read(fd, buf));
 }
 
+[[nodiscard]]
 internal Reader reader_from_handle(Fd handle) {
   return (Reader){
       .data = *(rawptr *)&handle,
@@ -251,12 +260,14 @@ internal void __os_init() {
   stderr = writer_from_handle(2);
 }
 
+[[nodiscard]]
 internal b8 file_exists(String path) { return _file_exists(path); }
 
 internal diverging os_exit(isize code) {
   _os_exit(code);
 }
 
+[[nodiscard]]
 internal rawptr os_allocate_pages(isize n) {
   return (rawptr)syscall(
     SYS_mmap,

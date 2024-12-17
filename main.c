@@ -205,11 +205,10 @@ int main() {
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
   spall_ctx   = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
 
-	int buffer_size = 1 * 1024 * 1024;
-	byte *buffer = mem_alloc(buffer_size, context.allocator).value;
+	Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 1024, context.allocator);
 	spall_buffer = (SpallBuffer){
-		.length = buffer_size,
-		.data = buffer,
+		.length = spall_buffer_backing.len,
+		.data   = spall_buffer_backing.data,
 	};
 
 	spall_buffer_init(&spall_ctx, &spall_buffer);
@@ -488,7 +487,7 @@ int main() {
   }
 
 	spall_buffer_quit(&spall_ctx, &spall_buffer);
-	mem_free((rawptr)buffer, buffer_size, context.allocator);
+	slice_delete(spall_buffer_backing, context.allocator);
 	spall_quit(&spall_ctx);
 
   tracking_allocator_fmt_results_w(&stdout, &track);
