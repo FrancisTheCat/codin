@@ -144,9 +144,6 @@ b8 _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
   Vector(Section) sections;
   vector_init(&sections, 0, 8, context.temp_allocator);
 
-  char *base;
-  Byte_Slice chunk;
-
   for_range(i, 0, ehdr->e_shnum) {
     Elf64_Shdr *shdr = (Elf64_Shdr *)((uintptr)lib->mapping + ehdr->e_shoff + ehdr->e_shentsize * i);
 
@@ -506,6 +503,9 @@ b8 _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
 }
 
 b8 _dynlib_unload(rawptr mapping, isize size) {
+  (void)mapping;
+  (void)size;
+
+  unimplemented();
   // return syscall(SYS_munmap, mapping, size) == 0;
-  return true;
 }

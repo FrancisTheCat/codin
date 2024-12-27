@@ -33,6 +33,7 @@ typedef struct {
 
 typedef isize (*Format_User_Callback)(Writer const *w, rawptr);
 
+[[nodiscard]]
 internal String __format_float_to_buffer(f64 value, Byte_Slice buffer,
                                          isize precision) {
   if (value == __builtin_inf()) {
@@ -102,7 +103,6 @@ internal isize __format_justify(Writer const *w, String s,
                     n);
     }
   } else {
-    Writer nw = null_writer();
     while (n < ctx->width - s.len) {
       n += or_return(
           write_bytes(w, (Byte_Slice){.data = (byte *)buf,
@@ -130,6 +130,7 @@ internal isize __format_parse_int(String format, isize *value) {
   return i;
 }
 
+[[nodiscard]]
 internal String format_usize_to_buffer_bin(usize x, Byte_Slice buffer) {
   isize i = 0;
   b8 inner = false;
@@ -172,7 +173,6 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
     local_persist byte temp[128];
     tmp_buf = (Byte_Slice){.data = temp, .len = count_of(temp)};
   }
-  isize temp_int;
   String temp_str;
 
   Writer _null_writer = null_writer();
@@ -508,6 +508,25 @@ internal isize fmt_wprintf(const Writer *w, String format, ...) {
   return result;
 }
 
+internal isize fmt_sbprintf_va(Builder *b, String format,
+                               va_list va_args) {
+  Writer w;
+  w = writer_from_builder(b);
+  return fmt_wprintf_va(&w, format, va_args);
+}
+
+internal isize fmt_sbprintf(Builder *b, String format, ...) {
+  isize ret;
+  va_list va_args;
+  va_start(va_args, format);
+
+  ret = fmt_sbprintf_va(b, format, va_args);
+
+  va_end(va_args);
+  return ret;
+}
+
+[[nodiscard]]
 internal String fmt_aprintf_va(Allocator allocator, String format,
                                va_list va_args) {
   Builder b;
@@ -520,6 +539,7 @@ internal String fmt_aprintf_va(Allocator allocator, String format,
   return builder_to_string(b);
 }
 
+[[nodiscard]]
 internal String fmt_aprintf(Allocator allocator, String format, ...) {
   String str;
   va_list va_args;
@@ -531,18 +551,20 @@ internal String fmt_aprintf(Allocator allocator, String format, ...) {
   return str;
 }
 
+[[nodiscard]]
 internal cstring fmt_caprintf_va(Allocator allocator, String format,
                                  va_list va_args) {
   Builder b;
   Writer w;
 
-  builder_init(&b, 0, 8, context.temp_allocator);
+  builder_init(&b, 0, 8, allocator);
   w = writer_from_builder(&b);
   fmt_wprintf_va(&w, format, va_args);
 
   return builder_to_cstring(&b);
 }
 
+[[nodiscard]]
 internal cstring fmt_caprintf(Allocator allocator, String format, ...) {
   cstring str;
   va_list va_args;
@@ -556,9 +578,16 @@ internal cstring fmt_caprintf(Allocator allocator, String format, ...) {
 
 #define fmt_tprintf(format, ...)                                               \
   fmt_aprintf(context.temp_allocator, format, __VA_ARGS__)
+#define fmt_tprintf_va(format, va_args)                                        \
+  fmt_aprintf_va(context.temp_allocator, format, va_args)
+  
 #define fmt_ctprintf(format, ...)                                              \
   fmt_caprintf(context.temp_allocator, format, __VA_ARGS__)
+#define fmt_ctprintf_va(format, va_args)                                       \
+  fmt_caprintf_va(context.temp_allocator, format, va_args)
+  
 
+[[nodiscard]]
 internal String fmt_bprintf_va(Byte_Slice buffer, String format,
                                va_list va_args) {
   Builder b;
@@ -577,6 +606,7 @@ internal String fmt_bprintf_va(Byte_Slice buffer, String format,
   return str;
 }
 
+[[nodiscard]]
 internal String fmt_bprintf(Byte_Slice buffer, String format, ...) {
   va_list va_args;
   String str;
@@ -586,6 +616,24 @@ internal String fmt_bprintf(Byte_Slice buffer, String format, ...) {
 
   va_end(va_args);
   return str;
+}
+
+internal isize fmt_fprintf_va(Fd f, String format,
+                               va_list va_args) {
+  Writer w = writer_from_handle(f);
+  String s = fmt_tprintf_va(format, va_args);
+  return or_else(write_string(&w, s), -1);
+}
+
+internal isize fmt_fprintf(Fd f, String format, ...) {
+  isize ret;
+  va_list va_args;
+  va_start(va_args, format);
+
+  ret = fmt_fprintf_va(f, format, va_args);
+
+  va_end(va_args);
+  return ret;
 }
 
 internal isize fmt_location_w(const Writer *w,
@@ -635,22 +683,30 @@ internal void tracking_allocator_fmt_results_w(const Writer *w,
                                                const Tracking_Allocator *t) {
   fmt_wprintf(w, LIT("Failed Allocations: %d\n"), t->failed_allocations.len);
   vector_iter(t->failed_allocations, fa, i, {
-    fmt_wprintf(w,
-                LIT("Allocation(id: %d):\nError: %S\nMode:  %S\nSize:  "
-                    "%d\nPtr:   %x\nLoc:   %L\n\n"),
-                fa->id, allocator_error_string(fa->error),
-                allocator_mode_string(fa->mode), fa->size, fa->ptr,
-                fa->location);
+    fmt_wprintf(
+      w,
+      LIT("Allocation(id: %d):\nError: %S\nMode:  %S\nSize: %d\nPtr:   %x\nLoc:   %L\n\n"),
+      fa->id,
+      enum_to_string(Allocator_Error, fa->error),
+      enum_to_string(Allocator_Mode, fa->mode),
+      fa->size,
+      fa->ptr,
+      fa->location
+    );
   });
   fmt_wprintf(w, LIT("\n"));
   fmt_wprintf(w, LIT("Leaked Allocations: %d\n"), t->allocations.len);
   hash_map_iter(t->allocations, ptr, fa, {
     fmt_wprintf(
         w,
-        LIT("Allocation(id: %d):\nError: %S\nMode:  %S\nSize:  %d\nPtr:   "
-            "%x\nLoc:   %L\n\n"),
-        fa->id, allocator_error_string(fa->error),
-        allocator_mode_string(fa->mode), fa->size, ptr, fa->location);
+        LIT("Allocation(id: %d):\nError: %S\nMode:  %S\nSize:  %d\nPtr: %x\nLoc:   %L\n\n"),
+        fa->id,
+        enum_to_string(Allocator_Error, fa->error),
+        enum_to_string(Allocator_Mode, fa->mode),
+        fa->size,
+        ptr,
+        fa->location
+      );
   });
 }
 
@@ -669,32 +725,111 @@ internal void tracking_allocator_fmt_results_w(const Writer *w,
     fmt_wprintf(w, LIT("]"));                                                  \
   }
 
-internal isize fmt_print(String str) {
-  return fmt_wprintf(&stdout, LIT("%S"), str);
-}
-
-internal isize fmt_println(String str) {
-  return fmt_wprintf(&stdout, LIT("%S"), str) + fmt_wprintf(&stdout, LIT("\n"));
-}
-
-// prevent warnings for unused expressions
-// NOLINTBEGIN
-#define fmt_printf(format, ...) fmt_wprintf(&stdout, format, __VA_ARGS__)
-#define fmt_printfln(format, ...)                                              \
-  (fmt_wprintf(&stdout, format, __VA_ARGS__) + fmt_wprintf(&stdout, LIT("\n")))
+//NOLINTBEGIN
 
 #define fmt_wprint(w, str) fmt_wprintf(w, LIT("%S"), str)
 #define fmt_wprintln(w, str) fmt_wprintf(w, LIT("%S\n"), str)
 #define fmt_wprintfln(w, format, ...)                                          \
   (fmt_wprintf(w, format, __VA_ARGS__) + fmt_wprintf(w, LIT("\n")))
 
-#define fmt_eprint(str) fmt_wprintf(&stderr, LIT("%S"), str)
-#define fmt_eprintln(str)                                                      \
-  fmt_wprintf(&stderr, LIT("%S\n"), str)
-#define fmt_eprintf(format, ...) fmt_wprintf(&stderr, format, __VA_ARGS__)
-#define fmt_eprintfln(format, ...)                                             \
-  (fmt_wprintf(&stderr, format, __VA_ARGS__) + fmt_wprintf(&stderr, LIT("\n")))
-// NOLINTEND
+#define fmt_bprint(w, str) fmt_bprintf(w, LIT("%S"), str)
+#define fmt_bprintln(w, str) fmt_bprintf(w, LIT("%S\n"), str)
+#define fmt_bprintfln(w, format, ...)                                          \
+  (fmt_bprintf(w, format, __VA_ARGS__) + fmt_bprintf(w, LIT("\n")))
+
+#define fmt_sbprint(w, str) fmt_sbprintf(w, LIT("%S"), str)
+#define fmt_sbprintln(w, str) fmt_sbprintf(w, LIT("%S\n"), str)
+#define fmt_sbprintfln(w, format, ...)                                         \
+  (fmt_sbprintf(w, format, __VA_ARGS__) + fmt_sbprintf(w, LIT("\n")))
+
+#define fmt_caprint(w, str) fmt_caprintf(w, LIT("%S"), str)
+#define fmt_caprintln(w, str) fmt_caprintf(w, LIT("%S\n"), str)
+#define fmt_caprintfln(w, format, ...)                                         \
+  (fmt_caprintf(w, format, __VA_ARGS__) + fmt_caprintf(w, LIT("\n")))
+
+#define fmt_ctprint(w, str) fmt_ctprintf(w, LIT("%S"), str)
+#define fmt_ctprintln(w, str) fmt_ctprintf(w, LIT("%S\n"), str)
+#define fmt_ctprintfln(w, format, ...)                                         \
+  (fmt_ctprintf(w, format, __VA_ARGS__) + fmt_ctprintf(w, LIT("\n")))
+
+#define fmt_tprint(w, str) fmt_tprintf(w, LIT("%S"), str)
+#define fmt_tprintln(w, str) fmt_tprintf(w, LIT("%S\n"), str)
+#define fmt_tprintfln(w, format, ...)                                          \
+  (fmt_tprintf(w, format, __VA_ARGS__) + fmt_tprintf(w, LIT("\n")))
+
+#define fmt_aprint(w, str) fmt_aprintf(w, LIT("%S"), str)
+#define fmt_aprintln(w, str) fmt_aprintf(w, LIT("%S\n"), str)
+#define fmt_aprintfln(w, format, ...)                                          \
+  (fmt_aprintf(w, format, __VA_ARGS__) + fmt_aprintf(w, LIT("\n")))
+
+#define fmt_fprint(w, str) fmt_fprintf(w, LIT("%S"), str)
+#define fmt_fprintln(w, str) fmt_fprintf(w, LIT("%S\n"), str)
+#define fmt_fprintfln(w, format, ...)                                          \
+  (fmt_fprintf(w, format, __VA_ARGS__) + fmt_fprintf(w, LIT("\n")))
+
+//NOLINTEND
+
+internal isize fmt_print(String str) {
+  Builder b = builder_make(0, 8, context.temp_allocator);
+  (void)fmt_sbprintf(&b, LIT("%S"), str);
+  return or_else(write_bytes(&stdout, builder_to_bytes(b)), -1);
+}
+
+internal isize fmt_println(String str) {
+  Builder b = builder_make(0, 8, context.temp_allocator);
+  (void)fmt_sbprintf(&b, LIT("%S\n"), str);
+  return or_else(write_bytes(&stdout, builder_to_bytes(b)), -1);
+}
+
+internal isize fmt_printf(String format, ...) {
+  Builder b = builder_make(0, 8, context.temp_allocator);
+  va_list va_args;
+  va_start(va_args, format);
+  (void)fmt_sbprintf_va(&b, format, va_args);
+  va_end(va_args);
+  return or_else(write_bytes(&stdout, builder_to_bytes(b)), -1);
+}
+
+internal isize fmt_printfln(String format, ...) {
+  Builder b = builder_make(0, 8, context.temp_allocator);
+  va_list va_args;
+  va_start(va_args, format);
+  (void)fmt_sbprintf_va(&b, format, va_args);
+  va_end(va_args);
+  vector_append(&b, '\n');
+  return or_else(write_bytes(&stdout, builder_to_bytes(b)), -1);
+}
+
+internal isize fmt_eprint(String str) {
+  Builder b = builder_make(0, 8, context.temp_allocator);
+  (void)fmt_sbprintf(&b, LIT("%S"), str);
+  return or_else(write_bytes(&stderr, builder_to_bytes(b)), -1);
+}
+
+internal isize fmt_eprintln(String str) {
+  Builder b = builder_make(0, 8, context.temp_allocator);
+  (void)fmt_sbprintf(&b, LIT("%S\n"), str);
+  return or_else(write_bytes(&stderr, builder_to_bytes(b)), -1);
+}
+
+internal isize fmt_eprintf(String format, ...) {
+  Builder b = builder_make(0, 8, context.temp_allocator);
+  va_list va_args;
+  va_start(va_args, format);
+  (void)fmt_sbprintf_va(&b, format, va_args);
+  va_end(va_args);
+  return or_else(write_bytes(&stderr, builder_to_bytes(b)), -1);
+}
+
+internal isize fmt_eprintfln(String format, ...) {
+  Builder b = builder_make(0, 8, context.temp_allocator);
+  va_list va_args;
+  va_start(va_args, format);
+  (void)fmt_sbprintf_va(&b, format, va_args);
+  va_end(va_args);
+  vector_append(&b, '\n');
+  return or_else(write_bytes(&stderr, builder_to_bytes(b)), -1);
+}
 
 #define fmt_panicf(...)                                                        \
   {                                                                            \

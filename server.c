@@ -110,7 +110,7 @@ void command_line_thread(rawptr data) {
   }
 }
 
-int main(Arg_Slice args) {
+int main() {
   Tracking_Allocator track;
   context.allocator = tracking_allocator_init(&track, context.allocator);
 
@@ -118,8 +118,8 @@ int main(Arg_Slice args) {
   response_404 = slice_to_bytes(LIT("Error 404"));
   response_500 = slice_to_bytes(LIT("Error 500"));
 
-  if (args.len > 1) {
-    content_dir = args.data[1];
+  if (os_args.len > 1) {
+    content_dir = os_args.data[1];
     if_let_err(file_open(content_dir, FP_Read), dir, {
       File_Info info;
       OS_Error err = file_stat(dir, &info);
@@ -147,18 +147,18 @@ int main(Arg_Slice args) {
 
   isize port = 25566;
 
-  if (args.len > 2) {
-    if_let(parse_isize(args.data[2]), custom_port, {
+  if (os_args.len > 2) {
+    if_let(parse_isize(os_args.data[2]), custom_port, {
       if (port > 0 && port < 2 << 16) {
         port = custom_port;
       } else {
-        log_error(strings_concatenate(LIT("Invalid port: %S"), args.data[2],
+        log_error(strings_concatenate(LIT("Invalid port: %S"), os_args.data[2],
                                       context.temp_allocator));
         return 1;
       }
     },
     {
-      log_error(strings_concatenate(LIT("Invalid port: %S"), args.data[2],
+      log_error(strings_concatenate(LIT("Invalid port: %S"), os_args.data[2],
                                     context.temp_allocator));
       return 1;
     });

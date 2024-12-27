@@ -99,7 +99,7 @@ typedef enum {
   Key_MAX_VALUE,
 } Key;
 
-internal String get_key_name(Key key) {
+ENUM_TO_STRING_PROC_DECL(Key, key) {
   switch (key) {
   case Key_Null:
     return LIT("Key_Null");
@@ -276,7 +276,7 @@ internal String get_key_name(Key key) {
     break;
   }
 
-  return LIT("Key_<Invalid>");
+  return LIT("Key_INVALID");
 }
 
 typedef Slice(Key) Keymap;
@@ -659,5 +659,5 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
 
   *out_keymap = vector_to_slice(Keymap, keymap);
 
-  return false;
+  return true;
 }

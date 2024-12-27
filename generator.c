@@ -42,7 +42,7 @@ void generate_enum(Writer const *w, String prefix, XML_Object const *xml) {
   String prefix_ada = string_to_ada_case(prefix, context.temp_allocator);
   String name_ada = string_to_ada_case(name, context.temp_allocator);
 
-  fmt_wprintfln(&sw, LIT("internal String wayland_%S_%S_string(Wayland_%S_%S v) {\n\tswitch (v) {"), prefix, name, prefix_ada, name_ada);
+  fmt_wprintfln(&sw, LIT("ENUM_TO_STRING_PROC_DECL(Wayland_%S_%S, v) {\n\tswitch (v) {"), prefix_ada, name_ada);
 
   prefix = prefix_ada;
   name   = name_ada;
@@ -62,7 +62,7 @@ void generate_enum(Writer const *w, String prefix, XML_Object const *xml) {
 
   fmt_wprintfln(w, LIT("} Wayland_%S_%S;\n"), prefix, name);
 
-  fmt_wprintfln(&sw, LIT("\t}\n\treturn LIT(\"Wayland_%S_%S_Invalid_Enum_Value\");\n}\n"), prefix, name);
+  fmt_wprintfln(&sw, LIT("\t}\n\treturn LIT(\"Wayland_%S_%S_INVALID\");\n}\n"), prefix, name);
 
   fmt_wprint(w, builder_to_string(to_string));
 }
@@ -83,7 +83,7 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
 
   fmt_wprintf(
     w,
-    LIT("internal %S wayland_%S_%S(Wayland_Connection *wc, u32 %S"),
+    LIT("internal %S wayland_%S_%S(Wayland_Connection *conn, u32 %S"),
     does_return ? LIT("u32") : LIT("void"),
     prefix,
     name,
@@ -137,7 +137,7 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
       fmt_wprintfln(&bw, LIT("\twrite_any(w, &%S_value);"), arg_name);
 
       fmt_wprintf(&fw, LIT(" %S=%%S"), arg_name);
-      fmt_wprintf(&dw, LIT(", %S_string(%S)"), string_to_lower(enum_name, context.temp_allocator), arg_name);
+      fmt_wprintf(&dw, LIT(", enum_to_string(%S, %S)"), enum_name, arg_name);
             
     } else {
       if (string_equal(arg_type, LIT("int"))) {
@@ -193,7 +193,7 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
 
       } else if (string_equal(arg_type, LIT("fd"))) {
         fmt_wprintf(w,     LIT(", Fd %S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tvector_append(&wc->fds_out, %S);"), arg_name);
+        fmt_wprintfln(&bw, LIT("\tvector_append(&conn->fds_out, %S);"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         fmt_wprintf(&dw, LIT(", %S"), arg_name);
@@ -218,8 +218,7 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
           fmt_wprint(&dw, LIT(", interface, version"));
         }
         args_size += 4;
-        fmt_wprintln(&bw, LIT("\twc->current_id  += 1;"));
-        fmt_wprintln(&bw, LIT("\tu32 return_value = wc->current_id;"));
+        fmt_wprintln(&bw, LIT("\tu32 return_value = _wayland_connection_get_next_id(conn);"));
         fmt_wprintln(&bw, LIT("\twrite_any(w, &return_value);"));
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
@@ -233,7 +232,7 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
 
   fmt_wprintln(w, LIT(") {"));
 
-  fmt_wprintln(w, LIT("\tWriter _w = writer_from_builder(&wc->builder);"));
+  fmt_wprintln(w, LIT("\tWriter _w = writer_from_builder(&conn->builder);"));
   fmt_wprintln(w, LIT("\tWriter *w = &_w;"));
 
   fmt_wprintfln(w, LIT("\twrite_any(w, &%S);"),  prefix);
@@ -307,7 +306,7 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
       fmt_wprintfln(&bw, LIT("\t*%S = (%S)%S_value;"), arg_name, enum_name, arg_name);
 
       fmt_wprintf(&fw, LIT(" %S=%%S"), arg_name);
-      fmt_wprintf(&dw, LIT(", %S_string(*%S)"), string_to_lower(enum_name, context.temp_allocator), arg_name);
+      fmt_wprintf(&dw, LIT(", enum_to_string(%S, *%S)"), enum_name, arg_name);
             
     } else {
       if (string_equal(arg_type, LIT("int"))) {
@@ -368,8 +367,7 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
 
       } else if (string_equal(arg_type, LIT("new_id"))) {
         // fmt_wprintf(w,    LIT(", u32 *%S"), arg_name);
-        // fmt_wprintln(&bw, LIT("\twc->current_id  += 1;"));
-        // fmt_wprintfln(&bw, LIT("\tu32 return_value = wc->current_id;"));
+        // fmt_wprintfln(&bw, LIT("\tu32 return_value = _wayland_connection_get_next_id(conn);"));
         // fmt_wprintfln(&bw, LIT("\tread_any(w, &%S);"), arg_name);
 
         // fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);

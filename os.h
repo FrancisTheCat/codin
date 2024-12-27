@@ -40,8 +40,7 @@ typedef enum {
   OSE_Other,
 } OS_Error;
 
-[[nodiscard]]
-internal String os_error_string(OS_Error err) {
+ENUM_TO_STRING_PROC_DECL(OS_Error, err) {
   switch (err) {
   case OSE_None:
     return LIT("OSE_None");
@@ -66,7 +65,7 @@ internal String os_error_string(OS_Error err) {
   case OSE_Other:
     return LIT("OSE_Other");
   }
-  return LIT("OSE_Invalid_Enum_Value");
+  return LIT("OSE_INVALID");
 }
 
 typedef struct {

@@ -39,34 +39,16 @@ internal void default_file_logger_proc(
   String string,
   Source_Code_Location const *location
 ) {
-  mutex_lock(&_log_mutex);
-
-  Writer w = writer_from_handle(transmute(Fd, data));
-  switch (level) {
-  case LL_Debug:
-    write_string(&w, LIT("[Debug]["));
-    break;
-  case LL_Info:
-    write_string(&w, LIT("[Info ]["));
-    break;
-  case LL_Warn:
-    write_string(&w, LIT("[Warn ]["));
-    break;
-  case LL_Error:
-    write_string(&w, LIT("[Error]["));
-    break;
-  case LL_Fatal:
-    write_string(&w, LIT("[Fatal]["));
-    break;
-  }
-  // fmt_time_w(&w, time_now());
-  // write_string(&w, LIT("]["));
-  fmt_location_w(&w, location);
-  write_string(&w, LIT("] "));
-  write_string(&w, string);
-  write_string(&w, LIT("\n"));
-
-  mutex_unlock(&_log_mutex);
+  MUTEX_GUARD(&_log_mutex, {
+    fmt_fprintf(
+      (Fd)data,
+      LIT("[%-5S][%T][%L] %S\n"),
+      slice_start(enum_to_string(Log_Level, level), 3),
+      time_now(),
+      *location,
+      string
+    );
+  });
 }
 
 [[nodiscard]]

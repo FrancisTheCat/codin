@@ -33,6 +33,7 @@ internal Maybe_Int writer_buffer_proc(rawptr wdata, Byte_Slice data) {
   return (Maybe_Int){.value = data.len, .ok = true};
 }
 
+[[nodiscard]]
 internal Writer writer_from_buffer(Byte_Buffer *buffer) {
   Writer w;
   w.data = buffer;
@@ -45,6 +46,7 @@ internal Maybe_Int writer_builder_proc(rawptr wdata, Byte_Slice data) {
   return (Maybe_Int){.value = data.len, .ok = true};
 }
 
+[[nodiscard]]
 internal Writer writer_from_builder(Builder *builder) {
   Writer w;
   w.data = builder;
@@ -53,9 +55,11 @@ internal Writer writer_from_builder(Builder *builder) {
 }
 
 internal Maybe_Int null_writer_proc(rawptr _data, Byte_Slice data) {
+  (void)_data;
   return (Maybe_Int){.value = data.len, .ok = true};
 }
 
+[[nodiscard]]
 internal Writer null_writer() {
   return (Writer){
       .data = nil,
@@ -86,6 +90,7 @@ typedef struct {
   );                                                                       \
   __read_t_result;
 
+[[nodiscard]]
 internal Maybe_Int read_bytes(const Reader *reader, Byte_Slice buf) {
   return reader->proc(reader->data, buf);
 }
@@ -101,6 +106,7 @@ internal Maybe_Int buffer_reader_proc(rawptr data, Byte_Slice buf) {
   return (Maybe_Int){.value = n, .ok = true};
 }
 
+[[nodiscard]]
 internal Reader buffer_reader(Byte_Slice *buffer) {
   return (Reader){
       .data = buffer,

@@ -42,6 +42,23 @@ typedef enum {
   UI_Command_Type_Image,
 } UI_Command_Type;
 
+ENUM_TO_STRING_PROC_DECL(UI_Command_Type, type) {
+  switch (type) {
+  case UI_Command_Type_None:
+    return LIT("UI_Command_Type_None");
+  case UI_Command_Type_Box:
+    return LIT("UI_Command_Type_Box");
+  case UI_Command_Type_Gradient:
+    return LIT("UI_Command_Type_Gradient");
+  case UI_Command_Type_Text:
+    return LIT("UI_Command_Type_Text");
+  case UI_Command_Type_Image:
+    return LIT("UI_Command_Type_Image");
+  default:
+    return LIT("UI_Command_Type_INVALID");
+  }
+}
+
 typedef struct {
   union {
     UI_Command_Box   box;
@@ -55,6 +72,7 @@ internal u32 ui_hash_bytes(u32 in, Byte_Slice bytes) {
   slice_iter(bytes, byte, _i, {
     in += *byte;
   })
+  return in;
 }
 
 internal u32 hash_ui_command(u32 in, UI_Command command) {
@@ -218,7 +236,7 @@ internal b8 ui_button(UI_Context *ctx, String text) {
     }
   }
 
-  cmd.type        = UI_Command_Type_Box;
+  cmd.type        = UI_Command_Type_Gradient;
   cmd.variant.box = (UI_Command_Box) {
     .rect    = rect,
     .color   = ctx->colors[color],

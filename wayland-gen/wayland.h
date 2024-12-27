@@ -10,7 +10,7 @@ typedef enum {
 	Wayland_Wl_Display_Error_Implementation = 3,
 } Wayland_Wl_Display_Error;
 
-internal String wayland_wl_display_error_string(Wayland_Wl_Display_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Display_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Display_Error_Invalid_Object:
 		return LIT("Wayland_Wl_Display_Error_Invalid_Object");
@@ -21,7 +21,7 @@ internal String wayland_wl_display_error_string(Wayland_Wl_Display_Error v) {
 	case Wayland_Wl_Display_Error_Implementation:
 		return LIT("Wayland_Wl_Display_Error_Implementation");
 	}
-	return LIT("Wayland_Wl_Display_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Display_Error_INVALID");
 }
 
 typedef enum {
@@ -30,7 +30,7 @@ typedef enum {
 	Wayland_Wl_Shm_Error_Invalid_Fd = 2,
 } Wayland_Wl_Shm_Error;
 
-internal String wayland_wl_shm_error_string(Wayland_Wl_Shm_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shm_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Shm_Error_Invalid_Format:
 		return LIT("Wayland_Wl_Shm_Error_Invalid_Format");
@@ -39,7 +39,7 @@ internal String wayland_wl_shm_error_string(Wayland_Wl_Shm_Error v) {
 	case Wayland_Wl_Shm_Error_Invalid_Fd:
 		return LIT("Wayland_Wl_Shm_Error_Invalid_Fd");
 	}
-	return LIT("Wayland_Wl_Shm_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Shm_Error_INVALID");
 }
 
 typedef enum {
@@ -168,7 +168,7 @@ typedef enum {
 	Wayland_Wl_Shm_Format_P030 = 0x30333050,
 } Wayland_Wl_Shm_Format;
 
-internal String wayland_wl_shm_format_string(Wayland_Wl_Shm_Format v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shm_Format, v) {
 	switch (v) {
 	case Wayland_Wl_Shm_Format_Argb8888:
 		return LIT("Wayland_Wl_Shm_Format_Argb8888");
@@ -417,7 +417,7 @@ internal String wayland_wl_shm_format_string(Wayland_Wl_Shm_Format v) {
 	case Wayland_Wl_Shm_Format_P030:
 		return LIT("Wayland_Wl_Shm_Format_P030");
 	}
-	return LIT("Wayland_Wl_Shm_Format_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Shm_Format_INVALID");
 }
 
 typedef enum {
@@ -427,7 +427,7 @@ typedef enum {
 	Wayland_Wl_Data_Offer_Error_Invalid_Offer = 3,
 } Wayland_Wl_Data_Offer_Error;
 
-internal String wayland_wl_data_offer_error_string(Wayland_Wl_Data_Offer_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Data_Offer_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Data_Offer_Error_Invalid_Finish:
 		return LIT("Wayland_Wl_Data_Offer_Error_Invalid_Finish");
@@ -438,7 +438,7 @@ internal String wayland_wl_data_offer_error_string(Wayland_Wl_Data_Offer_Error v
 	case Wayland_Wl_Data_Offer_Error_Invalid_Offer:
 		return LIT("Wayland_Wl_Data_Offer_Error_Invalid_Offer");
 	}
-	return LIT("Wayland_Wl_Data_Offer_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Data_Offer_Error_INVALID");
 }
 
 typedef enum {
@@ -446,14 +446,14 @@ typedef enum {
 	Wayland_Wl_Data_Source_Error_Invalid_Source = 1,
 } Wayland_Wl_Data_Source_Error;
 
-internal String wayland_wl_data_source_error_string(Wayland_Wl_Data_Source_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Data_Source_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Data_Source_Error_Invalid_Action_Mask:
 		return LIT("Wayland_Wl_Data_Source_Error_Invalid_Action_Mask");
 	case Wayland_Wl_Data_Source_Error_Invalid_Source:
 		return LIT("Wayland_Wl_Data_Source_Error_Invalid_Source");
 	}
-	return LIT("Wayland_Wl_Data_Source_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Data_Source_Error_INVALID");
 }
 
 typedef enum {
@@ -461,14 +461,14 @@ typedef enum {
 	Wayland_Wl_Data_Device_Error_Used_Source = 1,
 } Wayland_Wl_Data_Device_Error;
 
-internal String wayland_wl_data_device_error_string(Wayland_Wl_Data_Device_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Data_Device_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Data_Device_Error_Role:
 		return LIT("Wayland_Wl_Data_Device_Error_Role");
 	case Wayland_Wl_Data_Device_Error_Used_Source:
 		return LIT("Wayland_Wl_Data_Device_Error_Used_Source");
 	}
-	return LIT("Wayland_Wl_Data_Device_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Data_Device_Error_INVALID");
 }
 
 typedef enum {
@@ -478,7 +478,7 @@ typedef enum {
 	Wayland_Wl_Data_Device_Manager_Dnd_Action_Ask = 4,
 } Wayland_Wl_Data_Device_Manager_Dnd_Action;
 
-internal String wayland_wl_data_device_manager_dnd_action_string(Wayland_Wl_Data_Device_Manager_Dnd_Action v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Data_Device_Manager_Dnd_Action, v) {
 	switch (v) {
 	case Wayland_Wl_Data_Device_Manager_Dnd_Action_None:
 		return LIT("Wayland_Wl_Data_Device_Manager_Dnd_Action_None");
@@ -489,19 +489,19 @@ internal String wayland_wl_data_device_manager_dnd_action_string(Wayland_Wl_Data
 	case Wayland_Wl_Data_Device_Manager_Dnd_Action_Ask:
 		return LIT("Wayland_Wl_Data_Device_Manager_Dnd_Action_Ask");
 	}
-	return LIT("Wayland_Wl_Data_Device_Manager_Dnd_Action_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Data_Device_Manager_Dnd_Action_INVALID");
 }
 
 typedef enum {
 	Wayland_Wl_Shell_Error_Role = 0,
 } Wayland_Wl_Shell_Error;
 
-internal String wayland_wl_shell_error_string(Wayland_Wl_Shell_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shell_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Shell_Error_Role:
 		return LIT("Wayland_Wl_Shell_Error_Role");
 	}
-	return LIT("Wayland_Wl_Shell_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Shell_Error_INVALID");
 }
 
 typedef enum {
@@ -516,7 +516,7 @@ typedef enum {
 	Wayland_Wl_Shell_Surface_Resize_Bottom_Right = 10,
 } Wayland_Wl_Shell_Surface_Resize;
 
-internal String wayland_wl_shell_surface_resize_string(Wayland_Wl_Shell_Surface_Resize v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shell_Surface_Resize, v) {
 	switch (v) {
 	case Wayland_Wl_Shell_Surface_Resize_None:
 		return LIT("Wayland_Wl_Shell_Surface_Resize_None");
@@ -537,19 +537,19 @@ internal String wayland_wl_shell_surface_resize_string(Wayland_Wl_Shell_Surface_
 	case Wayland_Wl_Shell_Surface_Resize_Bottom_Right:
 		return LIT("Wayland_Wl_Shell_Surface_Resize_Bottom_Right");
 	}
-	return LIT("Wayland_Wl_Shell_Surface_Resize_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Shell_Surface_Resize_INVALID");
 }
 
 typedef enum {
 	Wayland_Wl_Shell_Surface_Transient_Inactive = 0x1,
 } Wayland_Wl_Shell_Surface_Transient;
 
-internal String wayland_wl_shell_surface_transient_string(Wayland_Wl_Shell_Surface_Transient v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shell_Surface_Transient, v) {
 	switch (v) {
 	case Wayland_Wl_Shell_Surface_Transient_Inactive:
 		return LIT("Wayland_Wl_Shell_Surface_Transient_Inactive");
 	}
-	return LIT("Wayland_Wl_Shell_Surface_Transient_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Shell_Surface_Transient_INVALID");
 }
 
 typedef enum {
@@ -559,7 +559,7 @@ typedef enum {
 	Wayland_Wl_Shell_Surface_Fullscreen_Method_Fill = 3,
 } Wayland_Wl_Shell_Surface_Fullscreen_Method;
 
-internal String wayland_wl_shell_surface_fullscreen_method_string(Wayland_Wl_Shell_Surface_Fullscreen_Method v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shell_Surface_Fullscreen_Method, v) {
 	switch (v) {
 	case Wayland_Wl_Shell_Surface_Fullscreen_Method_Default:
 		return LIT("Wayland_Wl_Shell_Surface_Fullscreen_Method_Default");
@@ -570,7 +570,7 @@ internal String wayland_wl_shell_surface_fullscreen_method_string(Wayland_Wl_She
 	case Wayland_Wl_Shell_Surface_Fullscreen_Method_Fill:
 		return LIT("Wayland_Wl_Shell_Surface_Fullscreen_Method_Fill");
 	}
-	return LIT("Wayland_Wl_Shell_Surface_Fullscreen_Method_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Shell_Surface_Fullscreen_Method_INVALID");
 }
 
 typedef enum {
@@ -581,7 +581,7 @@ typedef enum {
 	Wayland_Wl_Surface_Error_Defunct_Role_Object = 4,
 } Wayland_Wl_Surface_Error;
 
-internal String wayland_wl_surface_error_string(Wayland_Wl_Surface_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Surface_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Surface_Error_Invalid_Scale:
 		return LIT("Wayland_Wl_Surface_Error_Invalid_Scale");
@@ -594,7 +594,7 @@ internal String wayland_wl_surface_error_string(Wayland_Wl_Surface_Error v) {
 	case Wayland_Wl_Surface_Error_Defunct_Role_Object:
 		return LIT("Wayland_Wl_Surface_Error_Defunct_Role_Object");
 	}
-	return LIT("Wayland_Wl_Surface_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Surface_Error_INVALID");
 }
 
 typedef enum {
@@ -603,7 +603,7 @@ typedef enum {
 	Wayland_Wl_Seat_Capability_Touch = 4,
 } Wayland_Wl_Seat_Capability;
 
-internal String wayland_wl_seat_capability_string(Wayland_Wl_Seat_Capability v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Seat_Capability, v) {
 	switch (v) {
 	case Wayland_Wl_Seat_Capability_Pointer:
 		return LIT("Wayland_Wl_Seat_Capability_Pointer");
@@ -612,31 +612,31 @@ internal String wayland_wl_seat_capability_string(Wayland_Wl_Seat_Capability v) 
 	case Wayland_Wl_Seat_Capability_Touch:
 		return LIT("Wayland_Wl_Seat_Capability_Touch");
 	}
-	return LIT("Wayland_Wl_Seat_Capability_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Seat_Capability_INVALID");
 }
 
 typedef enum {
 	Wayland_Wl_Seat_Error_Missing_Capability = 0,
 } Wayland_Wl_Seat_Error;
 
-internal String wayland_wl_seat_error_string(Wayland_Wl_Seat_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Seat_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Seat_Error_Missing_Capability:
 		return LIT("Wayland_Wl_Seat_Error_Missing_Capability");
 	}
-	return LIT("Wayland_Wl_Seat_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Seat_Error_INVALID");
 }
 
 typedef enum {
 	Wayland_Wl_Pointer_Error_Role = 0,
 } Wayland_Wl_Pointer_Error;
 
-internal String wayland_wl_pointer_error_string(Wayland_Wl_Pointer_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Pointer_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Pointer_Error_Role:
 		return LIT("Wayland_Wl_Pointer_Error_Role");
 	}
-	return LIT("Wayland_Wl_Pointer_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Pointer_Error_INVALID");
 }
 
 typedef enum {
@@ -644,14 +644,14 @@ typedef enum {
 	Wayland_Wl_Pointer_Button_State_Pressed = 1,
 } Wayland_Wl_Pointer_Button_State;
 
-internal String wayland_wl_pointer_button_state_string(Wayland_Wl_Pointer_Button_State v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Pointer_Button_State, v) {
 	switch (v) {
 	case Wayland_Wl_Pointer_Button_State_Released:
 		return LIT("Wayland_Wl_Pointer_Button_State_Released");
 	case Wayland_Wl_Pointer_Button_State_Pressed:
 		return LIT("Wayland_Wl_Pointer_Button_State_Pressed");
 	}
-	return LIT("Wayland_Wl_Pointer_Button_State_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Pointer_Button_State_INVALID");
 }
 
 typedef enum {
@@ -659,14 +659,14 @@ typedef enum {
 	Wayland_Wl_Pointer_Axis_Horizontal_Scroll = 1,
 } Wayland_Wl_Pointer_Axis;
 
-internal String wayland_wl_pointer_axis_string(Wayland_Wl_Pointer_Axis v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Pointer_Axis, v) {
 	switch (v) {
 	case Wayland_Wl_Pointer_Axis_Vertical_Scroll:
 		return LIT("Wayland_Wl_Pointer_Axis_Vertical_Scroll");
 	case Wayland_Wl_Pointer_Axis_Horizontal_Scroll:
 		return LIT("Wayland_Wl_Pointer_Axis_Horizontal_Scroll");
 	}
-	return LIT("Wayland_Wl_Pointer_Axis_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Pointer_Axis_INVALID");
 }
 
 typedef enum {
@@ -676,7 +676,7 @@ typedef enum {
 	Wayland_Wl_Pointer_Axis_Source_Wheel_Tilt = 3,
 } Wayland_Wl_Pointer_Axis_Source;
 
-internal String wayland_wl_pointer_axis_source_string(Wayland_Wl_Pointer_Axis_Source v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Pointer_Axis_Source, v) {
 	switch (v) {
 	case Wayland_Wl_Pointer_Axis_Source_Wheel:
 		return LIT("Wayland_Wl_Pointer_Axis_Source_Wheel");
@@ -687,7 +687,7 @@ internal String wayland_wl_pointer_axis_source_string(Wayland_Wl_Pointer_Axis_So
 	case Wayland_Wl_Pointer_Axis_Source_Wheel_Tilt:
 		return LIT("Wayland_Wl_Pointer_Axis_Source_Wheel_Tilt");
 	}
-	return LIT("Wayland_Wl_Pointer_Axis_Source_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Pointer_Axis_Source_INVALID");
 }
 
 typedef enum {
@@ -695,14 +695,14 @@ typedef enum {
 	Wayland_Wl_Pointer_Axis_Relative_Direction_Inverted = 1,
 } Wayland_Wl_Pointer_Axis_Relative_Direction;
 
-internal String wayland_wl_pointer_axis_relative_direction_string(Wayland_Wl_Pointer_Axis_Relative_Direction v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Pointer_Axis_Relative_Direction, v) {
 	switch (v) {
 	case Wayland_Wl_Pointer_Axis_Relative_Direction_Identical:
 		return LIT("Wayland_Wl_Pointer_Axis_Relative_Direction_Identical");
 	case Wayland_Wl_Pointer_Axis_Relative_Direction_Inverted:
 		return LIT("Wayland_Wl_Pointer_Axis_Relative_Direction_Inverted");
 	}
-	return LIT("Wayland_Wl_Pointer_Axis_Relative_Direction_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Pointer_Axis_Relative_Direction_INVALID");
 }
 
 typedef enum {
@@ -710,14 +710,14 @@ typedef enum {
 	Wayland_Wl_Keyboard_Keymap_Format_Xkb_V1 = 1,
 } Wayland_Wl_Keyboard_Keymap_Format;
 
-internal String wayland_wl_keyboard_keymap_format_string(Wayland_Wl_Keyboard_Keymap_Format v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Keyboard_Keymap_Format, v) {
 	switch (v) {
 	case Wayland_Wl_Keyboard_Keymap_Format_No_Keymap:
 		return LIT("Wayland_Wl_Keyboard_Keymap_Format_No_Keymap");
 	case Wayland_Wl_Keyboard_Keymap_Format_Xkb_V1:
 		return LIT("Wayland_Wl_Keyboard_Keymap_Format_Xkb_V1");
 	}
-	return LIT("Wayland_Wl_Keyboard_Keymap_Format_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Keyboard_Keymap_Format_INVALID");
 }
 
 typedef enum {
@@ -726,7 +726,7 @@ typedef enum {
 	Wayland_Wl_Keyboard_Key_State_Repeated = 2,
 } Wayland_Wl_Keyboard_Key_State;
 
-internal String wayland_wl_keyboard_key_state_string(Wayland_Wl_Keyboard_Key_State v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Keyboard_Key_State, v) {
 	switch (v) {
 	case Wayland_Wl_Keyboard_Key_State_Released:
 		return LIT("Wayland_Wl_Keyboard_Key_State_Released");
@@ -735,7 +735,7 @@ internal String wayland_wl_keyboard_key_state_string(Wayland_Wl_Keyboard_Key_Sta
 	case Wayland_Wl_Keyboard_Key_State_Repeated:
 		return LIT("Wayland_Wl_Keyboard_Key_State_Repeated");
 	}
-	return LIT("Wayland_Wl_Keyboard_Key_State_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Keyboard_Key_State_INVALID");
 }
 
 typedef enum {
@@ -747,7 +747,7 @@ typedef enum {
 	Wayland_Wl_Output_Subpixel_Vertical_Bgr = 5,
 } Wayland_Wl_Output_Subpixel;
 
-internal String wayland_wl_output_subpixel_string(Wayland_Wl_Output_Subpixel v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Output_Subpixel, v) {
 	switch (v) {
 	case Wayland_Wl_Output_Subpixel_Unknown:
 		return LIT("Wayland_Wl_Output_Subpixel_Unknown");
@@ -762,7 +762,7 @@ internal String wayland_wl_output_subpixel_string(Wayland_Wl_Output_Subpixel v) 
 	case Wayland_Wl_Output_Subpixel_Vertical_Bgr:
 		return LIT("Wayland_Wl_Output_Subpixel_Vertical_Bgr");
 	}
-	return LIT("Wayland_Wl_Output_Subpixel_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Output_Subpixel_INVALID");
 }
 
 typedef enum {
@@ -776,7 +776,7 @@ typedef enum {
 	Wayland_Wl_Output_Transform_Flipped_270 = 7,
 } Wayland_Wl_Output_Transform;
 
-internal String wayland_wl_output_transform_string(Wayland_Wl_Output_Transform v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Output_Transform, v) {
 	switch (v) {
 	case Wayland_Wl_Output_Transform_Normal:
 		return LIT("Wayland_Wl_Output_Transform_Normal");
@@ -795,7 +795,7 @@ internal String wayland_wl_output_transform_string(Wayland_Wl_Output_Transform v
 	case Wayland_Wl_Output_Transform_Flipped_270:
 		return LIT("Wayland_Wl_Output_Transform_Flipped_270");
 	}
-	return LIT("Wayland_Wl_Output_Transform_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Output_Transform_INVALID");
 }
 
 typedef enum {
@@ -803,14 +803,14 @@ typedef enum {
 	Wayland_Wl_Output_Mode_Preferred = 0x2,
 } Wayland_Wl_Output_Mode;
 
-internal String wayland_wl_output_mode_string(Wayland_Wl_Output_Mode v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Output_Mode, v) {
 	switch (v) {
 	case Wayland_Wl_Output_Mode_Current:
 		return LIT("Wayland_Wl_Output_Mode_Current");
 	case Wayland_Wl_Output_Mode_Preferred:
 		return LIT("Wayland_Wl_Output_Mode_Preferred");
 	}
-	return LIT("Wayland_Wl_Output_Mode_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Output_Mode_INVALID");
 }
 
 typedef enum {
@@ -818,30 +818,30 @@ typedef enum {
 	Wayland_Wl_Subcompositor_Error_Bad_Parent = 1,
 } Wayland_Wl_Subcompositor_Error;
 
-internal String wayland_wl_subcompositor_error_string(Wayland_Wl_Subcompositor_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Subcompositor_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Subcompositor_Error_Bad_Surface:
 		return LIT("Wayland_Wl_Subcompositor_Error_Bad_Surface");
 	case Wayland_Wl_Subcompositor_Error_Bad_Parent:
 		return LIT("Wayland_Wl_Subcompositor_Error_Bad_Parent");
 	}
-	return LIT("Wayland_Wl_Subcompositor_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Subcompositor_Error_INVALID");
 }
 
 typedef enum {
 	Wayland_Wl_Subsurface_Error_Bad_Surface = 0,
 } Wayland_Wl_Subsurface_Error;
 
-internal String wayland_wl_subsurface_error_string(Wayland_Wl_Subsurface_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Subsurface_Error, v) {
 	switch (v) {
 	case Wayland_Wl_Subsurface_Error_Bad_Surface:
 		return LIT("Wayland_Wl_Subsurface_Error_Bad_Surface");
 	}
-	return LIT("Wayland_Wl_Subsurface_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wl_Subsurface_Error_INVALID");
 }
 
-internal u32 wayland_wl_display_sync(Wayland_Connection *wc, u32 wl_display) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_display_sync(Wayland_Connection *conn, u32 wl_display) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_display);
 	u16 _opcode = 0;
@@ -849,16 +849,15 @@ internal u32 wayland_wl_display_sync(Wayland_Connection *wc, u32 wl_display) {
 	u16 _msg_size = 12;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 
 	wayland_log_infof(LIT("-> wl_display@%d.sync: callback=%d"), wl_display, return_value);
 	return return_value;
 }
 
-internal u32 wayland_wl_display_get_registry(Wayland_Connection *wc, u32 wl_display) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_display_get_registry(Wayland_Connection *conn, u32 wl_display) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_display);
 	u16 _opcode = 1;
@@ -866,8 +865,7 @@ internal u32 wayland_wl_display_get_registry(Wayland_Connection *wc, u32 wl_disp
 	u16 _msg_size = 12;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 
 	wayland_log_infof(LIT("-> wl_display@%d.get_registry: registry=%d"), wl_display, return_value);
@@ -919,8 +917,8 @@ internal isize wayland_parse_event_wl_display_delete_id(Wayland_Connection *conn
 	return _msg_size;
 }
 
-internal u32 wayland_wl_registry_bind(Wayland_Connection *wc, u32 wl_registry, u32 name, String interface, u32 version) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_registry_bind(Wayland_Connection *conn, u32 wl_registry, u32 name, String interface, u32 version) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_registry);
 	u16 _opcode = 0;
@@ -938,8 +936,7 @@ internal u32 wayland_wl_registry_bind(Wayland_Connection *wc, u32 wl_registry, u
 		write_byte(w, 0);
 	}
 	write_any(w, &version);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 
 	wayland_log_infof(LIT("-> wl_registry@%d.bind: name=%d interface=%S version=%d id=%d"), wl_registry, name, interface, version, return_value);
@@ -1010,8 +1007,8 @@ internal isize wayland_parse_event_wl_callback_done(Wayland_Connection *conn, u3
 	return _msg_size;
 }
 
-internal u32 wayland_wl_compositor_create_surface(Wayland_Connection *wc, u32 wl_compositor) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_compositor_create_surface(Wayland_Connection *conn, u32 wl_compositor) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_compositor);
 	u16 _opcode = 0;
@@ -1019,16 +1016,15 @@ internal u32 wayland_wl_compositor_create_surface(Wayland_Connection *wc, u32 wl
 	u16 _msg_size = 12;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 
 	wayland_log_infof(LIT("-> wl_compositor@%d.create_surface: id=%d"), wl_compositor, return_value);
 	return return_value;
 }
 
-internal u32 wayland_wl_compositor_create_region(Wayland_Connection *wc, u32 wl_compositor) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_compositor_create_region(Wayland_Connection *conn, u32 wl_compositor) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_compositor);
 	u16 _opcode = 1;
@@ -1036,16 +1032,15 @@ internal u32 wayland_wl_compositor_create_region(Wayland_Connection *wc, u32 wl_
 	u16 _msg_size = 12;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 
 	wayland_log_infof(LIT("-> wl_compositor@%d.create_region: id=%d"), wl_compositor, return_value);
 	return return_value;
 }
 
-internal u32 wayland_wl_shm_pool_create_buffer(Wayland_Connection *wc, u32 wl_shm_pool, i32 offset, i32 width, i32 height, i32 stride, Wayland_Wl_Shm_Format format) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_shm_pool_create_buffer(Wayland_Connection *conn, u32 wl_shm_pool, i32 offset, i32 width, i32 height, i32 stride, Wayland_Wl_Shm_Format format) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shm_pool);
 	u16 _opcode = 0;
@@ -1053,8 +1048,7 @@ internal u32 wayland_wl_shm_pool_create_buffer(Wayland_Connection *wc, u32 wl_sh
 	u16 _msg_size = 32;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 	write_any(w, &offset);
 	write_any(w, &width);
@@ -1063,12 +1057,12 @@ internal u32 wayland_wl_shm_pool_create_buffer(Wayland_Connection *wc, u32 wl_sh
 	u32 format_value = (u32)format;
 	write_any(w, &format_value);
 
-	wayland_log_infof(LIT("-> wl_shm_pool@%d.create_buffer: id=%d offset=%d width=%d height=%d stride=%d format=%S"), wl_shm_pool, return_value, offset, width, height, stride, wayland_wl_shm_format_string(format));
+	wayland_log_infof(LIT("-> wl_shm_pool@%d.create_buffer: id=%d offset=%d width=%d height=%d stride=%d format=%S"), wl_shm_pool, return_value, offset, width, height, stride, enum_to_string(Wayland_Wl_Shm_Format, format));
 	return return_value;
 }
 
-internal void wayland_wl_shm_pool_destroy(Wayland_Connection *wc, u32 wl_shm_pool) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shm_pool_destroy(Wayland_Connection *conn, u32 wl_shm_pool) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shm_pool);
 	u16 _opcode = 1;
@@ -1080,8 +1074,8 @@ internal void wayland_wl_shm_pool_destroy(Wayland_Connection *wc, u32 wl_shm_poo
 	wayland_log_infof(LIT("-> wl_shm_pool@%d.destroy:"), wl_shm_pool);
 }
 
-internal void wayland_wl_shm_pool_resize(Wayland_Connection *wc, u32 wl_shm_pool, i32 size) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shm_pool_resize(Wayland_Connection *conn, u32 wl_shm_pool, i32 size) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shm_pool);
 	u16 _opcode = 2;
@@ -1094,8 +1088,8 @@ internal void wayland_wl_shm_pool_resize(Wayland_Connection *wc, u32 wl_shm_pool
 	wayland_log_infof(LIT("-> wl_shm_pool@%d.resize: size=%d"), wl_shm_pool, size);
 }
 
-internal u32 wayland_wl_shm_create_pool(Wayland_Connection *wc, u32 wl_shm, Fd fd, i32 size) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_shm_create_pool(Wayland_Connection *conn, u32 wl_shm, Fd fd, i32 size) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shm);
 	u16 _opcode = 0;
@@ -1103,18 +1097,17 @@ internal u32 wayland_wl_shm_create_pool(Wayland_Connection *wc, u32 wl_shm, Fd f
 	u16 _msg_size = 16;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
-	vector_append(&wc->fds_out, fd);
+	vector_append(&conn->fds_out, fd);
 	write_any(w, &size);
 
 	wayland_log_infof(LIT("-> wl_shm@%d.create_pool: id=%d fd=%d size=%d"), wl_shm, return_value, fd, size);
 	return return_value;
 }
 
-internal void wayland_wl_shm_release(Wayland_Connection *wc, u32 wl_shm) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shm_release(Wayland_Connection *conn, u32 wl_shm) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shm);
 	u16 _opcode = 1;
@@ -1143,12 +1136,12 @@ internal isize wayland_parse_event_wl_shm_format(Wayland_Connection *conn, Wayla
 	u32 format_value;
 	or_return(read_any(&r, &format_value), -1);
 	*format = (Wayland_Wl_Shm_Format)format_value;
-	wayland_log_infof(LIT("<- wl_shm@%d.format: format=%S"), _object_id, wayland_wl_shm_format_string(*format));
+	wayland_log_infof(LIT("<- wl_shm@%d.format: format=%S"), _object_id, enum_to_string(Wayland_Wl_Shm_Format, *format));
 	return _msg_size;
 }
 
-internal void wayland_wl_buffer_destroy(Wayland_Connection *wc, u32 wl_buffer) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_buffer_destroy(Wayland_Connection *conn, u32 wl_buffer) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_buffer);
 	u16 _opcode = 0;
@@ -1178,8 +1171,8 @@ internal isize wayland_parse_event_wl_buffer_release(Wayland_Connection *conn) {
 	return _msg_size;
 }
 
-internal void wayland_wl_data_offer_accept(Wayland_Connection *wc, u32 wl_data_offer, u32 serial, String mime_type) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_offer_accept(Wayland_Connection *conn, u32 wl_data_offer, u32 serial, String mime_type) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_offer);
 	u16 _opcode = 0;
@@ -1200,8 +1193,8 @@ internal void wayland_wl_data_offer_accept(Wayland_Connection *wc, u32 wl_data_o
 	wayland_log_infof(LIT("-> wl_data_offer@%d.accept: serial=%d mime_type=%S"), wl_data_offer, serial, mime_type);
 }
 
-internal void wayland_wl_data_offer_receive(Wayland_Connection *wc, u32 wl_data_offer, String mime_type, Fd fd) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_offer_receive(Wayland_Connection *conn, u32 wl_data_offer, String mime_type, Fd fd) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_offer);
 	u16 _opcode = 1;
@@ -1217,13 +1210,13 @@ internal void wayland_wl_data_offer_receive(Wayland_Connection *wc, u32 wl_data_
 	for_range(i, mime_type.len, mime_type_size) {
 		write_byte(w, 0);
 	}
-	vector_append(&wc->fds_out, fd);
+	vector_append(&conn->fds_out, fd);
 
 	wayland_log_infof(LIT("-> wl_data_offer@%d.receive: mime_type=%S fd=%d"), wl_data_offer, mime_type, fd);
 }
 
-internal void wayland_wl_data_offer_destroy(Wayland_Connection *wc, u32 wl_data_offer) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_offer_destroy(Wayland_Connection *conn, u32 wl_data_offer) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_offer);
 	u16 _opcode = 2;
@@ -1235,8 +1228,8 @@ internal void wayland_wl_data_offer_destroy(Wayland_Connection *wc, u32 wl_data_
 	wayland_log_infof(LIT("-> wl_data_offer@%d.destroy:"), wl_data_offer);
 }
 
-internal void wayland_wl_data_offer_finish(Wayland_Connection *wc, u32 wl_data_offer) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_offer_finish(Wayland_Connection *conn, u32 wl_data_offer) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_offer);
 	u16 _opcode = 3;
@@ -1248,8 +1241,8 @@ internal void wayland_wl_data_offer_finish(Wayland_Connection *wc, u32 wl_data_o
 	wayland_log_infof(LIT("-> wl_data_offer@%d.finish:"), wl_data_offer);
 }
 
-internal void wayland_wl_data_offer_set_actions(Wayland_Connection *wc, u32 wl_data_offer, Wayland_Wl_Data_Device_Manager_Dnd_Action dnd_actions, Wayland_Wl_Data_Device_Manager_Dnd_Action preferred_action) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_offer_set_actions(Wayland_Connection *conn, u32 wl_data_offer, Wayland_Wl_Data_Device_Manager_Dnd_Action dnd_actions, Wayland_Wl_Data_Device_Manager_Dnd_Action preferred_action) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_offer);
 	u16 _opcode = 4;
@@ -1262,7 +1255,7 @@ internal void wayland_wl_data_offer_set_actions(Wayland_Connection *wc, u32 wl_d
 	u32 preferred_action_value = (u32)preferred_action;
 	write_any(w, &preferred_action_value);
 
-	wayland_log_infof(LIT("-> wl_data_offer@%d.set_actions: dnd_actions=%S preferred_action=%S"), wl_data_offer, wayland_wl_data_device_manager_dnd_action_string(dnd_actions), wayland_wl_data_device_manager_dnd_action_string(preferred_action));
+	wayland_log_infof(LIT("-> wl_data_offer@%d.set_actions: dnd_actions=%S preferred_action=%S"), wl_data_offer, enum_to_string(Wayland_Wl_Data_Device_Manager_Dnd_Action, dnd_actions), enum_to_string(Wayland_Wl_Data_Device_Manager_Dnd_Action, preferred_action));
 }
 
 typedef enum {
@@ -1307,7 +1300,7 @@ internal isize wayland_parse_event_wl_data_offer_source_actions(Wayland_Connecti
 	u32 source_actions_value;
 	or_return(read_any(&r, &source_actions_value), -1);
 	*source_actions = (Wayland_Wl_Data_Device_Manager_Dnd_Action)source_actions_value;
-	wayland_log_infof(LIT("<- wl_data_offer@%d.source_actions: source_actions=%S"), _object_id, wayland_wl_data_device_manager_dnd_action_string(*source_actions));
+	wayland_log_infof(LIT("<- wl_data_offer@%d.source_actions: source_actions=%S"), _object_id, enum_to_string(Wayland_Wl_Data_Device_Manager_Dnd_Action, *source_actions));
 	return _msg_size;
 }
 
@@ -1324,12 +1317,12 @@ internal isize wayland_parse_event_wl_data_offer_action(Wayland_Connection *conn
 	u32 dnd_action_value;
 	or_return(read_any(&r, &dnd_action_value), -1);
 	*dnd_action = (Wayland_Wl_Data_Device_Manager_Dnd_Action)dnd_action_value;
-	wayland_log_infof(LIT("<- wl_data_offer@%d.action: dnd_action=%S"), _object_id, wayland_wl_data_device_manager_dnd_action_string(*dnd_action));
+	wayland_log_infof(LIT("<- wl_data_offer@%d.action: dnd_action=%S"), _object_id, enum_to_string(Wayland_Wl_Data_Device_Manager_Dnd_Action, *dnd_action));
 	return _msg_size;
 }
 
-internal void wayland_wl_data_source_offer(Wayland_Connection *wc, u32 wl_data_source, String mime_type) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_source_offer(Wayland_Connection *conn, u32 wl_data_source, String mime_type) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_source);
 	u16 _opcode = 0;
@@ -1349,8 +1342,8 @@ internal void wayland_wl_data_source_offer(Wayland_Connection *wc, u32 wl_data_s
 	wayland_log_infof(LIT("-> wl_data_source@%d.offer: mime_type=%S"), wl_data_source, mime_type);
 }
 
-internal void wayland_wl_data_source_destroy(Wayland_Connection *wc, u32 wl_data_source) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_source_destroy(Wayland_Connection *conn, u32 wl_data_source) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_source);
 	u16 _opcode = 1;
@@ -1362,8 +1355,8 @@ internal void wayland_wl_data_source_destroy(Wayland_Connection *wc, u32 wl_data
 	wayland_log_infof(LIT("-> wl_data_source@%d.destroy:"), wl_data_source);
 }
 
-internal void wayland_wl_data_source_set_actions(Wayland_Connection *wc, u32 wl_data_source, Wayland_Wl_Data_Device_Manager_Dnd_Action dnd_actions) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_source_set_actions(Wayland_Connection *conn, u32 wl_data_source, Wayland_Wl_Data_Device_Manager_Dnd_Action dnd_actions) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_source);
 	u16 _opcode = 2;
@@ -1374,7 +1367,7 @@ internal void wayland_wl_data_source_set_actions(Wayland_Connection *wc, u32 wl_
 	u32 dnd_actions_value = (u32)dnd_actions;
 	write_any(w, &dnd_actions_value);
 
-	wayland_log_infof(LIT("-> wl_data_source@%d.set_actions: dnd_actions=%S"), wl_data_source, wayland_wl_data_device_manager_dnd_action_string(dnd_actions));
+	wayland_log_infof(LIT("-> wl_data_source@%d.set_actions: dnd_actions=%S"), wl_data_source, enum_to_string(Wayland_Wl_Data_Device_Manager_Dnd_Action, dnd_actions));
 }
 
 typedef enum {
@@ -1489,12 +1482,12 @@ internal isize wayland_parse_event_wl_data_source_action(Wayland_Connection *con
 	u32 dnd_action_value;
 	or_return(read_any(&r, &dnd_action_value), -1);
 	*dnd_action = (Wayland_Wl_Data_Device_Manager_Dnd_Action)dnd_action_value;
-	wayland_log_infof(LIT("<- wl_data_source@%d.action: dnd_action=%S"), _object_id, wayland_wl_data_device_manager_dnd_action_string(*dnd_action));
+	wayland_log_infof(LIT("<- wl_data_source@%d.action: dnd_action=%S"), _object_id, enum_to_string(Wayland_Wl_Data_Device_Manager_Dnd_Action, *dnd_action));
 	return _msg_size;
 }
 
-internal void wayland_wl_data_device_start_drag(Wayland_Connection *wc, u32 wl_data_device, u32 source, u32 origin, u32 icon, u32 serial) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_device_start_drag(Wayland_Connection *conn, u32 wl_data_device, u32 source, u32 origin, u32 icon, u32 serial) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_device);
 	u16 _opcode = 0;
@@ -1510,8 +1503,8 @@ internal void wayland_wl_data_device_start_drag(Wayland_Connection *wc, u32 wl_d
 	wayland_log_infof(LIT("-> wl_data_device@%d.start_drag: source=%d origin=%d icon=%d serial=%d"), wl_data_device, source, origin, icon, serial);
 }
 
-internal void wayland_wl_data_device_set_selection(Wayland_Connection *wc, u32 wl_data_device, u32 source, u32 serial) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_device_set_selection(Wayland_Connection *conn, u32 wl_data_device, u32 source, u32 serial) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_device);
 	u16 _opcode = 1;
@@ -1525,8 +1518,8 @@ internal void wayland_wl_data_device_set_selection(Wayland_Connection *wc, u32 w
 	wayland_log_infof(LIT("-> wl_data_device@%d.set_selection: source=%d serial=%d"), wl_data_device, source, serial);
 }
 
-internal void wayland_wl_data_device_release(Wayland_Connection *wc, u32 wl_data_device) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_data_device_release(Wayland_Connection *conn, u32 wl_data_device) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_device);
 	u16 _opcode = 2;
@@ -1648,8 +1641,8 @@ internal isize wayland_parse_event_wl_data_device_selection(Wayland_Connection *
 	return _msg_size;
 }
 
-internal u32 wayland_wl_data_device_manager_create_data_source(Wayland_Connection *wc, u32 wl_data_device_manager) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_data_device_manager_create_data_source(Wayland_Connection *conn, u32 wl_data_device_manager) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_device_manager);
 	u16 _opcode = 0;
@@ -1657,16 +1650,15 @@ internal u32 wayland_wl_data_device_manager_create_data_source(Wayland_Connectio
 	u16 _msg_size = 12;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 
 	wayland_log_infof(LIT("-> wl_data_device_manager@%d.create_data_source: id=%d"), wl_data_device_manager, return_value);
 	return return_value;
 }
 
-internal u32 wayland_wl_data_device_manager_get_data_device(Wayland_Connection *wc, u32 wl_data_device_manager, u32 seat) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_data_device_manager_get_data_device(Wayland_Connection *conn, u32 wl_data_device_manager, u32 seat) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_data_device_manager);
 	u16 _opcode = 1;
@@ -1674,8 +1666,7 @@ internal u32 wayland_wl_data_device_manager_get_data_device(Wayland_Connection *
 	u16 _msg_size = 16;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 	write_any(w, &seat);
 
@@ -1683,8 +1674,8 @@ internal u32 wayland_wl_data_device_manager_get_data_device(Wayland_Connection *
 	return return_value;
 }
 
-internal u32 wayland_wl_shell_get_shell_surface(Wayland_Connection *wc, u32 wl_shell, u32 surface) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_shell_get_shell_surface(Wayland_Connection *conn, u32 wl_shell, u32 surface) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell);
 	u16 _opcode = 0;
@@ -1692,8 +1683,7 @@ internal u32 wayland_wl_shell_get_shell_surface(Wayland_Connection *wc, u32 wl_s
 	u16 _msg_size = 16;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 	write_any(w, &surface);
 
@@ -1701,8 +1691,8 @@ internal u32 wayland_wl_shell_get_shell_surface(Wayland_Connection *wc, u32 wl_s
 	return return_value;
 }
 
-internal void wayland_wl_shell_surface_pong(Wayland_Connection *wc, u32 wl_shell_surface, u32 serial) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shell_surface_pong(Wayland_Connection *conn, u32 wl_shell_surface, u32 serial) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell_surface);
 	u16 _opcode = 0;
@@ -1715,8 +1705,8 @@ internal void wayland_wl_shell_surface_pong(Wayland_Connection *wc, u32 wl_shell
 	wayland_log_infof(LIT("-> wl_shell_surface@%d.pong: serial=%d"), wl_shell_surface, serial);
 }
 
-internal void wayland_wl_shell_surface_move(Wayland_Connection *wc, u32 wl_shell_surface, u32 seat, u32 serial) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shell_surface_move(Wayland_Connection *conn, u32 wl_shell_surface, u32 seat, u32 serial) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell_surface);
 	u16 _opcode = 1;
@@ -1730,8 +1720,8 @@ internal void wayland_wl_shell_surface_move(Wayland_Connection *wc, u32 wl_shell
 	wayland_log_infof(LIT("-> wl_shell_surface@%d.move: seat=%d serial=%d"), wl_shell_surface, seat, serial);
 }
 
-internal void wayland_wl_shell_surface_resize(Wayland_Connection *wc, u32 wl_shell_surface, u32 seat, u32 serial, Wayland_Wl_Shell_Surface_Resize edges) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shell_surface_resize(Wayland_Connection *conn, u32 wl_shell_surface, u32 seat, u32 serial, Wayland_Wl_Shell_Surface_Resize edges) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell_surface);
 	u16 _opcode = 2;
@@ -1744,11 +1734,11 @@ internal void wayland_wl_shell_surface_resize(Wayland_Connection *wc, u32 wl_she
 	u32 edges_value = (u32)edges;
 	write_any(w, &edges_value);
 
-	wayland_log_infof(LIT("-> wl_shell_surface@%d.resize: seat=%d serial=%d edges=%S"), wl_shell_surface, seat, serial, wayland_wl_shell_surface_resize_string(edges));
+	wayland_log_infof(LIT("-> wl_shell_surface@%d.resize: seat=%d serial=%d edges=%S"), wl_shell_surface, seat, serial, enum_to_string(Wayland_Wl_Shell_Surface_Resize, edges));
 }
 
-internal void wayland_wl_shell_surface_set_toplevel(Wayland_Connection *wc, u32 wl_shell_surface) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shell_surface_set_toplevel(Wayland_Connection *conn, u32 wl_shell_surface) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell_surface);
 	u16 _opcode = 3;
@@ -1760,8 +1750,8 @@ internal void wayland_wl_shell_surface_set_toplevel(Wayland_Connection *wc, u32 
 	wayland_log_infof(LIT("-> wl_shell_surface@%d.set_toplevel:"), wl_shell_surface);
 }
 
-internal void wayland_wl_shell_surface_set_transient(Wayland_Connection *wc, u32 wl_shell_surface, u32 parent, i32 x, i32 y, Wayland_Wl_Shell_Surface_Transient flags) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shell_surface_set_transient(Wayland_Connection *conn, u32 wl_shell_surface, u32 parent, i32 x, i32 y, Wayland_Wl_Shell_Surface_Transient flags) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell_surface);
 	u16 _opcode = 4;
@@ -1775,11 +1765,11 @@ internal void wayland_wl_shell_surface_set_transient(Wayland_Connection *wc, u32
 	u32 flags_value = (u32)flags;
 	write_any(w, &flags_value);
 
-	wayland_log_infof(LIT("-> wl_shell_surface@%d.set_transient: parent=%d x=%d y=%d flags=%S"), wl_shell_surface, parent, x, y, wayland_wl_shell_surface_transient_string(flags));
+	wayland_log_infof(LIT("-> wl_shell_surface@%d.set_transient: parent=%d x=%d y=%d flags=%S"), wl_shell_surface, parent, x, y, enum_to_string(Wayland_Wl_Shell_Surface_Transient, flags));
 }
 
-internal void wayland_wl_shell_surface_set_fullscreen(Wayland_Connection *wc, u32 wl_shell_surface, Wayland_Wl_Shell_Surface_Fullscreen_Method method, u32 framerate, u32 output) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shell_surface_set_fullscreen(Wayland_Connection *conn, u32 wl_shell_surface, Wayland_Wl_Shell_Surface_Fullscreen_Method method, u32 framerate, u32 output) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell_surface);
 	u16 _opcode = 5;
@@ -1792,11 +1782,11 @@ internal void wayland_wl_shell_surface_set_fullscreen(Wayland_Connection *wc, u3
 	write_any(w, &framerate);
 	write_any(w, &output);
 
-	wayland_log_infof(LIT("-> wl_shell_surface@%d.set_fullscreen: method=%S framerate=%d output=%d"), wl_shell_surface, wayland_wl_shell_surface_fullscreen_method_string(method), framerate, output);
+	wayland_log_infof(LIT("-> wl_shell_surface@%d.set_fullscreen: method=%S framerate=%d output=%d"), wl_shell_surface, enum_to_string(Wayland_Wl_Shell_Surface_Fullscreen_Method, method), framerate, output);
 }
 
-internal void wayland_wl_shell_surface_set_popup(Wayland_Connection *wc, u32 wl_shell_surface, u32 seat, u32 serial, u32 parent, i32 x, i32 y, Wayland_Wl_Shell_Surface_Transient flags) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shell_surface_set_popup(Wayland_Connection *conn, u32 wl_shell_surface, u32 seat, u32 serial, u32 parent, i32 x, i32 y, Wayland_Wl_Shell_Surface_Transient flags) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell_surface);
 	u16 _opcode = 6;
@@ -1812,11 +1802,11 @@ internal void wayland_wl_shell_surface_set_popup(Wayland_Connection *wc, u32 wl_
 	u32 flags_value = (u32)flags;
 	write_any(w, &flags_value);
 
-	wayland_log_infof(LIT("-> wl_shell_surface@%d.set_popup: seat=%d serial=%d parent=%d x=%d y=%d flags=%S"), wl_shell_surface, seat, serial, parent, x, y, wayland_wl_shell_surface_transient_string(flags));
+	wayland_log_infof(LIT("-> wl_shell_surface@%d.set_popup: seat=%d serial=%d parent=%d x=%d y=%d flags=%S"), wl_shell_surface, seat, serial, parent, x, y, enum_to_string(Wayland_Wl_Shell_Surface_Transient, flags));
 }
 
-internal void wayland_wl_shell_surface_set_maximized(Wayland_Connection *wc, u32 wl_shell_surface, u32 output) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shell_surface_set_maximized(Wayland_Connection *conn, u32 wl_shell_surface, u32 output) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell_surface);
 	u16 _opcode = 7;
@@ -1829,8 +1819,8 @@ internal void wayland_wl_shell_surface_set_maximized(Wayland_Connection *wc, u32
 	wayland_log_infof(LIT("-> wl_shell_surface@%d.set_maximized: output=%d"), wl_shell_surface, output);
 }
 
-internal void wayland_wl_shell_surface_set_title(Wayland_Connection *wc, u32 wl_shell_surface, String title) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shell_surface_set_title(Wayland_Connection *conn, u32 wl_shell_surface, String title) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell_surface);
 	u16 _opcode = 8;
@@ -1850,8 +1840,8 @@ internal void wayland_wl_shell_surface_set_title(Wayland_Connection *wc, u32 wl_
 	wayland_log_infof(LIT("-> wl_shell_surface@%d.set_title: title=%S"), wl_shell_surface, title);
 }
 
-internal void wayland_wl_shell_surface_set_class(Wayland_Connection *wc, u32 wl_shell_surface, String class_) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_shell_surface_set_class(Wayland_Connection *conn, u32 wl_shell_surface, String class_) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_shell_surface);
 	u16 _opcode = 9;
@@ -1907,7 +1897,7 @@ internal isize wayland_parse_event_wl_shell_surface_configure(Wayland_Connection
 	*edges = (Wayland_Wl_Shell_Surface_Resize)edges_value;
 	or_return(read_any(&r, width), -1);
 	or_return(read_any(&r, height), -1);
-	wayland_log_infof(LIT("<- wl_shell_surface@%d.configure: edges=%S width=%d height=%d"), _object_id, wayland_wl_shell_surface_resize_string(*edges), *width, *height);
+	wayland_log_infof(LIT("<- wl_shell_surface@%d.configure: edges=%S width=%d height=%d"), _object_id, enum_to_string(Wayland_Wl_Shell_Surface_Resize, *edges), *width, *height);
 	return _msg_size;
 }
 
@@ -1925,8 +1915,8 @@ internal isize wayland_parse_event_wl_shell_surface_popup_done(Wayland_Connectio
 	return _msg_size;
 }
 
-internal void wayland_wl_surface_destroy(Wayland_Connection *wc, u32 wl_surface) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_surface_destroy(Wayland_Connection *conn, u32 wl_surface) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 0;
@@ -1938,8 +1928,8 @@ internal void wayland_wl_surface_destroy(Wayland_Connection *wc, u32 wl_surface)
 	wayland_log_infof(LIT("-> wl_surface@%d.destroy:"), wl_surface);
 }
 
-internal void wayland_wl_surface_attach(Wayland_Connection *wc, u32 wl_surface, u32 buffer, i32 x, i32 y) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_surface_attach(Wayland_Connection *conn, u32 wl_surface, u32 buffer, i32 x, i32 y) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 1;
@@ -1954,8 +1944,8 @@ internal void wayland_wl_surface_attach(Wayland_Connection *wc, u32 wl_surface, 
 	wayland_log_infof(LIT("-> wl_surface@%d.attach: buffer=%d x=%d y=%d"), wl_surface, buffer, x, y);
 }
 
-internal void wayland_wl_surface_damage(Wayland_Connection *wc, u32 wl_surface, i32 x, i32 y, i32 width, i32 height) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_surface_damage(Wayland_Connection *conn, u32 wl_surface, i32 x, i32 y, i32 width, i32 height) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 2;
@@ -1971,8 +1961,8 @@ internal void wayland_wl_surface_damage(Wayland_Connection *wc, u32 wl_surface, 
 	wayland_log_infof(LIT("-> wl_surface@%d.damage: x=%d y=%d width=%d height=%d"), wl_surface, x, y, width, height);
 }
 
-internal u32 wayland_wl_surface_frame(Wayland_Connection *wc, u32 wl_surface) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_surface_frame(Wayland_Connection *conn, u32 wl_surface) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 3;
@@ -1980,16 +1970,15 @@ internal u32 wayland_wl_surface_frame(Wayland_Connection *wc, u32 wl_surface) {
 	u16 _msg_size = 12;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 
 	wayland_log_infof(LIT("-> wl_surface@%d.frame: callback=%d"), wl_surface, return_value);
 	return return_value;
 }
 
-internal void wayland_wl_surface_set_opaque_region(Wayland_Connection *wc, u32 wl_surface, u32 region) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_surface_set_opaque_region(Wayland_Connection *conn, u32 wl_surface, u32 region) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 4;
@@ -2002,8 +1991,8 @@ internal void wayland_wl_surface_set_opaque_region(Wayland_Connection *wc, u32 w
 	wayland_log_infof(LIT("-> wl_surface@%d.set_opaque_region: region=%d"), wl_surface, region);
 }
 
-internal void wayland_wl_surface_set_input_region(Wayland_Connection *wc, u32 wl_surface, u32 region) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_surface_set_input_region(Wayland_Connection *conn, u32 wl_surface, u32 region) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 5;
@@ -2016,8 +2005,8 @@ internal void wayland_wl_surface_set_input_region(Wayland_Connection *wc, u32 wl
 	wayland_log_infof(LIT("-> wl_surface@%d.set_input_region: region=%d"), wl_surface, region);
 }
 
-internal void wayland_wl_surface_commit(Wayland_Connection *wc, u32 wl_surface) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_surface_commit(Wayland_Connection *conn, u32 wl_surface) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 6;
@@ -2029,8 +2018,8 @@ internal void wayland_wl_surface_commit(Wayland_Connection *wc, u32 wl_surface) 
 	wayland_log_infof(LIT("-> wl_surface@%d.commit:"), wl_surface);
 }
 
-internal void wayland_wl_surface_set_buffer_transform(Wayland_Connection *wc, u32 wl_surface, Wayland_Wl_Output_Transform transform) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_surface_set_buffer_transform(Wayland_Connection *conn, u32 wl_surface, Wayland_Wl_Output_Transform transform) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 7;
@@ -2041,11 +2030,11 @@ internal void wayland_wl_surface_set_buffer_transform(Wayland_Connection *wc, u3
 	u32 transform_value = (u32)transform;
 	write_any(w, &transform_value);
 
-	wayland_log_infof(LIT("-> wl_surface@%d.set_buffer_transform: transform=%S"), wl_surface, wayland_wl_output_transform_string(transform));
+	wayland_log_infof(LIT("-> wl_surface@%d.set_buffer_transform: transform=%S"), wl_surface, enum_to_string(Wayland_Wl_Output_Transform, transform));
 }
 
-internal void wayland_wl_surface_set_buffer_scale(Wayland_Connection *wc, u32 wl_surface, i32 scale) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_surface_set_buffer_scale(Wayland_Connection *conn, u32 wl_surface, i32 scale) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 8;
@@ -2058,8 +2047,8 @@ internal void wayland_wl_surface_set_buffer_scale(Wayland_Connection *wc, u32 wl
 	wayland_log_infof(LIT("-> wl_surface@%d.set_buffer_scale: scale=%d"), wl_surface, scale);
 }
 
-internal void wayland_wl_surface_damage_buffer(Wayland_Connection *wc, u32 wl_surface, i32 x, i32 y, i32 width, i32 height) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_surface_damage_buffer(Wayland_Connection *conn, u32 wl_surface, i32 x, i32 y, i32 width, i32 height) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 9;
@@ -2075,8 +2064,8 @@ internal void wayland_wl_surface_damage_buffer(Wayland_Connection *wc, u32 wl_su
 	wayland_log_infof(LIT("-> wl_surface@%d.damage_buffer: x=%d y=%d width=%d height=%d"), wl_surface, x, y, width, height);
 }
 
-internal void wayland_wl_surface_offset(Wayland_Connection *wc, u32 wl_surface, i32 x, i32 y) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_surface_offset(Wayland_Connection *conn, u32 wl_surface, i32 x, i32 y) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_surface);
 	u16 _opcode = 10;
@@ -2155,12 +2144,12 @@ internal isize wayland_parse_event_wl_surface_preferred_buffer_transform(Wayland
 	u32 transform_value;
 	or_return(read_any(&r, &transform_value), -1);
 	*transform = (Wayland_Wl_Output_Transform)transform_value;
-	wayland_log_infof(LIT("<- wl_surface@%d.preferred_buffer_transform: transform=%S"), _object_id, wayland_wl_output_transform_string(*transform));
+	wayland_log_infof(LIT("<- wl_surface@%d.preferred_buffer_transform: transform=%S"), _object_id, enum_to_string(Wayland_Wl_Output_Transform, *transform));
 	return _msg_size;
 }
 
-internal u32 wayland_wl_seat_get_pointer(Wayland_Connection *wc, u32 wl_seat) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_seat_get_pointer(Wayland_Connection *conn, u32 wl_seat) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_seat);
 	u16 _opcode = 0;
@@ -2168,16 +2157,15 @@ internal u32 wayland_wl_seat_get_pointer(Wayland_Connection *wc, u32 wl_seat) {
 	u16 _msg_size = 12;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 
 	wayland_log_infof(LIT("-> wl_seat@%d.get_pointer: id=%d"), wl_seat, return_value);
 	return return_value;
 }
 
-internal u32 wayland_wl_seat_get_keyboard(Wayland_Connection *wc, u32 wl_seat) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_seat_get_keyboard(Wayland_Connection *conn, u32 wl_seat) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_seat);
 	u16 _opcode = 1;
@@ -2185,16 +2173,15 @@ internal u32 wayland_wl_seat_get_keyboard(Wayland_Connection *wc, u32 wl_seat) {
 	u16 _msg_size = 12;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 
 	wayland_log_infof(LIT("-> wl_seat@%d.get_keyboard: id=%d"), wl_seat, return_value);
 	return return_value;
 }
 
-internal u32 wayland_wl_seat_get_touch(Wayland_Connection *wc, u32 wl_seat) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_seat_get_touch(Wayland_Connection *conn, u32 wl_seat) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_seat);
 	u16 _opcode = 2;
@@ -2202,16 +2189,15 @@ internal u32 wayland_wl_seat_get_touch(Wayland_Connection *wc, u32 wl_seat) {
 	u16 _msg_size = 12;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 
 	wayland_log_infof(LIT("-> wl_seat@%d.get_touch: id=%d"), wl_seat, return_value);
 	return return_value;
 }
 
-internal void wayland_wl_seat_release(Wayland_Connection *wc, u32 wl_seat) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_seat_release(Wayland_Connection *conn, u32 wl_seat) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_seat);
 	u16 _opcode = 3;
@@ -2241,7 +2227,7 @@ internal isize wayland_parse_event_wl_seat_capabilities(Wayland_Connection *conn
 	u32 capabilities_value;
 	or_return(read_any(&r, &capabilities_value), -1);
 	*capabilities = (Wayland_Wl_Seat_Capability)capabilities_value;
-	wayland_log_infof(LIT("<- wl_seat@%d.capabilities: capabilities=%S"), _object_id, wayland_wl_seat_capability_string(*capabilities));
+	wayland_log_infof(LIT("<- wl_seat@%d.capabilities: capabilities=%S"), _object_id, enum_to_string(Wayland_Wl_Seat_Capability, *capabilities));
 	return _msg_size;
 }
 
@@ -2268,8 +2254,8 @@ internal isize wayland_parse_event_wl_seat_name(Wayland_Connection *conn, String
 	return _msg_size;
 }
 
-internal void wayland_wl_pointer_set_cursor(Wayland_Connection *wc, u32 wl_pointer, u32 serial, u32 surface, i32 hotspot_x, i32 hotspot_y) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_pointer_set_cursor(Wayland_Connection *conn, u32 wl_pointer, u32 serial, u32 surface, i32 hotspot_x, i32 hotspot_y) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_pointer);
 	u16 _opcode = 0;
@@ -2285,8 +2271,8 @@ internal void wayland_wl_pointer_set_cursor(Wayland_Connection *wc, u32 wl_point
 	wayland_log_infof(LIT("-> wl_pointer@%d.set_cursor: serial=%d surface=%d hotspot_x=%d hotspot_y=%d"), wl_pointer, serial, surface, hotspot_x, hotspot_y);
 }
 
-internal void wayland_wl_pointer_release(Wayland_Connection *wc, u32 wl_pointer) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_pointer_release(Wayland_Connection *conn, u32 wl_pointer) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_pointer);
 	u16 _opcode = 1;
@@ -2387,7 +2373,7 @@ internal isize wayland_parse_event_wl_pointer_button(Wayland_Connection *conn, u
 	u32 state_value;
 	or_return(read_any(&r, &state_value), -1);
 	*state = (Wayland_Wl_Pointer_Button_State)state_value;
-	wayland_log_infof(LIT("<- wl_pointer@%d.button: serial=%d time=%d button=%d state=%S"), _object_id, *serial, *time, *button, wayland_wl_pointer_button_state_string(*state));
+	wayland_log_infof(LIT("<- wl_pointer@%d.button: serial=%d time=%d button=%d state=%S"), _object_id, *serial, *time, *button, enum_to_string(Wayland_Wl_Pointer_Button_State, *state));
 	return _msg_size;
 }
 
@@ -2408,7 +2394,7 @@ internal isize wayland_parse_event_wl_pointer_axis(Wayland_Connection *conn, u32
 	i32 value_fixed;
 	or_return(read_any(&r, &value_fixed), -1);
 	*value = (f64)value_fixed / 256.0;
-	wayland_log_infof(LIT("<- wl_pointer@%d.axis: time=%d axis=%S value=%f"), _object_id, *time, wayland_wl_pointer_axis_string(*axis), *value);
+	wayland_log_infof(LIT("<- wl_pointer@%d.axis: time=%d axis=%S value=%f"), _object_id, *time, enum_to_string(Wayland_Wl_Pointer_Axis, *axis), *value);
 	return _msg_size;
 }
 
@@ -2439,7 +2425,7 @@ internal isize wayland_parse_event_wl_pointer_axis_source(Wayland_Connection *co
 	u32 axis_source_value;
 	or_return(read_any(&r, &axis_source_value), -1);
 	*axis_source = (Wayland_Wl_Pointer_Axis_Source)axis_source_value;
-	wayland_log_infof(LIT("<- wl_pointer@%d.axis_source: axis_source=%S"), _object_id, wayland_wl_pointer_axis_source_string(*axis_source));
+	wayland_log_infof(LIT("<- wl_pointer@%d.axis_source: axis_source=%S"), _object_id, enum_to_string(Wayland_Wl_Pointer_Axis_Source, *axis_source));
 	return _msg_size;
 }
 
@@ -2457,7 +2443,7 @@ internal isize wayland_parse_event_wl_pointer_axis_stop(Wayland_Connection *conn
 	u32 axis_value;
 	or_return(read_any(&r, &axis_value), -1);
 	*axis = (Wayland_Wl_Pointer_Axis)axis_value;
-	wayland_log_infof(LIT("<- wl_pointer@%d.axis_stop: time=%d axis=%S"), _object_id, *time, wayland_wl_pointer_axis_string(*axis));
+	wayland_log_infof(LIT("<- wl_pointer@%d.axis_stop: time=%d axis=%S"), _object_id, *time, enum_to_string(Wayland_Wl_Pointer_Axis, *axis));
 	return _msg_size;
 }
 
@@ -2475,7 +2461,7 @@ internal isize wayland_parse_event_wl_pointer_axis_discrete(Wayland_Connection *
 	or_return(read_any(&r, &axis_value), -1);
 	*axis = (Wayland_Wl_Pointer_Axis)axis_value;
 	or_return(read_any(&r, discrete), -1);
-	wayland_log_infof(LIT("<- wl_pointer@%d.axis_discrete: axis=%S discrete=%d"), _object_id, wayland_wl_pointer_axis_string(*axis), *discrete);
+	wayland_log_infof(LIT("<- wl_pointer@%d.axis_discrete: axis=%S discrete=%d"), _object_id, enum_to_string(Wayland_Wl_Pointer_Axis, *axis), *discrete);
 	return _msg_size;
 }
 
@@ -2493,7 +2479,7 @@ internal isize wayland_parse_event_wl_pointer_axis_value120(Wayland_Connection *
 	or_return(read_any(&r, &axis_value), -1);
 	*axis = (Wayland_Wl_Pointer_Axis)axis_value;
 	or_return(read_any(&r, value120), -1);
-	wayland_log_infof(LIT("<- wl_pointer@%d.axis_value120: axis=%S value120=%d"), _object_id, wayland_wl_pointer_axis_string(*axis), *value120);
+	wayland_log_infof(LIT("<- wl_pointer@%d.axis_value120: axis=%S value120=%d"), _object_id, enum_to_string(Wayland_Wl_Pointer_Axis, *axis), *value120);
 	return _msg_size;
 }
 
@@ -2513,12 +2499,12 @@ internal isize wayland_parse_event_wl_pointer_axis_relative_direction(Wayland_Co
 	u32 direction_value;
 	or_return(read_any(&r, &direction_value), -1);
 	*direction = (Wayland_Wl_Pointer_Axis_Relative_Direction)direction_value;
-	wayland_log_infof(LIT("<- wl_pointer@%d.axis_relative_direction: axis=%S direction=%S"), _object_id, wayland_wl_pointer_axis_string(*axis), wayland_wl_pointer_axis_relative_direction_string(*direction));
+	wayland_log_infof(LIT("<- wl_pointer@%d.axis_relative_direction: axis=%S direction=%S"), _object_id, enum_to_string(Wayland_Wl_Pointer_Axis, *axis), enum_to_string(Wayland_Wl_Pointer_Axis_Relative_Direction, *direction));
 	return _msg_size;
 }
 
-internal void wayland_wl_keyboard_release(Wayland_Connection *wc, u32 wl_keyboard) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_keyboard_release(Wayland_Connection *conn, u32 wl_keyboard) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_keyboard);
 	u16 _opcode = 0;
@@ -2555,7 +2541,7 @@ internal isize wayland_parse_event_wl_keyboard_keymap(Wayland_Connection *conn, 
 	*fd = conn->fds_in.data[0];
 	vector_remove_ordered(&conn->fds_in, 0);
 	or_return(read_any(&r, size), -1);
-	wayland_log_infof(LIT("<- wl_keyboard@%d.keymap: format=%S fd=%d size=%d"), _object_id, wayland_wl_keyboard_keymap_format_string(*format), *fd, *size);
+	wayland_log_infof(LIT("<- wl_keyboard@%d.keymap: format=%S fd=%d size=%d"), _object_id, enum_to_string(Wayland_Wl_Keyboard_Keymap_Format, *format), *fd, *size);
 	return _msg_size;
 }
 
@@ -2615,7 +2601,7 @@ internal isize wayland_parse_event_wl_keyboard_key(Wayland_Connection *conn, u32
 	u32 state_value;
 	or_return(read_any(&r, &state_value), -1);
 	*state = (Wayland_Wl_Keyboard_Key_State)state_value;
-	wayland_log_infof(LIT("<- wl_keyboard@%d.key: serial=%d time=%d key=%d state=%S"), _object_id, *serial, *time, *key, wayland_wl_keyboard_key_state_string(*state));
+	wayland_log_infof(LIT("<- wl_keyboard@%d.key: serial=%d time=%d key=%d state=%S"), _object_id, *serial, *time, *key, enum_to_string(Wayland_Wl_Keyboard_Key_State, *state));
 	return _msg_size;
 }
 
@@ -2654,8 +2640,8 @@ internal isize wayland_parse_event_wl_keyboard_repeat_info(Wayland_Connection *c
 	return _msg_size;
 }
 
-internal void wayland_wl_touch_release(Wayland_Connection *wc, u32 wl_touch) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_touch_release(Wayland_Connection *conn, u32 wl_touch) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_touch);
 	u16 _opcode = 0;
@@ -2807,8 +2793,8 @@ internal isize wayland_parse_event_wl_touch_orientation(Wayland_Connection *conn
 	return _msg_size;
 }
 
-internal void wayland_wl_output_release(Wayland_Connection *wc, u32 wl_output) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_output_release(Wayland_Connection *conn, u32 wl_output) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_output);
 	u16 _opcode = 0;
@@ -2867,7 +2853,7 @@ internal isize wayland_parse_event_wl_output_geometry(Wayland_Connection *conn, 
 	u32 transform_value;
 	or_return(read_any(&r, &transform_value), -1);
 	*transform = (Wayland_Wl_Output_Transform)transform_value;
-	wayland_log_infof(LIT("<- wl_output@%d.geometry: x=%d y=%d physical_width=%d physical_height=%d subpixel=%S make=%S model=%S transform=%S"), _object_id, *x, *y, *physical_width, *physical_height, wayland_wl_output_subpixel_string(*subpixel), *make, *model, wayland_wl_output_transform_string(*transform));
+	wayland_log_infof(LIT("<- wl_output@%d.geometry: x=%d y=%d physical_width=%d physical_height=%d subpixel=%S make=%S model=%S transform=%S"), _object_id, *x, *y, *physical_width, *physical_height, enum_to_string(Wayland_Wl_Output_Subpixel, *subpixel), *make, *model, enum_to_string(Wayland_Wl_Output_Transform, *transform));
 	return _msg_size;
 }
 
@@ -2887,7 +2873,7 @@ internal isize wayland_parse_event_wl_output_mode(Wayland_Connection *conn, Wayl
 	or_return(read_any(&r, width), -1);
 	or_return(read_any(&r, height), -1);
 	or_return(read_any(&r, refresh), -1);
-	wayland_log_infof(LIT("<- wl_output@%d.mode: flags=%S width=%d height=%d refresh=%d"), _object_id, wayland_wl_output_mode_string(*flags), *width, *height, *refresh);
+	wayland_log_infof(LIT("<- wl_output@%d.mode: flags=%S width=%d height=%d refresh=%d"), _object_id, enum_to_string(Wayland_Wl_Output_Mode, *flags), *width, *height, *refresh);
 	return _msg_size;
 }
 
@@ -2966,8 +2952,8 @@ internal isize wayland_parse_event_wl_output_description(Wayland_Connection *con
 	return _msg_size;
 }
 
-internal void wayland_wl_region_destroy(Wayland_Connection *wc, u32 wl_region) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_region_destroy(Wayland_Connection *conn, u32 wl_region) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_region);
 	u16 _opcode = 0;
@@ -2979,8 +2965,8 @@ internal void wayland_wl_region_destroy(Wayland_Connection *wc, u32 wl_region) {
 	wayland_log_infof(LIT("-> wl_region@%d.destroy:"), wl_region);
 }
 
-internal void wayland_wl_region_add(Wayland_Connection *wc, u32 wl_region, i32 x, i32 y, i32 width, i32 height) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_region_add(Wayland_Connection *conn, u32 wl_region, i32 x, i32 y, i32 width, i32 height) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_region);
 	u16 _opcode = 1;
@@ -2996,8 +2982,8 @@ internal void wayland_wl_region_add(Wayland_Connection *wc, u32 wl_region, i32 x
 	wayland_log_infof(LIT("-> wl_region@%d.add: x=%d y=%d width=%d height=%d"), wl_region, x, y, width, height);
 }
 
-internal void wayland_wl_region_subtract(Wayland_Connection *wc, u32 wl_region, i32 x, i32 y, i32 width, i32 height) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_region_subtract(Wayland_Connection *conn, u32 wl_region, i32 x, i32 y, i32 width, i32 height) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_region);
 	u16 _opcode = 2;
@@ -3013,8 +2999,8 @@ internal void wayland_wl_region_subtract(Wayland_Connection *wc, u32 wl_region, 
 	wayland_log_infof(LIT("-> wl_region@%d.subtract: x=%d y=%d width=%d height=%d"), wl_region, x, y, width, height);
 }
 
-internal void wayland_wl_subcompositor_destroy(Wayland_Connection *wc, u32 wl_subcompositor) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_subcompositor_destroy(Wayland_Connection *conn, u32 wl_subcompositor) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_subcompositor);
 	u16 _opcode = 0;
@@ -3026,8 +3012,8 @@ internal void wayland_wl_subcompositor_destroy(Wayland_Connection *wc, u32 wl_su
 	wayland_log_infof(LIT("-> wl_subcompositor@%d.destroy:"), wl_subcompositor);
 }
 
-internal u32 wayland_wl_subcompositor_get_subsurface(Wayland_Connection *wc, u32 wl_subcompositor, u32 surface, u32 parent) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wl_subcompositor_get_subsurface(Wayland_Connection *conn, u32 wl_subcompositor, u32 surface, u32 parent) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_subcompositor);
 	u16 _opcode = 1;
@@ -3035,8 +3021,7 @@ internal u32 wayland_wl_subcompositor_get_subsurface(Wayland_Connection *wc, u32
 	u16 _msg_size = 20;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 	write_any(w, &surface);
 	write_any(w, &parent);
@@ -3045,8 +3030,8 @@ internal u32 wayland_wl_subcompositor_get_subsurface(Wayland_Connection *wc, u32
 	return return_value;
 }
 
-internal void wayland_wl_subsurface_destroy(Wayland_Connection *wc, u32 wl_subsurface) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_subsurface_destroy(Wayland_Connection *conn, u32 wl_subsurface) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_subsurface);
 	u16 _opcode = 0;
@@ -3058,8 +3043,8 @@ internal void wayland_wl_subsurface_destroy(Wayland_Connection *wc, u32 wl_subsu
 	wayland_log_infof(LIT("-> wl_subsurface@%d.destroy:"), wl_subsurface);
 }
 
-internal void wayland_wl_subsurface_set_position(Wayland_Connection *wc, u32 wl_subsurface, i32 x, i32 y) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_subsurface_set_position(Wayland_Connection *conn, u32 wl_subsurface, i32 x, i32 y) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_subsurface);
 	u16 _opcode = 1;
@@ -3073,8 +3058,8 @@ internal void wayland_wl_subsurface_set_position(Wayland_Connection *wc, u32 wl_
 	wayland_log_infof(LIT("-> wl_subsurface@%d.set_position: x=%d y=%d"), wl_subsurface, x, y);
 }
 
-internal void wayland_wl_subsurface_place_above(Wayland_Connection *wc, u32 wl_subsurface, u32 sibling) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_subsurface_place_above(Wayland_Connection *conn, u32 wl_subsurface, u32 sibling) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_subsurface);
 	u16 _opcode = 2;
@@ -3087,8 +3072,8 @@ internal void wayland_wl_subsurface_place_above(Wayland_Connection *wc, u32 wl_s
 	wayland_log_infof(LIT("-> wl_subsurface@%d.place_above: sibling=%d"), wl_subsurface, sibling);
 }
 
-internal void wayland_wl_subsurface_place_below(Wayland_Connection *wc, u32 wl_subsurface, u32 sibling) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_subsurface_place_below(Wayland_Connection *conn, u32 wl_subsurface, u32 sibling) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_subsurface);
 	u16 _opcode = 3;
@@ -3101,8 +3086,8 @@ internal void wayland_wl_subsurface_place_below(Wayland_Connection *wc, u32 wl_s
 	wayland_log_infof(LIT("-> wl_subsurface@%d.place_below: sibling=%d"), wl_subsurface, sibling);
 }
 
-internal void wayland_wl_subsurface_set_sync(Wayland_Connection *wc, u32 wl_subsurface) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_subsurface_set_sync(Wayland_Connection *conn, u32 wl_subsurface) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_subsurface);
 	u16 _opcode = 4;
@@ -3114,8 +3099,8 @@ internal void wayland_wl_subsurface_set_sync(Wayland_Connection *wc, u32 wl_subs
 	wayland_log_infof(LIT("-> wl_subsurface@%d.set_sync:"), wl_subsurface);
 }
 
-internal void wayland_wl_subsurface_set_desync(Wayland_Connection *wc, u32 wl_subsurface) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_subsurface_set_desync(Wayland_Connection *conn, u32 wl_subsurface) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_subsurface);
 	u16 _opcode = 5;
@@ -3127,8 +3112,8 @@ internal void wayland_wl_subsurface_set_desync(Wayland_Connection *wc, u32 wl_su
 	wayland_log_infof(LIT("-> wl_subsurface@%d.set_desync:"), wl_subsurface);
 }
 
-internal void wayland_wl_fixes_destroy(Wayland_Connection *wc, u32 wl_fixes) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_fixes_destroy(Wayland_Connection *conn, u32 wl_fixes) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_fixes);
 	u16 _opcode = 0;
@@ -3140,8 +3125,8 @@ internal void wayland_wl_fixes_destroy(Wayland_Connection *wc, u32 wl_fixes) {
 	wayland_log_infof(LIT("-> wl_fixes@%d.destroy:"), wl_fixes);
 }
 
-internal void wayland_wl_fixes_destroy_registry(Wayland_Connection *wc, u32 wl_fixes, u32 registry) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wl_fixes_destroy_registry(Wayland_Connection *conn, u32 wl_fixes, u32 registry) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wl_fixes);
 	u16 _opcode = 1;

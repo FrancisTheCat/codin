@@ -238,9 +238,6 @@ internal b8 bmf_get_baked_quad_i(BMF_Font const *font, rune c, isize *x, isize *
 	i32 x1_px = x0_px + font->single_w;
 	i32 y1_px = y0_px + font->single_h;
 
-	i32 fw = font->atlas_width;
-	i32 fh = font->atlas_height;
-
 	*quad = (BMF_Baked_Quad_I) {
   	(i32)(*x),
   	(i32)(*y) - font->single_h + font->decender,

@@ -31,6 +31,9 @@ typedef Vector(byte) Byte_Buffer;
 #define builder_init(builder, length, capacity, ally)                          \
   vector_init(builder, length, capacity, ally)
 
+#define builder_make(length, capacity, ally)                                   \
+  vector_make(Builder, length, capacity, ally)
+
 #define vector_delete(_vector)                                                 \
   {                                                                            \
     type_of(_vector) vector = _vector;                                         \
@@ -133,6 +136,7 @@ typedef Vector(byte) Byte_Buffer;
     s;                                                                         \
   })
 
+[[nodiscard]]
 internal String builder_to_string(Builder b) {
   String s;
   s.data = b.data;
@@ -140,6 +144,7 @@ internal String builder_to_string(Builder b) {
   return s;
 }
 
+[[nodiscard]]
 internal Byte_Slice builder_to_bytes(Builder b) {
   Byte_Slice sb;
   sb.data = (byte *)b.data;
@@ -147,6 +152,7 @@ internal Byte_Slice builder_to_bytes(Builder b) {
   return sb;
 }
 
+[[nodiscard]]
 internal cstring builder_to_cstring(Builder *b) {
   vector_append(b, 0);
   return b->data;

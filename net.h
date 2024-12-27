@@ -27,7 +27,7 @@ typedef enum {
   NE_Other,
 } Net_Error;
 
-internal String net_error_string(Net_Error err) {
+ENUM_TO_STRING_PROC_DECL(Net_Error, err) {
   switch (err) {
   case NE_None:
     return LIT("NE_None");
@@ -38,17 +38,19 @@ internal String net_error_string(Net_Error err) {
   case NE_Other:
     return LIT("NE_Other");
   }
-  return LIT("NE_Invalid_Enum_Value");
+  return LIT("NE_INVALID");
 }
 
 typedef Result(isize, Net_Error) Net_Result_Int;
 typedef Result(Connection, Net_Error) Net_Result_Connection;
 typedef Result(Socket, Net_Error) Net_Result_Socket;
 
+[[nodiscard]]
 internal u16 htons(u16 x) {
   return x << 8 | (x >> 8);
 }
 
+[[nodiscard]]
 internal Socket socket_create(u16 port) {
   Socket s = syscall(SYS_socket, AF_INET, SOCK_STREAM, 0);
 
@@ -71,6 +73,7 @@ internal Socket socket_create(u16 port) {
   return s;
 }
 
+[[nodiscard]]
 internal Net_Result_Connection socket_accept(Socket socket) {
   Net_Result_Connection result = {0};
 
@@ -80,6 +83,7 @@ internal Net_Result_Connection socket_accept(Socket socket) {
   return result;
 }
 
+[[nodiscard]]
 internal Net_Result_Int socket_read(Socket socket, Byte_Slice buf) {
   Net_Result_Int result = {0};
   result.value = syscall(SYS_recvfrom, socket, buf.data, buf.len, 0, 0, 0);
@@ -93,6 +97,7 @@ internal Maybe_Int reader_socket_proc(rawptr data, Byte_Slice buf) {
   return result_to_maybe(Maybe_Int, socket_read(transmute(Socket, data), buf));
 }
 
+[[nodiscard]]
 internal Reader reader_from_socket(Socket socket) {
   return (Reader){
       .data = transmute(rawptr, socket),
@@ -100,6 +105,7 @@ internal Reader reader_from_socket(Socket socket) {
   };
 }
 
+[[nodiscard]]
 internal Net_Result_Int socket_write(Socket socket, Byte_Slice buf) {
   Net_Result_Int result = {0};
 
@@ -127,7 +133,7 @@ internal Net_Result_Int socket_write(Socket socket, Byte_Slice buf) {
   result.value = syscall(SYS_sendmsg, socket, &socket_msg, MSG_NOSIGNAL | 0x40, 0, 0);
   if (result.value < 0) {
     // log_errorf(LIT("Errno: 0x%x"), -result.value);
-    // result.err = NE_Other;
+    result.err = NE_Other;
   }
   return result;
 }
@@ -136,6 +142,7 @@ internal Maybe_Int writer_socket_proc(rawptr data, Byte_Slice buf) {
   return result_to_maybe(Maybe_Int, socket_write(transmute(Socket, data), buf));
 }
 
+[[nodiscard]]
 internal Writer writer_from_socket(Socket socket) {
   return (Writer){
       .data = transmute(rawptr, socket),

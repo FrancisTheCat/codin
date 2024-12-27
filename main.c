@@ -226,43 +226,54 @@ int main() {
   });
 
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("sort"), get_time_in_micros());
-  sort_slice_by(directory, i, j, string_compare_lexicographic(directory.data[i].name, directory.data[j].name));
-      // ((dir.data[i].is_dir != dir.data[j].is_dir)
-      //      ? dir.data[i].is_dir
-      //      : string_compare_lexicographic(dir.data[i].name,
-      //      dir.data[j].name)));
+  // sort_slice_by(directory, i, j, string_compare_lexicographic(directory.data[i].name, directory.data[j].name));
+  sort_slice_by(
+    directory,
+    i,
+    j,
+    (directory.data[i].is_dir != directory.data[j].is_dir)
+     ? directory.data[i].is_dir
+     : string_compare_lexicographic(directory.data[i].name, directory.data[j].name)
+  );
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   String cwd = unwrap_err(_get_current_directory(context.temp_allocator));
   fmt_printfln(LIT("Directory: %S\n"), cwd);
 
-  String spaces = slice_make(String, max_name_len, context.temp_allocator);
+  String spaces = slice_make(String, max_size_len, context.temp_allocator);
   slice_iter(spaces, s, _i, {
     *(char *)s = ' ';
   });
 
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("print_directory"), get_time_in_micros());
-  {
-    Builder buffer;
-    builder_init(&buffer, 0, 8, context.temp_allocator);
-    Writer w = writer_from_builder(&buffer);
-    slice_iter(directory, file, i, {
-      isize n = fmt_wprintf(&w, LIT("%S"), file->name);
-      fmt_wprint(&w, slice_range(spaces, 0, max_name_len - n));
 
-      fmt_wprint(&w, LIT(" | "));
+  String name_format = fmt_tprintf(LIT("%%-%dS | "), max_name_len);
 
-      if (file->is_dir) {
-        n = fmt_wprint(&w, LIT("<dir>"));
-      } else {
-        n = fmt_wprintf(&w, LIT("%M"), file->size);
-      }
-      fmt_wprint(&w, slice_range(spaces, 0, max_size_len - n));
+  Builder b = builder_make(0, 1024, context.temp_allocator);
+  
+  slice_iter(directory, file, i, {
+    isize n = fmt_sbprintf(&b, name_format, file->name);
 
-      fmt_wprintfln(&w, LIT(" | %T | %T | %T"), file->creation_time, file->modification_time, file->acces_time);
-    });
-    fmt_print(builder_to_string(buffer));
-  }
+    if (file->is_dir) {
+      n = fmt_sbprintf(&b, LIT("<dir>"));
+    } else {
+      n = fmt_sbprintf(&b, LIT("%M"), file->size);
+    }
+
+    fmt_sbprintfln(
+      &b,
+      LIT("%S | %T | %T | %T"),
+      slice_range(spaces, 0, max_size_len - n),
+      file->creation_time,
+      file->modification_time,
+      file->acces_time
+    );
+  });
+  
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("write_directory"), get_time_in_micros());
+  write_bytes(&stdout, builder_to_bytes(b));
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   fmt_println(LIT(""));
@@ -386,6 +397,7 @@ int main() {
   image_clone_to_rgba8(&backing_image, &rgba8_image, context.allocator);
   assert(ok);
   UI_Image image = ui_create_image(&ui_context, rgba8_image);
+  (void)image;
 
   struct Time last_fps_print = time_now();
   isize frames_since_print = 0;
@@ -453,13 +465,15 @@ int main() {
     if (state.surface_state == Surface_State_Attached && state.buffer_state == Buffer_State_Released) {
       frames_since_print += 1;
 
-      if (time_now().nsec - last_fps_print.nsec > Second) {
+      struct Time current_time = time_now();
+
+      if (time_diff(current_time, last_fps_print) > Second) {
         if (fps_string.data) {
           string_delete(fps_string, context.allocator);
         }
         fps_string = fmt_aprintf(context.allocator, LIT("FPS: %d"), frames_since_print);
         wayland_xdg_toplevel_set_title(&wl_connection, state.xdg_toplevel, fps_string);
-        last_fps_print = time_now();
+        last_fps_print = current_time;
         frames_since_print = 0;
       }
 
@@ -478,6 +492,10 @@ int main() {
   directory_delete(directory, context.allocator);
   ui_context_destroy(&ui_context, context.allocator);
 
+  if (state.keymap_data.data) {
+    slice_delete(state.keymap, context.allocator);
+    os_deallocate_pages(state.keymap_data.data, state.keymap_data.len);
+  }
   wayland_connection_destroy(&wl_connection);
 
   slice_delete(rgba8_image.pixels, context.allocator);

@@ -1,6 +1,8 @@
 #include "codin.h"
 
 internal String path_to_absolute(String relative, Allocator allocator) {
+  (void)relative;
+  (void)allocator;
   unimplemented();
 }
 

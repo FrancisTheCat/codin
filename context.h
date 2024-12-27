@@ -8,6 +8,22 @@ typedef enum {
   LL_Fatal,
 } Log_Level;
 
+ENUM_TO_STRING_PROC_DECL(Log_Level, l) {
+  switch (l) {
+  case LL_Debug:
+    return LIT("LL_Debug");
+  case LL_Info:
+    return LIT("LL_Info");
+  case LL_Warn:
+    return LIT("LL_Warn");
+  case LL_Error:
+    return LIT("LL_Error");
+  case LL_Fatal:
+    return LIT("LL_Fatal");
+  }
+  return LIT("LL_INVALID");
+}
+
 typedef void (*Logger_Proc)(rawptr, Log_Level, String, Source_Code_Location const *);
 
 typedef struct {
@@ -18,7 +34,7 @@ typedef struct {
 typedef struct {
   Allocator allocator;
   Allocator temp_allocator;
-  Logger logger;
+  Logger    logger;
 } Context;
 
 internal _Thread_local Context context;

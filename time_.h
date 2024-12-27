@@ -1,14 +1,14 @@
 #include "codin.h"
 
-#define Nanosecond (1)
-#define Microsecond (1000 * Nanosecond)
-#define Millisecond (1000 * Microsecond)
-#define Second (1000 * Millisecond)
-#define Minute (60 * Second)
-#define Hour (60 * Minute)
-#define Day (24 * Hour)
+#define Nanosecond (u64)(1)
+#define Microsecond (u64)(1000 * Nanosecond)
+#define Millisecond (u64)(1000 * Microsecond)
+#define Second (u64)(1000 * Millisecond)
+#define Minute (u64)(60 * Second)
+#define Hour (u64)(60 * Minute)
+#define Day (u64)(24 * Hour)
 
-typedef isize Duration;
+typedef i64 Duration;
 
 typedef enum {
   MONTH_January,
@@ -36,7 +36,7 @@ typedef enum {
 } Weekday;
 
 struct Time {
-  isize nsec;
+  i64 nsec;
 };
 
 typedef struct {
@@ -62,6 +62,7 @@ internal void time_get_value(struct Time time, Time_Value *value) {
   time_date(time, true, &value->year, &value->month, &value->day, &_yday);
 }
 
+[[nodiscard]]
 internal struct Time time_now() {
   struct {
     i64 seconds;
@@ -145,10 +146,12 @@ internal void time_precise_clock(struct Time time, isize *hour, isize *min, isiz
   return;
 }
 
+[[nodiscard]]
 internal u64 _time_abs(struct Time t) {
 	return (u64)(t.nsec/(isize)1e9 + UNIX_TO_ABSOLUTE);
 }
 
+[[nodiscard]]
 internal b8 _time_is_leap_year (isize year){
 	return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
 }
@@ -230,3 +233,10 @@ internal void time_date(struct Time t, b8 full, isize *year, isize *month, isize
 	 _abs_date(_time_abs(t), full, year, month, day, yday);
 }
 
+internal Duration time_diff(struct Time a, struct Time b) {
+	return (Duration)(a.nsec - b.nsec);
+}
+
+internal Duration time_since(struct Time t) {
+	return time_diff(time_now(), t);
+}

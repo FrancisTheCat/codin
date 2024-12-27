@@ -40,7 +40,7 @@ typedef enum {
 	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out = 34,
 } Wayland_Wp_Cursor_Shape_Device_V1_Shape;
 
-internal String wayland_wp_cursor_shape_device_v1_shape_string(Wayland_Wp_Cursor_Shape_Device_V1_Shape v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wp_Cursor_Shape_Device_V1_Shape, v) {
 	switch (v) {
 	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Default:
 		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Default");
@@ -111,23 +111,23 @@ internal String wayland_wp_cursor_shape_device_v1_shape_string(Wayland_Wp_Cursor
 	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out:
 		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out");
 	}
-	return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Invalid_Enum_Value");
+	return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_INVALID");
 }
 
 typedef enum {
 	Wayland_Wp_Cursor_Shape_Device_V1_Error_Invalid_Shape = 1,
 } Wayland_Wp_Cursor_Shape_Device_V1_Error;
 
-internal String wayland_wp_cursor_shape_device_v1_error_string(Wayland_Wp_Cursor_Shape_Device_V1_Error v) {
+ENUM_TO_STRING_PROC_DECL(Wayland_Wp_Cursor_Shape_Device_V1_Error, v) {
 	switch (v) {
 	case Wayland_Wp_Cursor_Shape_Device_V1_Error_Invalid_Shape:
 		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Error_Invalid_Shape");
 	}
-	return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Error_Invalid_Enum_Value");
+	return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Error_INVALID");
 }
 
-internal void wayland_wp_cursor_shape_manager_v1_destroy(Wayland_Connection *wc, u32 wp_cursor_shape_manager_v1) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wp_cursor_shape_manager_v1_destroy(Wayland_Connection *conn, u32 wp_cursor_shape_manager_v1) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wp_cursor_shape_manager_v1);
 	u16 _opcode = 0;
@@ -139,8 +139,8 @@ internal void wayland_wp_cursor_shape_manager_v1_destroy(Wayland_Connection *wc,
 	wayland_log_infof(LIT("-> wp_cursor_shape_manager_v1@%d.destroy:"), wp_cursor_shape_manager_v1);
 }
 
-internal u32 wayland_wp_cursor_shape_manager_v1_get_pointer(Wayland_Connection *wc, u32 wp_cursor_shape_manager_v1, u32 pointer) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wp_cursor_shape_manager_v1_get_pointer(Wayland_Connection *conn, u32 wp_cursor_shape_manager_v1, u32 pointer) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wp_cursor_shape_manager_v1);
 	u16 _opcode = 1;
@@ -148,8 +148,7 @@ internal u32 wayland_wp_cursor_shape_manager_v1_get_pointer(Wayland_Connection *
 	u16 _msg_size = 16;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 	write_any(w, &pointer);
 
@@ -157,8 +156,8 @@ internal u32 wayland_wp_cursor_shape_manager_v1_get_pointer(Wayland_Connection *
 	return return_value;
 }
 
-internal u32 wayland_wp_cursor_shape_manager_v1_get_tablet_tool_v2(Wayland_Connection *wc, u32 wp_cursor_shape_manager_v1, u32 tablet_tool) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal u32 wayland_wp_cursor_shape_manager_v1_get_tablet_tool_v2(Wayland_Connection *conn, u32 wp_cursor_shape_manager_v1, u32 tablet_tool) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wp_cursor_shape_manager_v1);
 	u16 _opcode = 2;
@@ -166,8 +165,7 @@ internal u32 wayland_wp_cursor_shape_manager_v1_get_tablet_tool_v2(Wayland_Conne
 	u16 _msg_size = 16;
 
 	write_any(w, &_msg_size);
-	wc->current_id  += 1;
-	u32 return_value = wc->current_id;
+	u32 return_value = _wayland_connection_get_next_id(conn);
 	write_any(w, &return_value);
 	write_any(w, &tablet_tool);
 
@@ -175,8 +173,8 @@ internal u32 wayland_wp_cursor_shape_manager_v1_get_tablet_tool_v2(Wayland_Conne
 	return return_value;
 }
 
-internal void wayland_wp_cursor_shape_device_v1_destroy(Wayland_Connection *wc, u32 wp_cursor_shape_device_v1) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wp_cursor_shape_device_v1_destroy(Wayland_Connection *conn, u32 wp_cursor_shape_device_v1) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wp_cursor_shape_device_v1);
 	u16 _opcode = 0;
@@ -188,8 +186,8 @@ internal void wayland_wp_cursor_shape_device_v1_destroy(Wayland_Connection *wc, 
 	wayland_log_infof(LIT("-> wp_cursor_shape_device_v1@%d.destroy:"), wp_cursor_shape_device_v1);
 }
 
-internal void wayland_wp_cursor_shape_device_v1_set_shape(Wayland_Connection *wc, u32 wp_cursor_shape_device_v1, u32 serial, Wayland_Wp_Cursor_Shape_Device_V1_Shape shape) {
-	Writer _w = writer_from_builder(&wc->builder);
+internal void wayland_wp_cursor_shape_device_v1_set_shape(Wayland_Connection *conn, u32 wp_cursor_shape_device_v1, u32 serial, Wayland_Wp_Cursor_Shape_Device_V1_Shape shape) {
+	Writer _w = writer_from_builder(&conn->builder);
 	Writer *w = &_w;
 	write_any(w, &wp_cursor_shape_device_v1);
 	u16 _opcode = 1;
@@ -201,6 +199,6 @@ internal void wayland_wp_cursor_shape_device_v1_set_shape(Wayland_Connection *wc
 	u32 shape_value = (u32)shape;
 	write_any(w, &shape_value);
 
-	wayland_log_infof(LIT("-> wp_cursor_shape_device_v1@%d.set_shape: serial=%d shape=%S"), wp_cursor_shape_device_v1, serial, wayland_wp_cursor_shape_device_v1_shape_string(shape));
+	wayland_log_infof(LIT("-> wp_cursor_shape_device_v1@%d.set_shape: serial=%d shape=%S"), wp_cursor_shape_device_v1, serial, enum_to_string(Wayland_Wp_Cursor_Shape_Device_V1_Shape, shape));
 }
 

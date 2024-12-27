@@ -165,20 +165,20 @@ SPALL_FN b8 spall_buffer_flush(SpallProfile *ctx, SpallBuffer *wb) {
 }
 
 SPALL_FN b8 spall_buffer_init(SpallProfile *ctx, SpallBuffer *wb) {
-    if (!spall_buffer_flush(NULL, wb)) return false;
+    if (!spall_buffer_flush(nil, wb)) return false;
     wb->ctx = ctx;
     return true;
 }
 SPALL_FN b8 spall_buffer_quit(SpallProfile *ctx, SpallBuffer *wb) {
     if (!spall_buffer_flush(ctx, wb)) return false;
-    wb->ctx = NULL;
+    wb->ctx = nil;
     return true;
 }
 
 SPALL_FN b8 spall_buffer_abort(SpallBuffer *wb) {
     if (!wb) return false;
-    wb->ctx = NULL;
-    if (!spall__buffer_flush(NULL, wb)) return false;
+    wb->ctx = nil;
+    if (!spall__buffer_flush(nil, wb)) return false;
     return true;
 }
 

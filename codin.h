@@ -2,6 +2,7 @@
 
 #include "runtime_linux.h"
 
+//NOLINTBEGIN
 #ifndef GB_STATIC_ASSERT
 	#define GB_STATIC_ASSERT3(cond, msg) typedef char static_assertion_##msg[(!!(cond))*2-1]
 	// NOTE(bill): Token pasting madness!!
@@ -9,6 +10,7 @@
 	#define GB_STATIC_ASSERT1(cond, line) GB_STATIC_ASSERT2(cond, line)
 	#define GB_STATIC_ASSERT(cond)        GB_STATIC_ASSERT1(cond, __LINE__)
 #endif
+//NOLINTEND
 
 #define nil 0
 #define false 0
@@ -203,6 +205,7 @@ rawptr memset(u8 *data, i32 c, isize n) {
   return data;
 }
 
+[[nodiscard]]
 internal String format_usize_to_buffer(usize value, Byte_Slice buffer) {
     isize i = 0;
 
@@ -310,6 +313,8 @@ internal void __thread_cleanup();
 internal void __runtime_cleanup();
 
 #include "result.h"
+
+#include "enum.h"
 
 #include "mem.h"
 

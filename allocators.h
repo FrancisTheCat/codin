@@ -4,10 +4,18 @@ internal rawptr os_allocate_pages(isize n);
 internal b8 os_deallocate_pages(rawptr p, isize n);
 #define OS_PAGE_SIZE (4 * Kibibyte)
 
-internal Allocator_Result __mmap_allocator_proc(rawptr data, Allocator_Mode mode,
-                                             isize size, isize align,
-                                             rawptr old_memory,
-                                             Source_Code_Location location) {
+internal Allocator_Result __mmap_allocator_proc(
+  rawptr data,
+  Allocator_Mode mode,
+  isize size,
+  isize align,
+  rawptr old_memory,
+  Source_Code_Location location
+) {
+  (void)data;
+  (void)align;
+  (void)location;
+
   Allocator_Result result = {0};
   isize end_padding;
   switch (mode) {
@@ -40,6 +48,7 @@ internal Allocator_Result __mmap_allocator_proc(rawptr data, Allocator_Mode mode
   unreachable();
 }
 
+[[nodiscard]]
 internal Allocator __mmap_allocator() {
   return (Allocator) {
       __mmap_allocator_proc,
@@ -53,10 +62,17 @@ typedef struct {
   byte *data;
 } Arena_Allocator;
 
-internal Allocator_Result arena_allocator_proc(rawptr data, Allocator_Mode mode,
-                                               isize size, isize align,
-                                               rawptr old_memory,
-                                               Source_Code_Location location) {
+internal Allocator_Result arena_allocator_proc(
+  rawptr data,
+  Allocator_Mode mode,
+  isize size,
+  isize align,
+  rawptr old_memory,
+  Source_Code_Location location
+) {
+  (void)location;
+  (void)old_memory;
+
   Allocator_Result result = {.value = nil, .err = AE_None};
   assert(data);
   Arena_Allocator *a = (Arena_Allocator *)data;
@@ -88,6 +104,7 @@ internal Allocator_Result arena_allocator_proc(rawptr data, Allocator_Mode mode,
   unreachable();
 }
 
+[[nodiscard]]
 internal Allocator arena_allocator_init(Arena_Allocator *arena, isize capacity,
                                         Allocator backing_allocator) {
   arena->data = (byte *)unwrap_err(mem_alloc(capacity, backing_allocator));
@@ -117,8 +134,16 @@ typedef struct {
 } Growing_Arena_Allocator;
 
 internal Allocator_Result growing_arena_allocator_proc(
-    rawptr data, Allocator_Mode mode, isize size, isize align,
-    rawptr old_memory, Source_Code_Location location) {
+  rawptr data,
+  Allocator_Mode mode,
+  isize size,
+  isize align,
+  rawptr old_memory,
+  Source_Code_Location location
+) {
+  (void)location;
+  (void)old_memory;
+
   Allocator_Result result = {0};
 
   assert(data);
@@ -183,6 +208,7 @@ internal void growing_arena_allocator_destroy(Growing_Arena_Allocator arena) {
   vector_delete(arena.blocks);
 }
 
+[[nodiscard]]
 internal Allocator growing_arena_allocator_init(Growing_Arena_Allocator *ga,
                                                 isize block_size,
                                                 Allocator backing_allocator) {
@@ -222,10 +248,14 @@ pool_allocator_chunk_init(rawptr data, isize chunk_size, isize block_size) {
   return prev;
 }
 
-internal Allocator_Result pool_allocator_proc(rawptr data, Allocator_Mode mode,
-                                              isize size, isize align,
-                                              rawptr old_memory,
-                                              Source_Code_Location location) {
+internal Allocator_Result pool_allocator_proc(
+  rawptr data,
+  Allocator_Mode mode,
+  isize size,
+  isize align,
+  rawptr old_memory,
+  Source_Code_Location location
+) {
   Allocator_Result result = {.value = nil, .err = AE_None};
 
   assert(data);
@@ -302,6 +332,7 @@ internal Allocator_Result pool_allocator_proc(rawptr data, Allocator_Mode mode,
   unreachable();
 }
 
+[[nodiscard]]
 internal Allocator pool_allocator(Pool_Allocator *pool, isize block_size,
                                   isize chunk_size, bsize growing,
                                   Allocator backing_allocator) {
@@ -366,8 +397,13 @@ typedef struct {
 } Tracking_Allocator;
 
 internal Allocator_Result tracking_allocator_proc(
-    rawptr data, Allocator_Mode mode, isize size, isize align,
-    rawptr old_memory, Source_Code_Location location) {
+  rawptr data,
+  Allocator_Mode mode,
+  isize size,
+  isize align,
+  rawptr old_memory,
+  Source_Code_Location location
+) {
   Allocator_Result result = {.value = nil, .err = AE_None};
 
   assert(data);
@@ -435,6 +471,7 @@ internal void tracking_allocator_destroy(Tracking_Allocator track) {
   hash_map_delete(track.allocations);
 }
 
+[[nodiscard]]
 internal Allocator tracking_allocator_init(Tracking_Allocator *track,
                                            Allocator backing_allocator) {
   hash_map_init(&track->allocations, 1024, nil, nil, backing_allocator);
@@ -453,8 +490,17 @@ typedef struct {
 } Ring_Buffer_Allocator;
 
 internal Allocator_Result ring_buffer_allocator_proc(
-    rawptr data, Allocator_Mode mode, isize size, isize align,
-    rawptr old_memory, Source_Code_Location location) {
+  rawptr data,
+  Allocator_Mode mode,
+  isize size,
+  isize align,
+  rawptr old_memory,
+  Source_Code_Location location
+) {
+  (void)align;
+  (void)location;
+  (void)old_memory;
+
   Allocator_Result result = {.value = nil, .err = AE_None};
 
   assert(data);
@@ -485,6 +531,7 @@ internal Allocator_Result ring_buffer_allocator_proc(
   unreachable();
 }
 
+[[nodiscard]]
 internal Allocator ring_buffer_allocator(Ring_Buffer_Allocator *r) {
   return (Allocator) {
     .proc = ring_buffer_allocator_proc,
@@ -492,13 +539,26 @@ internal Allocator ring_buffer_allocator(Ring_Buffer_Allocator *r) {
   };
 }
 
-internal Allocator_Result nil_allocator_proc(rawptr data, Allocator_Mode mode,
-                                             isize size, isize align,
-                                             rawptr old_memory,
-                                             Source_Code_Location location) {
+internal Allocator_Result nil_allocator_proc(
+  rawptr data,
+  Allocator_Mode mode,
+  isize size,
+  isize align,
+  rawptr old_memory,
+  Source_Code_Location location
+) {
+  (void)data;
+  (void)mode;
+  (void)size;
+  (void)align;
+  (void)old_memory;
+  (void)location;
+
   return (Allocator_Result) {.value = nil, .err = AE_None};
 }
 
+
+[[nodiscard]]
 internal Allocator nil_allocator() {
   return (Allocator) {
     .proc = nil_allocator_proc,
@@ -506,13 +566,24 @@ internal Allocator nil_allocator() {
   };
 }
 
-internal Allocator_Result panic_allocator_proc(rawptr data, Allocator_Mode mode,
-                                               isize size, isize align,
-                                               rawptr old_memory,
-                                               Source_Code_Location location) {
+internal Allocator_Result panic_allocator_proc(
+  rawptr data,
+  Allocator_Mode mode,
+  isize size,
+  isize align,
+  rawptr old_memory,
+  Source_Code_Location location
+) {
+  (void)data;
+  (void)mode;
+  (void)size;
+  (void)align;
+  (void)old_memory;
+  (void)location;
   panic("panic allocator");
 }
 
+[[nodiscard]]
 internal Allocator panic_allocator() {
   return (Allocator) {
     .proc = panic_allocator_proc,
@@ -548,12 +619,18 @@ typedef struct {
   Default_Allocator_Block_Header *dynamic_chunks;
 } Default_Allocator;
 
-internal Allocator_Result default_allocator_proc(rawptr data, Allocator_Mode mode,
-                                             isize size, isize align,
-                                             rawptr old_memory,
-                                             Source_Code_Location location) {
+internal Allocator_Result default_allocator_proc(
+  rawptr data,
+  Allocator_Mode mode,
+  isize size,
+  isize align,
+  rawptr old_memory,
+  Source_Code_Location location
+) {
+  (void)location;
+
   Allocator_Result result = {0};
-  Default_Allocator *sa = (Default_Allocator *)data;
+  Default_Allocator *da = (Default_Allocator *)data;
   Default_Page_Header *page_header = nil;
 
   isize size_category = 0;
@@ -577,12 +654,12 @@ internal Allocator_Result default_allocator_proc(rawptr data, Allocator_Mode mod
     case 2:
     case 3:
     case 4:
-      if (!sa->fixed_allocator_free[size_category]) {
-        sa->fixed_allocator_free[size_category] =
+      if (!da->fixed_allocator_free[size_category]) {
+        da->fixed_allocator_free[size_category] =
           pool_allocator_chunk_init(os_allocate_pages(1), OS_PAGE_SIZE, 8 << size_category);
       }
-      result.value = sa->fixed_allocator_free[size_category];
-      sa->fixed_allocator_free[size_category] = *(rawptr *)result.value;
+      result.value = da->fixed_allocator_free[size_category];
+      da->fixed_allocator_free[size_category] = *(rawptr *)result.value;
       mem_zero(result.value, size);
       return result;
     case 5:
@@ -603,10 +680,10 @@ internal Allocator_Result default_allocator_proc(rawptr data, Allocator_Mode mod
     case 2:
     case 3:
     case 4:
-      if (sa->fixed_allocator_free[size_category]) {
-        *(rawptr *)old_memory = sa->fixed_allocator_free[size_category];
+      if (da->fixed_allocator_free[size_category]) {
+        *(rawptr *)old_memory = da->fixed_allocator_free[size_category];
       }
-      sa->fixed_allocator_free[size_category] = old_memory;
+      da->fixed_allocator_free[size_category] = old_memory;
       return result;
     case 5:
       page_header = &((Default_Page_Header *)old_memory)[-1];
@@ -619,14 +696,16 @@ internal Allocator_Result default_allocator_proc(rawptr data, Allocator_Mode mod
   }
 }
 
-internal Allocator default_allocator_init(Default_Allocator *sa) {
-  *sa = (Default_Allocator) {0};
+[[nodiscard]]
+internal Allocator default_allocator_init(Default_Allocator *a) {
+  *a = (Default_Allocator) {0};
   return (Allocator) {
     .proc = default_allocator_proc,
-    .data = (rawptr)sa,
+    .data = (rawptr)a,
   };
 }
 
-internal void default_allocator_destroy(Default_Allocator *sa) {
+internal void default_allocator_destroy(Default_Allocator *a) {
+  (void)a;
   unimplemented();
 }

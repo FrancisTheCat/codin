@@ -7,6 +7,21 @@ typedef enum {
   AE_Unimplemented = 3,
 } Allocator_Error;
 
+ENUM_TO_STRING_PROC_DECL(Allocator_Error, e) {
+  switch (e) {
+  case AE_None:
+    return LIT("AE_None");
+  case AE_Out_Of_Memory:
+    return LIT("AE_Out_Of_Memory");
+  case AE_Invalid_Arguments:
+    return LIT("AE_Invalid_Arguments");
+  case AE_Unimplemented:
+    return LIT("AE_Unimplemented");
+  default:
+    return LIT("AE_INVALID");
+  }
+}
+
 typedef Result(rawptr, Allocator_Error) Allocator_Result;
 
 typedef enum {
@@ -37,7 +52,7 @@ typedef struct {
 #define Tebibyte (1024 * Gibibyte)
 #define Pebibyte (1024 * Tebibyte)
 
-internal String allocator_mode_string(Allocator_Mode m) {
+ENUM_TO_STRING_PROC_DECL(Allocator_Mode, m) {
   switch (m) {
   case AM_Alloc:
     return LIT("AM_Alloc");
@@ -46,21 +61,7 @@ internal String allocator_mode_string(Allocator_Mode m) {
   case AM_Free_All:
     return LIT("AM_Free_All");
   }
-  return LIT("AM_INVALID_ENUM_VALUE");
-}
-
-internal String allocator_error_string(Allocator_Error e) {
-  switch (e) {
-  case AE_None:
-    return LIT("AE_None");
-  case AE_Out_Of_Memory:
-    return LIT("AE_Out_Of_Memory");
-  case AE_Invalid_Arguments:
-    return LIT("AE_Invalid_Arguments");
-  case AE_Unimplemented:
-    return LIT("AE_Unimplemented");
-  }
-  return LIT("AE_INVALID_ENUM_VALUE");
+  return LIT("AM_INVALID");
 }
 
 internal void mem_zero(rawptr data, isize len) {
