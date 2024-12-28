@@ -260,9 +260,9 @@ int main() {
       n = fmt_sbprintf(&b, LIT("%M"), file->size);
     }
 
-    fmt_sbprintfln(
+    fmt_sbprintf(
       &b,
-      LIT("%S | %T | %T | %T"),
+      LIT("%S | %T | %T | %T\n"),
       slice_range(spaces, 0, max_size_len - n),
       file->creation_time,
       file->modification_time,
@@ -422,6 +422,13 @@ int main() {
       if (!state.wl_pointer) {
         state.wl_pointer = wayland_wl_seat_get_pointer(&wl_connection, state.wl_seat);
       }
+
+      // if (!!state.wl_data_device_manager && !state.wl_data_source) {
+      //   state.wl_data_source = wayland_wl_data_device_manager_create_data_source(&wl_connection, state.wl_data_device_manager);
+      //   wayland_wl_data_source_offer(&wl_connection, state.wl_data_source, LIT("text/plain"));
+      //   state.wl_data_device = wayland_wl_data_device_manager_get_data_device(&wl_connection, state.wl_data_device_manager, state.wl_seat);
+      //   wayland_wl_data_device_set_selection(&wl_connection, state.wl_data_device, state.wl_data_source, 0);
+      // }
     }
 
     if (state.surface_state == Surface_State_Acked_Configure && state.buffer_state == Buffer_State_Released) {

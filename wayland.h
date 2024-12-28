@@ -404,6 +404,7 @@ internal void wayland_handle_events(Wayland_Connection *conn, Wayland_State *sta
         break;
 
       case Wayland_Xdg_Toplevel_Event_Close:
+        wayland_parse_event_xdg_toplevel_close(conn);
         state->should_close = true;
         break;
 
@@ -512,7 +513,6 @@ internal void wayland_handle_events(Wayland_Connection *conn, Wayland_State *sta
         break;
       case Wayland_Wl_Pointer_Event_Axis:
         wayland_parse_event_wl_pointer_axis(conn, &time, &axis, &value);
-
         break;
 
       case Wayland_Wl_Pointer_Event_Enter:
@@ -547,6 +547,7 @@ internal void wayland_handle_events(Wayland_Connection *conn, Wayland_State *sta
       case Wayland_Wl_Data_Source_Event_Target:
         String mime_type;
         wayland_parse_event_wl_data_source_target(conn, &mime_type, context.temp_allocator);
+        fmt_debug(mime_type, "S");
         break;
       case Wayland_Wl_Data_Source_Event_Send:
         Fd fd;

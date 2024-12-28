@@ -23,19 +23,18 @@ typedef __builtin_va_list va_list;
 typedef struct {
   isize width;
   isize precision;
-  b8 left_justify;
-  b8 pad_zeroes;
-  b8 is_pointer;
-  b8 is_slice;
-  char verb;
-  b8 complete;
+  b8    left_justify;
+  b8    pad_zeroes;
+  b8    is_pointer;
+  b8    is_slice;
+  char  verb;
+  b8    complete;
 } _Formatter_Context;
 
 typedef isize (*Format_User_Callback)(Writer const *w, rawptr);
 
 [[nodiscard]]
-internal String __format_float_to_buffer(f64 value, Byte_Slice buffer,
-                                         isize precision) {
+internal String __format_float_to_buffer(f64 value, Byte_Slice buffer, isize precision) {
   if (value == __builtin_inf()) {
     buffer.data[0] = 'I';
     buffer.data[1] = 'n';
@@ -88,8 +87,7 @@ internal String __format_float_to_buffer(f64 value, Byte_Slice buffer,
   return (String){.data = (char *)buffer.data, .len = n};
 }
 
-internal isize __format_justify(Writer const *w, String s,
-                                _Formatter_Context *ctx) {
+internal isize __format_justify(Writer const *w, String s, _Formatter_Context *ctx) {
   isize n = 0;
 #define N 32
   local_persist char buf[N];
@@ -97,17 +95,17 @@ internal isize __format_justify(Writer const *w, String s,
   if (ctx->left_justify) {
     n = or_return(write_string(w, s), n);
     while (n < ctx->width) {
-      n +=
-          or_return(write_bytes(w, (Byte_Slice){.data = (byte *)buf,
-                                                .len = min(ctx->width - n, N)}),
-                    n);
+      n += or_return(
+        write_bytes(w, (Byte_Slice){.data = (byte *)buf, .len = min(ctx->width - n, N)}),
+        n
+      );
     }
   } else {
     while (n < ctx->width - s.len) {
       n += or_return(
-          write_bytes(w, (Byte_Slice){.data = (byte *)buf,
-                                      .len = min(ctx->width - s.len - n, N)}),
-          n);
+        write_bytes(w, (Byte_Slice){.data = (byte *)buf, .len = min(ctx->width - s.len - n, N)}),
+        n
+      );
     }
     n = or_return(write_string(w, s), n);
   }
@@ -150,8 +148,7 @@ internal String format_usize_to_buffer_bin(usize x, Byte_Slice buffer) {
 }
 
 internal isize fmt_file_size_w(const Writer *w, isize size);
-internal isize fmt_location_w(const Writer *w,
-                              Source_Code_Location const *location);
+internal isize fmt_location_w(const Writer *w, Source_Code_Location const *location);
 internal isize fmt_time_w(const Writer *w, struct Time time);
 
 internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
@@ -508,8 +505,7 @@ internal isize fmt_wprintf(const Writer *w, String format, ...) {
   return result;
 }
 
-internal isize fmt_sbprintf_va(Builder *b, String format,
-                               va_list va_args) {
+internal isize fmt_sbprintf_va(Builder *b, String format, va_list va_args) {
   Writer w;
   w = writer_from_builder(b);
   return fmt_wprintf_va(&w, format, va_args);
@@ -527,8 +523,7 @@ internal isize fmt_sbprintf(Builder *b, String format, ...) {
 }
 
 [[nodiscard]]
-internal String fmt_aprintf_va(Allocator allocator, String format,
-                               va_list va_args) {
+internal String fmt_aprintf_va(Allocator allocator, String format, va_list va_args) {
   Builder b;
   Writer w;
 
@@ -552,8 +547,7 @@ internal String fmt_aprintf(Allocator allocator, String format, ...) {
 }
 
 [[nodiscard]]
-internal cstring fmt_caprintf_va(Allocator allocator, String format,
-                                 va_list va_args) {
+internal cstring fmt_caprintf_va(Allocator allocator, String format, va_list va_args) {
   Builder b;
   Writer w;
 
@@ -588,8 +582,7 @@ internal cstring fmt_caprintf(Allocator allocator, String format, ...) {
   
 
 [[nodiscard]]
-internal String fmt_bprintf_va(Byte_Slice buffer, String format,
-                               va_list va_args) {
+internal String fmt_bprintf_va(Byte_Slice buffer, String format, va_list va_args) {
   Builder b;
   Writer w;
   String str;
@@ -636,8 +629,10 @@ internal isize fmt_fprintf(Fd f, String format, ...) {
   return ret;
 }
 
-internal isize fmt_location_w(const Writer *w,
-                              Source_Code_Location const *loc) {
+internal isize fmt_location_w(
+  const Writer *w,
+  Source_Code_Location const *loc
+) {
   return fmt_wprintf(w, LIT("%S:%S(%d)"), loc->file, loc->proc, loc->line);
 }
 
@@ -674,13 +669,12 @@ internal isize fmt_time_w(const Writer *w, struct Time time) {
 }
 
 #define fmt_debug(value, verb)                                                 \
-  {                                                                            \
-    String format = fmt_tprintf(LIT("%%S: %%%S\n"), LIT(#verb));               \
-    fmt_eprintfln(format, LIT(#value), value);                                 \
-  }
+  fmt_eprintf(LIT(#value ": %" verb "\n"), value);                             \
 
-internal void tracking_allocator_fmt_results_w(const Writer *w,
-                                               const Tracking_Allocator *t) {
+internal void tracking_allocator_fmt_results_w(
+  const Writer *w,
+  const Tracking_Allocator *t
+) {
   fmt_wprintf(w, LIT("Failed Allocations: %d\n"), t->failed_allocations.len);
   vector_iter(t->failed_allocations, fa, i, {
     fmt_wprintf(
@@ -710,62 +704,63 @@ internal void tracking_allocator_fmt_results_w(const Writer *w,
   });
 }
 
-#define fmt_slice_w(w, _slice, _format)                                        \
+#define fmt_slice_w(_w, _slice, _format)                                       \
   {                                                                            \
     type_of(_slice) _fmt_slice_w_slice = _slice;                               \
-    fmt_wprintf(w, LIT("["));                                                  \
+    type_of(_w) _fmt_slice_w_w = _w;                                           \
+    fmt_wprintf(_fmt_slice_w_w, LIT("["));                                     \
     String format = fmt_tprintf(LIT("%s, "), _format);                         \
     slice_iter(_fmt_slice_w_slice, elem, i, {                                  \
       if (i != _fmt_slice_w_slice.len - 1) {                                   \
-        fmt_wprintf(w, format, *elem);                                         \
+        fmt_wprintf(_fmt_slice_w_w, format, *elem);                            \
       } else {                                                                 \
-        fmt_wprintf(w, _format, *elem);                                        \
+        fmt_wprintf(_fmt_slice_w_w, _format, *elem);                           \
       }                                                                        \
     });                                                                        \
-    fmt_wprintf(w, LIT("]"));                                                  \
+    fmt_wprintf(_fmt_slice_w_w, LIT("]"));                                     \
   }
 
 //NOLINTBEGIN
 
 #define fmt_wprint(w, str) fmt_wprintf(w, LIT("%S"), str)
 #define fmt_wprintln(w, str) fmt_wprintf(w, LIT("%S\n"), str)
-#define fmt_wprintfln(w, format, ...)                                          \
-  (fmt_wprintf(w, format, __VA_ARGS__) + fmt_wprintf(w, LIT("\n")))
+// #define fmt_wprintfln(w, format, ...)                                          \
+//   (fmt_wprintf(w, format, __VA_ARGS__) + fmt_wprintf(w, LIT("\n")))
 
 #define fmt_bprint(w, str) fmt_bprintf(w, LIT("%S"), str)
 #define fmt_bprintln(w, str) fmt_bprintf(w, LIT("%S\n"), str)
-#define fmt_bprintfln(w, format, ...)                                          \
-  (fmt_bprintf(w, format, __VA_ARGS__) + fmt_bprintf(w, LIT("\n")))
+// #define fmt_bprintfln(w, format, ...)                                          \
+//   (fmt_bprintf(w, format, __VA_ARGS__) + fmt_bprintf(w, LIT("\n")))
 
 #define fmt_sbprint(w, str) fmt_sbprintf(w, LIT("%S"), str)
 #define fmt_sbprintln(w, str) fmt_sbprintf(w, LIT("%S\n"), str)
-#define fmt_sbprintfln(w, format, ...)                                         \
-  (fmt_sbprintf(w, format, __VA_ARGS__) + fmt_sbprintf(w, LIT("\n")))
+// #define fmt_sbprintfln(w, format, ...)                                         \
+//   (fmt_sbprintf(w, format, __VA_ARGS__) + fmt_sbprintf(w, LIT("\n")))
 
 #define fmt_caprint(w, str) fmt_caprintf(w, LIT("%S"), str)
 #define fmt_caprintln(w, str) fmt_caprintf(w, LIT("%S\n"), str)
-#define fmt_caprintfln(w, format, ...)                                         \
-  (fmt_caprintf(w, format, __VA_ARGS__) + fmt_caprintf(w, LIT("\n")))
+// #define fmt_caprintfln(w, format, ...)                                         \
+//   (fmt_caprintf(w, format, __VA_ARGS__) + fmt_caprintf(w, LIT("\n")))
 
 #define fmt_ctprint(w, str) fmt_ctprintf(w, LIT("%S"), str)
 #define fmt_ctprintln(w, str) fmt_ctprintf(w, LIT("%S\n"), str)
-#define fmt_ctprintfln(w, format, ...)                                         \
-  (fmt_ctprintf(w, format, __VA_ARGS__) + fmt_ctprintf(w, LIT("\n")))
+// #define fmt_ctprintfln(w, format, ...)                                         \
+//   (fmt_ctprintf(w, format, __VA_ARGS__) + fmt_ctprintf(w, LIT("\n")))
 
 #define fmt_tprint(w, str) fmt_tprintf(w, LIT("%S"), str)
 #define fmt_tprintln(w, str) fmt_tprintf(w, LIT("%S\n"), str)
-#define fmt_tprintfln(w, format, ...)                                          \
-  (fmt_tprintf(w, format, __VA_ARGS__) + fmt_tprintf(w, LIT("\n")))
+// #define fmt_tprintfln(w, format, ...)                                          \
+//   (fmt_tprintf(w, format, __VA_ARGS__) + fmt_tprintf(w, LIT("\n")))
 
 #define fmt_aprint(w, str) fmt_aprintf(w, LIT("%S"), str)
 #define fmt_aprintln(w, str) fmt_aprintf(w, LIT("%S\n"), str)
-#define fmt_aprintfln(w, format, ...)                                          \
-  (fmt_aprintf(w, format, __VA_ARGS__) + fmt_aprintf(w, LIT("\n")))
+// #define fmt_aprintfln(w, format, ...)                                          \
+//   (fmt_aprintf(w, format, __VA_ARGS__) + fmt_aprintf(w, LIT("\n")))
 
 #define fmt_fprint(w, str) fmt_fprintf(w, LIT("%S"), str)
 #define fmt_fprintln(w, str) fmt_fprintf(w, LIT("%S\n"), str)
-#define fmt_fprintfln(w, format, ...)                                          \
-  (fmt_fprintf(w, format, __VA_ARGS__) + fmt_fprintf(w, LIT("\n")))
+// #define fmt_fprintfln(w, format, ...)                                          \
+//   (fmt_fprintf(w, format, __VA_ARGS__) + fmt_fprintf(w, LIT("\n")))
 
 //NOLINTEND
 
