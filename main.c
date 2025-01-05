@@ -292,18 +292,20 @@ int main() {
   Builder b = builder_make(0, 1024, context.temp_allocator);
   
   slice_iter(directory, file, i, {
-    isize n = fmt_sbprintf(&b, name_format, file->name);
+    fmt_sbprintf(&b, name_format, file->name);
 
+    String str;
     if (file->is_dir) {
-      n = fmt_sbprintf(&b, LIT("<dir>"));
+      str = fmt_tprintf(LIT("<dir>"), 0);
     } else {
-      n = fmt_sbprintf(&b, LIT("%M"), file->size);
+      str = fmt_tprintf(LIT("%M"), file->size);
     }
 
     fmt_sbprintf(
       &b,
-      LIT("%S | %T | %T | %T\n"),
-      slice_range(spaces, 0, max_size_len - n),
+      LIT("%S%S | %T | %T | %T\n"),
+      slice_range(spaces, 0, max_size_len - str.len),
+      str,
       file->creation_time,
       file->modification_time,
       file->acces_time
