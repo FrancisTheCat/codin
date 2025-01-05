@@ -475,7 +475,7 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font) {
   font->glyf     = -1;
   font->cmap     = -1;
 
-  for (int table_index = 0; table_index < header.numTables; table_index += 1) {
+  for (ttf_i32 table_index = 0; table_index < header.numTables; table_index += 1) {
     _TTF_Table_Record table;
     ttf_memcpy(&table, &table_index[table_records], sizeof(table));
     _ttf_convert_table_record(&table);
@@ -532,7 +532,7 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font) {
 
   ttf_bool full_unicode = ttf_false;
 
-  for (int cmap_index = 0; cmap_index < cmap_header.num_tables; cmap_index += 1) {
+  for (ttf_i32 cmap_index = 0; cmap_index < cmap_header.num_tables; cmap_index += 1) {
     _TTF_Cmap_Encoding_Record record;
     ttf_memcpy(&record, &data[font->cmap + sizeof(cmap_header) + cmap_index * sizeof(record)], sizeof(record));
 
@@ -545,7 +545,7 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font) {
     }
   }
 
-  for (int cmap_index = 0; cmap_index < cmap_header.num_tables; cmap_index += 1) {
+  for (ttf_i32 cmap_index = 0; cmap_index < cmap_header.num_tables; cmap_index += 1) {
     _TTF_Cmap_Encoding_Record record;
     ttf_memcpy(&record, &data[font->cmap + sizeof(cmap_header) + cmap_index * sizeof(record)], sizeof(record));
 
@@ -570,7 +570,7 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font) {
 
           ttf_u16 *p = (ttf_u16 *)&data[font->cmap + record.offset + sizeof(subtable)];
 
-          for (int i = 0; i < segment_count; i += 1) {
+          for (ttf_i32 i = 0; i < segment_count; i += 1) {
             segments[i].end_char_code = ttf_be16toh(*p);
             p += 1;
           }
@@ -581,17 +581,17 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font) {
           }
           p += 1;
 
-          for (int i = 0; i < segment_count; i += 1) {
+          for (ttf_i32 i = 0; i < segment_count; i += 1) {
             segments[i].start_char_code = ttf_be16toh(*p);
             p += 1;
           }
 
-          for (int i = 0; i < segment_count; i += 1) {
+          for (ttf_i32 i = 0; i < segment_count; i += 1) {
             segments[i].glyph_id_delta = ttf_be16toh(*(ttf_i16 *)p);
             p += 1;
           }
 
-          for (int i = 0; i < segment_count; i += 1) {
+          for (ttf_i32 i = 0; i < segment_count; i += 1) {
             if (*p) {
               return ttf_false;
             }
@@ -626,7 +626,7 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font) {
 
           _TTF_Sequential_Map_Group *groups   = (_TTF_Sequential_Map_Group *)&data[font->cmap + record.offset + sizeof(_TTF_Cmap_Subtable_Format_12)];
 
-          for (int i = 0; i < font->n_groups; i += 1) {
+          for (ttf_i32 i = 0; i < font->n_groups; i += 1) {
             _TTF_Sequential_Map_Group group = groups[i];
             font->groups[i].start_char_code = ttf_be32toh(group.start_char_code);
             font->groups[i].end_char_code   = ttf_be32toh(group.end_char_code);
@@ -783,11 +783,11 @@ TTF_DEF void ttf_get_glyph_shape(
       } TTF_Simple_Glyph_Flag;
 
       ttf_u8 flag;
-      for (int i = 0; i < n_points; i += 1) {
+      for (ttf_i32 i = 0; i < n_points; i += 1) {
         flag = *points++;
         if (flag & REPEAT_FLAG) {
-          int repeat_count = *points++;
-          for (int j = 0; j < repeat_count + 1; j += 1) {
+          ttf_i32 repeat_count = *points++;
+          for (ttf_i32 j = 0; j < repeat_count + 1; j += 1) {
             flags[i + j] = flag;
           }
           i += repeat_count;
@@ -797,7 +797,7 @@ TTF_DEF void ttf_get_glyph_shape(
       }
 
       ttf_i32 x = 0;
-      for (int i = 0; i < n_points; i += 1) {
+      for (ttf_i32 i = 0; i < n_points; i += 1) {
         flag = flags[i];
         if (flag & X_SHORT_VECTOR) {
           ttf_i16 dx = *points++;
@@ -812,7 +812,7 @@ TTF_DEF void ttf_get_glyph_shape(
       }
 
       ttf_i32 y = 0;
-      for (int i = 0; i < n_points; i += 1) {
+      for (ttf_i32 i = 0; i < n_points; i += 1) {
         flag = flags[i];
         if (flag & Y_SHORT_VECTOR) {
           ttf_i16 dy = *points++;
@@ -831,7 +831,7 @@ TTF_DEF void ttf_get_glyph_shape(
     ttf_i32 n_beziers = 0;
     ttf_i32 current  = 0;
 
-    for (int c = 0; c < gh.numberOfContours; c += 1) {
+    for (ttf_i32 c = 0; c < gh.numberOfContours; c += 1) {
       ttf_i16 end = ttf_be16toh(contours[c]);
 
       TTF_Point prev;
@@ -975,7 +975,7 @@ TTF_DEF void ttf_get_glyph_shape(
         }
         
         if (subshape.beziers) {
-          for (int i = 0; i < subshape.n_beziers; i += 1) {
+          for (ttf_i32 i = 0; i < subshape.n_beziers; i += 1) {
             subshape.beziers[i].p0.data[0] += args[0];
             subshape.beziers[i].p0.data[1] += args[1];
 
@@ -987,7 +987,7 @@ TTF_DEF void ttf_get_glyph_shape(
           }
         }
         if (subshape.linears) {
-          for (int i = 0; i < subshape.n_linears; i += 1) {
+          for (ttf_i32 i = 0; i < subshape.n_linears; i += 1) {
             subshape.linears[i].a.data[0] += args[0];
             subshape.linears[i].a.data[1] += args[1];
 
@@ -1087,8 +1087,8 @@ TTF_DEF void ttf_render_shape_bitmap(
 ) {
   const ttf_f32 SCALE = font_size / font->units_per_em;
 
-  const int W = (shape->max.x - shape->min.x) * SCALE + 2;
-  const int H = (shape->max.y - shape->min.y) * SCALE + 2;
+  const ttf_i32 W = (shape->max.x - shape->min.x) * SCALE + 2;
+  const ttf_i32 H = (shape->max.y - shape->min.y) * SCALE + 2;
 
   *w = W;
   *h = H;
