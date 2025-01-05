@@ -42,7 +42,7 @@ void generate_enum(Writer const *w, String prefix, XML_Object const *xml) {
   String prefix_ada = string_to_ada_case(prefix, context.temp_allocator);
   String name_ada = string_to_ada_case(name, context.temp_allocator);
 
-  fmt_wprintfln(&sw, LIT("ENUM_TO_STRING_PROC_DECL(Wayland_%S_%S, v) {\n\tswitch (v) {"), prefix_ada, name_ada);
+  fmt_wprintf(&sw, LIT("ENUM_TO_STRING_PROC_DECL(Wayland_%S_%S, v) {\n\tswitch (v) {\n"), prefix_ada, name_ada);
 
   prefix = prefix_ada;
   name   = name_ada;
@@ -56,13 +56,13 @@ void generate_enum(Writer const *w, String prefix, XML_Object const *xml) {
     String variant_name = xml_get_property(child, LIT("name"));
     String value        = xml_get_property(child, LIT("value"));
     String enum_name    = fmt_tprintf(LIT("Wayland_%S_%S_%S"), prefix, name, string_to_ada_case(variant_name, context.temp_allocator));
-    fmt_wprintfln(w, LIT("\t%S = %S,"), enum_name, value);
-    fmt_wprintfln(&sw, LIT("\tcase %S:\n\t\treturn LIT(\"%S\");"), enum_name, enum_name);
+    fmt_wprintf(w, LIT("\t%S = %S,\n"), enum_name, value);
+    fmt_wprintf(&sw, LIT("\tcase %S:\n\t\treturn LIT(\"%S\");\n"), enum_name, enum_name);
   });
 
-  fmt_wprintfln(w, LIT("} Wayland_%S_%S;\n"), prefix, name);
+  fmt_wprintf(w, LIT("} Wayland_%S_%S;\n\n"), prefix, name);
 
-  fmt_wprintfln(&sw, LIT("\t}\n\treturn LIT(\"Wayland_%S_%S_INVALID\");\n}\n"), prefix, name);
+  fmt_wprintf(&sw, LIT("\t}\n\treturn LIT(\"Wayland_%S_%S_INVALID\");\n}\n\n"), prefix, name);
 
   fmt_wprint(w, builder_to_string(to_string));
 }
@@ -133,8 +133,8 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
       }
       args_size += 4;
       fmt_wprintf(w, LIT(", %S %S"), enum_name, arg_name);
-      fmt_wprintfln(&bw, LIT("\tu32 %S_value = (u32)%S;"), arg_name, arg_name);
-      fmt_wprintfln(&bw, LIT("\twrite_any(w, &%S_value);"), arg_name);
+      fmt_wprintf(&bw, LIT("\tu32 %S_value = (u32)%S;\n"), arg_name, arg_name);
+      fmt_wprintf(&bw, LIT("\twrite_any(w, &%S_value);\n"), arg_name);
 
       fmt_wprintf(&fw, LIT(" %S=%%S"), arg_name);
       fmt_wprintf(&dw, LIT(", enum_to_string(%S, %S)"), enum_name, arg_name);
@@ -143,7 +143,7 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
       if (string_equal(arg_type, LIT("int"))) {
         args_size += 4;
         fmt_wprintf(w,     LIT(", i32 %S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\twrite_any(w, &%S);"), arg_name);
+        fmt_wprintf(&bw, LIT("\twrite_any(w, &%S);\n"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         fmt_wprintf(&dw, LIT(", %S"), arg_name);
@@ -151,7 +151,7 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
       } else if (string_equal(arg_type, LIT("uint"))) {
         args_size += 4;
         fmt_wprintf(w,     LIT(", u32 %S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\twrite_any(w, &%S);"), arg_name);
+        fmt_wprintf(&bw, LIT("\twrite_any(w, &%S);\n"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         fmt_wprintf(&dw, LIT(", %S"), arg_name);
@@ -159,7 +159,7 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
       } else if (string_equal(arg_type, LIT("object"))) {
         args_size += 4;
         fmt_wprintf(w,     LIT(", u32 %S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\twrite_any(w, &%S);"), arg_name);
+        fmt_wprintf(&bw, LIT("\twrite_any(w, &%S);\n"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         fmt_wprintf(&dw, LIT(", %S"), arg_name);
@@ -167,8 +167,8 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
       } else if (string_equal(arg_type, LIT("fixed"))) {
         args_size += 4;
         fmt_wprintf(w,     LIT(", f32 %S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\ti32 %S_fixed = (i32)((f64)%S * 256.0);"), arg_name, arg_name);
-        fmt_wprintfln(&bw, LIT("\twrite_any(w, &%S_fixed);"), arg_name);
+        fmt_wprintf(&bw, LIT("\ti32 %S_fixed = (i32)((f64)%S * 256.0);\n"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\twrite_any(w, &%S_fixed);\n"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%f"), arg_name);
         fmt_wprintf(&dw, LIT(", %S"), arg_name);
@@ -177,14 +177,14 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
         args_size += 4;
         fmt_wprintf(w, LIT(", String %S"), arg_name);
 
-        fmt_wprintfln(&hw, LIT("\tisize %S_size = roundup_4(%S.len + 1);"), arg_name, arg_name);
-        fmt_wprintfln(&hw, LIT("\t_msg_size += %S_size;"), arg_name);
+        fmt_wprintf(&hw, LIT("\tisize %S_size = roundup_4(%S.len + 1);\n"), arg_name, arg_name);
+        fmt_wprintf(&hw, LIT("\t_msg_size += %S_size;\n"), arg_name);
 
-        fmt_wprintfln(&bw, LIT("\ti32 %S_write_len = (i32)%S.len + 1;"), arg_name, arg_name);
-        fmt_wprintfln(&bw, LIT("\twrite_any(w, &%S_write_len);"), arg_name);
-        fmt_wprintfln(&bw, LIT("\twrite_string(w, %S);"), arg_name);
+        fmt_wprintf(&bw, LIT("\ti32 %S_write_len = (i32)%S.len + 1;\n"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\twrite_any(w, &%S_write_len);\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\twrite_string(w, %S);\n"), arg_name);
 
-        fmt_wprintfln(&bw, LIT("\tfor_range(i, %S.len, %S_size) {"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\tfor_range(i, %S.len, %S_size) {\n"), arg_name, arg_name);
         fmt_wprintln(&bw , LIT("\t\twrite_byte(w, 0);"));
         fmt_wprintln(&bw,  LIT("\t}"));
 
@@ -193,7 +193,7 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
 
       } else if (string_equal(arg_type, LIT("fd"))) {
         fmt_wprintf(w,     LIT(", Fd %S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tvector_append(&conn->fds_out, %S);"), arg_name);
+        fmt_wprintf(&bw, LIT("\tvector_append(&conn->fds_out, %S);\n"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         fmt_wprintf(&dw, LIT(", %S"), arg_name);
@@ -235,15 +235,15 @@ void generate_request(Writer const *w, String prefix, XML_Object const *xml, isi
   fmt_wprintln(w, LIT("\tWriter _w = writer_from_builder(&conn->builder);"));
   fmt_wprintln(w, LIT("\tWriter *w = &_w;"));
 
-  fmt_wprintfln(w, LIT("\twrite_any(w, &%S);"),  prefix);
-  fmt_wprintfln(w, LIT("\tu16 _opcode = %d;"),   request_id);
+  fmt_wprintf(w, LIT("\twrite_any(w, &%S);\n"),  prefix);
+  fmt_wprintf(w, LIT("\tu16 _opcode = %d;\n"),   request_id);
   fmt_wprintln(w,  LIT("\twrite_any(w, &_opcode);"));
-  fmt_wprintfln(w, LIT("\tu16 _msg_size = %d;"), WAYLAND_HEADER_SIZE + args_size);
+  fmt_wprintf(w, LIT("\tu16 _msg_size = %d;\n"), WAYLAND_HEADER_SIZE + args_size);
   fmt_wprintln(w,  builder_to_string(header_builder));
   fmt_wprintln(w,  LIT("\twrite_any(w, &_msg_size);"));
   fmt_wprintln(w,  builder_to_string(body_builder));
-  fmt_wprintfln(w,
-    LIT("\twayland_log_infof(LIT(\"-> %S@%%d.%S:%S\"), %S%S);"),
+  fmt_wprintf(w,
+    LIT("\twayland_log_infof(LIT(\"-> %S@%%d.%S:%S\"), %S%S);\n"),
     prefix,
     name,
     builder_to_string(debug_format_builder),
@@ -301,9 +301,9 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
         );
       }
       fmt_wprintf(w, LIT(", %S *%S"), enum_name, arg_name);
-      fmt_wprintfln(&bw, LIT("\tu32 %S_value;"), arg_name, arg_name);
-      fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, &%S_value), -1);"), arg_name);
-      fmt_wprintfln(&bw, LIT("\t*%S = (%S)%S_value;"), arg_name, enum_name, arg_name);
+      fmt_wprintf(&bw, LIT("\tu32 %S_value;\n"), arg_name, arg_name);
+      fmt_wprintf(&bw, LIT("\tor_return(read_any(&r, &%S_value), -1);\n"), arg_name);
+      fmt_wprintf(&bw, LIT("\t*%S = (%S)%S_value;\n"), arg_name, enum_name, arg_name);
 
       fmt_wprintf(&fw, LIT(" %S=%%S"), arg_name);
       fmt_wprintf(&dw, LIT(", enum_to_string(%S, *%S)"), enum_name, arg_name);
@@ -311,30 +311,30 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
     } else {
       if (string_equal(arg_type, LIT("int"))) {
         fmt_wprintf(w,     LIT(", i32 *%S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, %S), -1);"), arg_name);
+        fmt_wprintf(&bw, LIT("\tor_return(read_any(&r, %S), -1);\n"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         fmt_wprintf(&dw, LIT(", *%S"), arg_name);
 
       } else if (string_equal(arg_type, LIT("uint"))) {
         fmt_wprintf(w,     LIT(", u32 *%S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, %S), -1);"), arg_name);
+        fmt_wprintf(&bw, LIT("\tor_return(read_any(&r, %S), -1);\n"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         fmt_wprintf(&dw, LIT(", *%S"), arg_name);
 
       } else if (string_equal(arg_type, LIT("object"))) {
         fmt_wprintf(w,     LIT(", u32 *%S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, %S), -1);"), arg_name);
+        fmt_wprintf(&bw, LIT("\tor_return(read_any(&r, %S), -1);\n"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         fmt_wprintf(&dw, LIT(", *%S"), arg_name);
 
       } else if (string_equal(arg_type, LIT("fixed"))) {
         fmt_wprintf(w,     LIT(", f32 *%S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\ti32 %S_fixed;"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, &%S_fixed), -1);"), arg_name);
-        fmt_wprintfln(&bw, LIT("\t*%S = (f64)%S_fixed / 256.0;"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\ti32 %S_fixed;\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\tor_return(read_any(&r, &%S_fixed), -1);\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\t*%S = (f64)%S_fixed / 256.0;\n"), arg_name, arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%f"), arg_name);
         fmt_wprintf(&dw, LIT(", *%S"), arg_name);
@@ -342,14 +342,14 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
       } else if (string_equal(arg_type, LIT("string"))) {
         fmt_wprintf(w,     LIT(", String *%S"), arg_name);
 
-        fmt_wprintfln(&bw, LIT("\tu32 %S_len;"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, &%S_len), -1);"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tslice_init(%S, %S_len, allocator);"), arg_name, arg_name);
-        fmt_wprintfln(&bw, LIT("\tor_return(read_bytes(&r, string_to_bytes(*%S)), -1);"), arg_name, arg_name);
-        fmt_wprintfln(&bw, LIT("\t%S->len -= 1;"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tif (%S_len %% 4) {"), arg_name);
-        fmt_wprintfln(&bw, LIT("\t\tbyte %S_pad_buf[4];"), arg_name, arg_name);
-        fmt_wprintfln(&bw, LIT("\t\tor_return(read_bytes(&r, (Byte_Slice) {.data = %S_pad_buf, .len = 4 - (%S_len %% 4) }), -1);"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\tu32 %S_len;\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\tor_return(read_any(&r, &%S_len), -1);\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\tslice_init(%S, %S_len, allocator);\n"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\tor_return(read_bytes(&r, string_to_bytes(*%S)), -1);\n"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\t%S->len -= 1;\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\tif (%S_len %% 4) {\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\t\tbyte %S_pad_buf[4];\n"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\t\tor_return(read_bytes(&r, (Byte_Slice) {.data = %S_pad_buf, .len = 4 - (%S_len %% 4) }), -1);\n"), arg_name, arg_name);
         fmt_wprintln(&bw,  LIT("\t}"));
 
         has_allocator_arg = true;
@@ -359,16 +359,16 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
 
       } else if (string_equal(arg_type, LIT("fd"))) {
         fmt_wprintf(w,     LIT(", Fd *%S"), arg_name);
-        fmt_wprintfln(&bw, LIT("\t*%S = conn->fds_in.data[0];"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tvector_remove_ordered(&conn->fds_in, 0);"), arg_name);
+        fmt_wprintf(&bw, LIT("\t*%S = conn->fds_in.data[0];\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\tvector_remove_ordered(&conn->fds_in, 0);\n"), arg_name);
 
         fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         fmt_wprintf(&dw, LIT(", *%S"), arg_name);
 
       } else if (string_equal(arg_type, LIT("new_id"))) {
         // fmt_wprintf(w,    LIT(", u32 *%S"), arg_name);
-        // fmt_wprintfln(&bw, LIT("\tu32 return_value = _wayland_connection_get_next_id(conn);"));
-        // fmt_wprintfln(&bw, LIT("\tread_any(w, &%S);"), arg_name);
+        // fmt_wprintf(&bw, LIT("\tu32 return_value = _wayland_connection_get_next_id(conn);\n"));
+        // fmt_wprintf(&bw, LIT("\tread_any(w, &%S);\n"), arg_name);
 
         // fmt_wprintf(&fw, LIT(" %S=%%d"), arg_name);
         // fmt_wprintf(&dw, LIT(", *%S"), arg_name);
@@ -378,13 +378,13 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
       } else if (string_equal(arg_type, LIT("array"))) {
         fmt_wprintf(w,     LIT(", Byte_Slice *%S"), arg_name);
 
-        fmt_wprintfln(&bw, LIT("\tu32 %S_len;"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tor_return(read_any(&r, &%S_len), -1);"), arg_name);
-        fmt_wprintfln(&bw, LIT("\tslice_init(%S, %S_len, allocator);"), arg_name, arg_name);
-        fmt_wprintfln(&bw, LIT("\tor_return(read_bytes(&r, *%S), -1);"), arg_name, arg_name);
-        fmt_wprintfln(&bw, LIT("\tif (%S_len %% 4) {"), arg_name);
-        fmt_wprintfln(&bw, LIT("\t\tbyte %S_pad_buf[4];"), arg_name, arg_name);
-        fmt_wprintfln(&bw, LIT("\t\tor_return(read_bytes(&r, (Byte_Slice) {.data = %S_pad_buf, .len = 4 - (%S_len %% 4) }), -1);"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\tu32 %S_len;\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\tor_return(read_any(&r, &%S_len), -1);\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\tslice_init(%S, %S_len, allocator);\n"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\tor_return(read_bytes(&r, *%S), -1);\n"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\tif (%S_len %% 4) {\n"), arg_name);
+        fmt_wprintf(&bw, LIT("\t\tbyte %S_pad_buf[4];\n"), arg_name, arg_name);
+        fmt_wprintf(&bw, LIT("\t\tor_return(read_bytes(&r, (Byte_Slice) {.data = %S_pad_buf, .len = 4 - (%S_len %% 4) }), -1);\n"), arg_name, arg_name);
         fmt_wprintln(&bw,  LIT("\t}"));
 
         has_allocator_arg = true;
@@ -410,11 +410,11 @@ void generate_event_parser(Writer const *w, String prefix, XML_Object const *xml
   fmt_wprintln(w,  LIT("\tor_return(read_any(&r, &_opcode),    -1);"));
   fmt_wprintln(w,  LIT("\tor_return(read_any(&r, &_msg_size),  -1);"));
   fmt_wprintln(w,  LIT("\tconn->start += _msg_size;"));
-  fmt_wprintfln(w, LIT("\tassert(_opcode == %d);"), event_id);
+  fmt_wprintf(w, LIT("\tassert(_opcode == %d);\n"), event_id);
   fmt_wprint(w,    builder_to_string(body_builder));
 
-  fmt_wprintfln(w,
-    LIT("\twayland_log_infof(LIT(\"<- %S@%%d.%S:%S\"), _object_id%S);"),
+  fmt_wprintf(w,
+    LIT("\twayland_log_infof(LIT(\"<- %S@%%d.%S:%S\"), _object_id%S);\n"),
     prefix_lower,
     event_name,
     builder_to_string(debug_format_builder),
@@ -451,12 +451,12 @@ void generate_events(Writer const *w, String prefix, XML_Object const *xml) {
       continue;
     }
     String event_name = xml_get_property(child, LIT("name"));
-    fmt_wprintfln(w, LIT("\tWayland_%S_Event_%S = %d,"), prefix, string_to_ada_case(event_name, context.temp_allocator), event_id);
+    fmt_wprintf(w, LIT("\tWayland_%S_Event_%S = %d,\n"), prefix, string_to_ada_case(event_name, context.temp_allocator), event_id);
     generate_event_parser(&pw, prefix, child, event_id);
     event_id += 1;
   });
 
-  fmt_wprintfln(w, LIT("} Wayland_%S_Event;\n"), prefix);
+  fmt_wprintf(w, LIT("} Wayland_%S_Event;\n\n"), prefix);
 
   fmt_wprint(w, builder_to_string(parser_builder));
 }

@@ -320,6 +320,8 @@ internal void __runtime_cleanup();
 
 #include "slice.h"
 
+#include "unicode.h"
+
 #include "strings.h"
 
 #include "path.h"

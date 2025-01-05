@@ -13,7 +13,7 @@
 
 #include "spall.h"
 
-SpallBuffer spall_buffer;
+SpallBuffer  spall_buffer;
 SpallProfile spall_ctx;
 
 // #define spall_buffer_begin(...)
@@ -1020,6 +1020,17 @@ UI_Context ui_context;
 
 String fps_string = {0};
 
+TTF_Font ttf_font;
+
+typedef struct {
+  TTF_V_Metrics v_metrics;
+  TTF_H_Metrics h_metrics;
+  u32           w, h;
+  u8           *pixels;
+} Cached_Glyph;
+
+Cached_Glyph glyph_cache[0xFFFF] = {0};
+
 internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Directory const *directory) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
@@ -1070,12 +1081,54 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
   //   }
   // })
 
-  for_range(_c, 1, Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out + 1) {
-    Wayland_Wp_Cursor_Shape_Device_V1_Shape c = (Wayland_Wp_Cursor_Shape_Device_V1_Shape)_c;
-    if (ui_button(&ui_context, enum_to_string(Wayland_Wp_Cursor_Shape_Device_V1_Shape, c))) {
-      wayland_wp_cursor_shape_device_v1_set_shape(conn, state->wp_cursor_shape_device, 0, c);
+  TTF_V_Metrics v_metrics;
+  TTF_H_Metrics h_metrics;
+
+  int font_size = 32;
+
+  ttf_get_codepoint_v_metrics(&ttf_font, 'H', font_size, &v_metrics);
+
+  isize font_x = 100;
+  isize font_y = 100 + v_metrics.height;
+
+  // wayland_draw_rect(state, 100, 100,    10000, 1, 0xFF62AEEF);
+  // wayland_draw_rect(state, 100, font_y, 10000, 1, 0xFF62AEEF);
+
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("font"), get_time_in_micros());
+  string_iter(LIT("An LLVM logo:  and an ohmyzsh logo:  all of this is written in  ;"), codepoint, _i, {
+    Cached_Glyph *cached_glyph = &glyph_cache[codepoint];
+    if (!cached_glyph->pixels) {
+      u32 glyph = ttf_get_codepoint_glyph(&ttf_font, codepoint);
+      ttf_get_glyph_h_metrics(&ttf_font, glyph, font_size, &cached_glyph->h_metrics);
+      ttf_get_glyph_v_metrics(&ttf_font, glyph, font_size, &cached_glyph->v_metrics);
+
+      ttf_get_glyph_bitmap(&ttf_font, glyph, font_size, &cached_glyph->w, &cached_glyph->h, &cached_glyph->pixels);
     }
-  }
+
+    isize x = font_x + cached_glyph->h_metrics.bearing;
+    isize y = font_y + cached_glyph->v_metrics.bearing;
+    for_range(_y, 0, cached_glyph->h) {
+      if (_y + y >= state->h) {
+        break;
+      }
+      for_range(_x, 0, cached_glyph->w) {
+        if (_x + x >= state->w) {
+          break;
+        }
+        u8 alpha = cached_glyph->pixels[_x + _y * cached_glyph->w];
+        alpha_blend_rgb8(&pixels[_x + x + (_y + y) * state->w], 0xFF62AEEF, alpha);
+      }
+    }
+    font_x += cached_glyph->h_metrics.advance;
+  });
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+
+  // for_range(_c, 1, Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out + 1) {
+  //   Wayland_Wp_Cursor_Shape_Device_V1_Shape c = (Wayland_Wp_Cursor_Shape_Device_V1_Shape)_c;
+  //   if (ui_button(&ui_context, enum_to_string(Wayland_Wp_Cursor_Shape_Device_V1_Shape, c))) {
+  //     wayland_wp_cursor_shape_device_v1_set_shape(conn, state->wp_cursor_shape_device, 0, c);
+  //   }
+  // }
 
   ui_state_render(&ui_context, state);
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());

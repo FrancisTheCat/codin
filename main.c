@@ -2,6 +2,46 @@
 #include "image.h"
 #include "iter.h"
 #include "xml.h"
+
+#define ttf_alloc(size) (unwrap_err(mem_alloc(size, context.allocator)))
+#define ttf_free(ptr) ((void)mem_free(ptr, 0, context.allocator))
+
+#define ttf_sort_i32s(ptr, n) {                                          \
+  Slice(i32) ttf_sort_i32s_slice = {.data = ptr, .len = n};              \
+  sort_slice_by(                                                         \
+    ttf_sort_i32s_slice,                                                 \
+    index_i,                                                             \
+    index_j,                                                             \
+    ttf_sort_i32s_slice.data[index_i] > ttf_sort_i32s_slice.data[index_j]\
+  );                                                                     \
+}
+
+#define ttf_memcpy mem_copy
+
+#define ttf_absf ttf_absf
+f32 ttf_absf(f32 x) {
+  return x > 0 ? x : -x;
+}
+
+#define ttf_sqrtf mem_sqrtf
+f32 ttf_sqrtf(f32 x) {
+    f32 xhalf = 0.5f * x;
+    union {
+        f32 x;
+        i32 i;
+    } u;
+    u.x = x;
+    u.i = 0x5f375a86 - (u.i >> 1);
+    u.x = u.x * (1.5f - xhalf * u.x * u.x);
+    u.x = u.x * (1.5f - xhalf * u.x * u.x);
+    u.x = u.x * (1.5f - xhalf * u.x * u.x);
+    return 1.0 / u.x;
+}
+
+#define TTF_IMPLEMENTATION
+#include "ttf.h"
+#undef TTF_IMPLEMENTATION
+
 #include "wayland.h"
 
 b8 test_sort() {
@@ -399,6 +439,9 @@ int main() {
   UI_Image image = ui_create_image(&ui_context, rgba8_image);
   (void)image;
 
+  Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("JetBrainsMonoNerdFont-Medium.ttf"), context.allocator));
+  ttf_load_bytes(ttf_font_data.data, ttf_font_data.len, &ttf_font);
+
   struct Time last_fps_print = time_now();
   isize frames_since_print = 0;
 
@@ -495,6 +538,14 @@ int main() {
     
     mem_free_all(context.temp_allocator);
   }
+
+  for_range(i, 0, count_of(glyph_cache)) {
+    if (glyph_cache[i].pixels) {
+      mem_free(glyph_cache[i].pixels, 1, context.allocator);
+    }
+  }
+  ttf_destroy_font(&ttf_font);
+  slice_delete(ttf_font_data, context.allocator);
 
   directory_delete(directory, context.allocator);
   ui_context_destroy(&ui_context, context.allocator);
