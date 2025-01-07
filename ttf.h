@@ -1295,9 +1295,9 @@ TTF_DEF void ttf_render_shape_bitmap(
       intersections[y_sample][n_intersections[y_sample]] = x;                  \
     n_intersections[y_sample] += 1;                                            \
 
-  for (ttf_i32 iy = H - 1; iy >= 0; iy -= 1) {
+  for (ttf_i32 iy = 0; iy < H; iy += 1) {
     for (ttf_i32 y_sample = 0; y_sample < Y_SAMPLES; y_sample += 1) {
-      ttf_f32 y = (iy + y_sample / (ttf_f32)Y_SAMPLES - 0.5) / SCALE + shape->min.y;
+      ttf_f32 y = ((H - iy - 1) + y_sample / (ttf_f32)Y_SAMPLES - 0.5) / SCALE + shape->min.y;
 
       n_intersections[y_sample] = 0;
 
@@ -1399,7 +1399,7 @@ TTF_DEF void ttf_render_shape_bitmap(
           }
         }
       }
-      pixels[(ttf_i32)(ix + (H - iy - 1) * W)] = (ttf_f32)255 * hits / (Y_SAMPLES * X_SAMPLES);
+      pixels[(ttf_i32)(ix + iy * W)] = (ttf_f32)255 * hits / (Y_SAMPLES * X_SAMPLES);
     }
   }
 }

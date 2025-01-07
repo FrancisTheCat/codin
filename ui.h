@@ -1,5 +1,4 @@
 #include "codin.h"
-#include "bad_font.h"
 #include "image.h"
 
 typedef struct {
@@ -296,6 +295,10 @@ internal void ui_label(UI_Context *ctx, String text) {
 
 internal UI_Image ui_create_image(UI_Context *ctx, Image image) {
   UI_Image ret = {.index = (i32)ctx->images.len};
+
+  assert(image.components == 4);
+  assert(image.pixel_type == PT_u8);
+
   vector_append(&ctx->images, image);
   return ret;
 }
@@ -304,6 +307,9 @@ internal void ui_image(UI_Context *ctx, UI_Image img) {
   UI_Command cmd;
   Image *image = &ctx->images.data[img.index];
   Rectangle rect = ui_insert_rect(ctx, (i32)image->width, (i32)image->height);
+
+  assert(image->components == 4);
+  assert(image->pixel_type == PT_u8);
 
   cmd.type          = UI_Command_Type_Image;
   cmd.variant.image = (UI_Command_Image) {

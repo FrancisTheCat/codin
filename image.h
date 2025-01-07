@@ -225,9 +225,9 @@ typedef enum {
 } Pixel_Type;
 
 typedef struct {
-  isize width;
-  isize height;
-  isize components;
+  isize      width;
+  isize      height;
+  isize      components;
   Pixel_Type pixel_type;
   Byte_Slice pixels;
 } Image;

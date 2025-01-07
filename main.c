@@ -359,8 +359,8 @@ void spall_close_callback(SpallProfile *self) {
 }
 
 int main() {
-  Tracking_Allocator track;
-  context.allocator = tracking_allocator_init(&track, context.allocator);
+  // Tracking_Allocator track;
+  // context.allocator = tracking_allocator_init(&track, context.allocator);
 
   context.logger = create_file_logger(1);
 
@@ -547,26 +547,26 @@ int main() {
   b8 shm_ok = create_shared_memory_file(state.shm_pool_size, &state);
   assert(shm_ok);
 
-  Byte_Slice font_data = unwrap_err(read_entire_file_path(LIT("out12.bmf"), context.allocator));
-  BMF_Font font;
-  b8 font_ok = bmf_load_font(font_data, &font);
-  assert(font_ok);
-
-  // Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("flame.ppm"), context.temp_allocator));
-  // Image backing_image;
-  // Image rgba8_image;
-  // b8 ok = ppm_load_bytes(image_data, &backing_image);
-  // assert(ok);
-  // image_clone_to_rgba8(&backing_image, &rgba8_image, context.allocator);
-  // assert(ok);
-  // UI_Image image = ui_create_image(&ui_context, rgba8_image);
-  // (void)image;
+  // Byte_Slice font_data = unwrap_err(read_entire_file_path(LIT("out12.bmf"), context.allocator));
+  // BMF_Font font;
+  // b8 font_ok = bmf_load_font(font_data, &font);
+  // assert(font_ok);
 
   Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("JetBrainsMonoNerdFont-Medium.ttf"), context.allocator));
   // Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("Crimson-Roman.ttf"), context.allocator));
   ttf_load_bytes(ttf_font_data.data, ttf_font_data.len, &ttf_font);
 
-  ui_context_init(&ui_context, measure_text, 1, 1, ttf_get_font_height(&ttf_font, 28), context.allocator);
+  ui_context_init(&ui_context, measure_text_ttf, 1, 1, ttf_get_font_height(&ttf_font, UI_FONT_SIZE), context.allocator);
+
+  Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("flame.ppm"), context.temp_allocator));
+  Image backing_image;
+  Image rgba8_image;
+  b8 ok = ppm_load_bytes(image_data, &backing_image);
+  assert(ok);
+  image_clone_to_rgba8(&backing_image, &rgba8_image, context.allocator);
+  assert(ok);
+  UI_Image image = ui_create_image(&ui_context, rgba8_image);
+  assert(image.index == 0);
 
   struct Time last_fps_print = time_now();
   isize frames_since_print = 0;
@@ -682,8 +682,8 @@ int main() {
   }
   wayland_connection_destroy(&wl_connection);
 
-  // slice_delete(rgba8_image.pixels, context.allocator);
-  slice_delete(font_data, context.allocator);
+  slice_delete(rgba8_image.pixels, context.allocator);
+  // slice_delete(font_data, context.allocator);
   if (fps_string.len) {
     slice_delete(fps_string, context.allocator);
   }
@@ -692,8 +692,8 @@ int main() {
 	spall_quit(&spall_ctx);
 	slice_delete(spall_buffer_backing, context.allocator);
 
-  tracking_allocator_fmt_results_w(&stdout, &track);
-  tracking_allocator_destroy(track);
+  // tracking_allocator_fmt_results_w(&stdout, &track);
+  // tracking_allocator_destroy(track);
 
   return 0;
 }

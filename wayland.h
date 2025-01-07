@@ -1,5 +1,6 @@
 #include "codin.h"
 #include "ttf.h"
+#include "bad_font.h"
 #include "wayland_gen_common.h"
 #include "xkb.h"
 
@@ -13,6 +14,8 @@
 #include "ui.h"
 
 #include "spall.h"
+
+#define UI_FONT_SIZE 127
 
 String last_key_string = {0};
 
@@ -747,7 +750,7 @@ internal void wayland_draw_rect_gradient_h(Wayland_State *state, i32 x, i32 y, i
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal isize wayland_draw_text(Wayland_State *state, BMF_Font const *font, String str, u32 color, isize *x, isize *y) {
+internal isize wayland_draw_text_bmf(Wayland_State *state, BMF_Font const *font, String str, u32 color, isize *x, isize *y) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   isize start_x = *x;
 
@@ -933,7 +936,7 @@ internal void wayland_draw_image_scaled(Wayland_State *state, i32 x, i32 y, i32 
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal isize measure_text(String text);
+internal isize measure_text_ttf(String text);
 internal void wayland_draw_text_ttf(
   Wayland_State  *state,
   TTF_Font const *font,
@@ -1002,8 +1005,8 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
       break;
     case UI_Command_Type_Text:
       x = cmd->variant.text.bounds.x0 + ctx->spacing;
-      y = (float)(cmd->variant.text.bounds.y0 + cmd->variant.text.bounds.y1) / 2 + ttf_get_font_height(&ttf_font, 28) / 2 - 1; 
-      wayland_draw_text_ttf(wl_state, &ttf_font, cmd->variant.text.text, 28, cmd->variant.text.color, &x, &y);
+      y = (float)(cmd->variant.text.bounds.y0 + cmd->variant.text.bounds.y1) / 2 + ttf_get_font_height(&ttf_font, UI_FONT_SIZE) / 2 - 1; 
+      wayland_draw_text_ttf(wl_state, &ttf_font, cmd->variant.text.text, UI_FONT_SIZE, cmd->variant.text.color, &x, &y);
 
       // x = cmd->variant.text.bounds.x0 + ctx->font.decender;
       // y = cmd->variant.text.bounds.y1 - ctx->font.decender;
@@ -1050,7 +1053,7 @@ typedef struct {
 
 Cached_Glyph glyph_cache[0x10FFFF] = {0};
 
-internal isize measure_text(String text) {
+internal isize measure_text_ttf(String text) {
   isize width = 0;
   string_iter(text, codepoint, _i, {
     width += glyph_cache[codepoint].h_metrics.advance;
@@ -1151,9 +1154,9 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
 
   ui_context.horizontal = false;
   ui_context.x  = 25;
-  ui_context.y += ui_context.spacing + ui_context.text_height + ui_context.spacing;
+  ui_context.y += ui_context.spacing + ui_context.text_height + ui_context.spacing * 2;
 
-  // ui_image(&ui_context, (UI_Image) {.index = 0});
+  ui_image(&ui_context, (UI_Image) {.index = 0});
 
   (void)directory;
   // slice_iter(*directory, file, _i, {
@@ -1163,40 +1166,36 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
   //     // unwrap_err(process_create(LIT("/bin/xdg-open"), &pargs));
   //   }
   // })
+  // isize font_x = 100;
+  // isize font_y = 200;
 
-  TTF_V_Metrics v_metrics;
-  TTF_H_Metrics h_metrics;
+  // isize font_size = 30;
 
-  isize font_x = 100;
-  isize font_y = 200;
+  // wayland_draw_rect_outlines(
+  //   state,
+  //   100,
+  //   200 - ttf_get_font_height(&ttf_font, font_size) + 1,
+  //   measure_text(fps_string),
+  //   ttf_get_font_height(&ttf_font, font_size) + 2,
+  //   0xFFE06B74
+  // );
+  // wayland_draw_text_ttf(state, &ttf_font, fps_string, font_size, 0xFF98C379, &font_x, &font_y);
 
-  isize font_size = 30;
+  // font_x = 100;
+  // font_y = 200 + ttf_get_line_height(&ttf_font, font_size);
 
-  wayland_draw_rect_outlines(
-    state,
-    100,
-    200 - ttf_get_font_height(&ttf_font, font_size) + 1,
-    measure_text(fps_string),
-    ttf_get_font_height(&ttf_font, font_size) + 2,
-    0xFFE06B74
-  );
-  wayland_draw_text_ttf(state, &ttf_font, fps_string, font_size, 0xFF98C379, &font_x, &font_y);
-
-  font_x = 100;
-  font_y = 200 + ttf_get_line_height(&ttf_font, font_size);
-
-  str = LIT("An LLVM logo: \nAnd an 'oh my zsh' logo: \nAll of this is written in  (but without libc)\n( +  +  btw)\nabcdefghijlkmnopqrstuvwxyz\n");
+  // str = LIT("An LLVM logo: \nAnd an 'oh my zsh' logo: \nAll of this is written in  (but without libc)\n( +  +  btw)\nabcdefghijlkmnopqrstuvwxyz\n");
   
-  wayland_draw_text_ttf(state, &ttf_font, str, font_size, 0xFF62AEEF, &font_x, &font_y);
+  // wayland_draw_text_ttf(state, &ttf_font, str, font_size, 0xFF62AEEF, &font_x, &font_y);
 
-  wayland_draw_text_ttf(state, &ttf_font, last_key_string, font_size, 0xFFE06B74, &font_x, &font_y);
+  // wayland_draw_text_ttf(state, &ttf_font, last_key_string, font_size, 0xFFE06B74, &font_x, &font_y);
 
-  // for_range(_c, 1, Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out + 1) {
-  //   Wayland_Wp_Cursor_Shape_Device_V1_Shape c = (Wayland_Wp_Cursor_Shape_Device_V1_Shape)_c;
-  //   if (ui_button(&ui_context, enum_to_string(Wayland_Wp_Cursor_Shape_Device_V1_Shape, c))) {
-  //     wayland_wp_cursor_shape_device_v1_set_shape(conn, state->wp_cursor_shape_device, 0, c);
-  //   }
-  // }
+  for_range(_c, 1, Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out + 1) {
+    Wayland_Wp_Cursor_Shape_Device_V1_Shape c = (Wayland_Wp_Cursor_Shape_Device_V1_Shape)_c;
+    if (ui_button(&ui_context, enum_to_string(Wayland_Wp_Cursor_Shape_Device_V1_Shape, c))) {
+      wayland_wp_cursor_shape_device_v1_set_shape(conn, state->wp_cursor_shape_device, 0, c);
+    }
+  }
 
   ui_state_render(&ui_context, state);
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());

@@ -29,14 +29,14 @@
     typedef struct {                                                           \
       isize start;                                                             \
       isize end;                                                               \
-    } Range;                                                                   \
+    } _Sort_Range;                                                             \
                                                                                \
-    Vector(Range) __stack;                                                     \
+    Vector(_Sort_Range) __stack;                                               \
     vector_init(&__stack, 0, ilog2(_len) * 4, context.temp_allocator);         \
                                                                                \
-    vector_append(&__stack, ((Range){.start = 0, .end = _len}));               \
+    vector_append(&__stack, ((_Sort_Range){.start = 0, .end = _len}));         \
     while (__stack.len) {                                                      \
-      Range __range = vector_pop(&__stack);                                    \
+      _Sort_Range __range = vector_pop(&__stack);                              \
                                                                                \
       if (__range.end - __range.start < 2) {                                   \
         continue;                                                              \
@@ -47,6 +47,12 @@
       for_range(__j, __range.start, __range.end - 1) {                         \
         isize index_i = __j;                                                   \
         isize index_j = __p;                                                   \
+        assert(__i >= 0);                                                      \
+        assert(__i <  _len);                                                   \
+        assert(__j >= 0);                                                      \
+        assert(__j <  _len);                                                   \
+        assert(__p >= 0);                                                      \
+        assert(__p <  _len);                                                   \
         if (is_sorted) {                                                       \
           isize index_i = __i;                                                 \
           isize index_j = __j;                                                 \
@@ -55,18 +61,23 @@
         }                                                                      \
       }                                                                        \
                                                                                \
+      assert(__i >= 0);                                                        \
+      assert(__i <  _len);                                                     \
+      assert(__p >= 0);                                                        \
+      assert(__p <  _len);                                                     \
+                                                                               \
       {                                                                        \
         isize index_i = __p;                                                   \
         isize index_j = __i;                                                   \
         swap;                                                                  \
       }                                                                        \
                                                                                \
-      if (__i - __range.start < __i - __range.end) {                           \
-        vector_append(&__stack, ((Range){__range.start, __i}));                \
-        vector_append(&__stack, ((Range){__i + 1, __range.end}));              \
+      if (__range.start > __range.end) {                                       \
+        vector_append(&__stack, ((_Sort_Range){__range.start, __i}));          \
+        vector_append(&__stack, ((_Sort_Range){__i + 1, __range.end}));        \
       } else {                                                                 \
-        vector_append(&__stack, ((Range){__i + 1, __range.end}));              \
-        vector_append(&__stack, ((Range){__range.start, __i}));                \
+        vector_append(&__stack, ((_Sort_Range){__i + 1, __range.end}));        \
+        vector_append(&__stack, ((_Sort_Range){__range.start, __i}));          \
       }                                                                        \
     }                                                                          \
   }
