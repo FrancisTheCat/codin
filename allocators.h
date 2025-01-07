@@ -188,7 +188,7 @@ internal Allocator_Result growing_arena_allocator_proc(
     result.err = AE_Unimplemented;
     return result;
   case AM_Free_All:
-    for (; a->blocks.len > 1;) {
+    while (a->blocks.len > 1) {
       Growing_Arena_Allocator_Block b = vector_pop(&a->blocks);
       mem_free(b.data, max(a->block_size, b.used), a->backing);
     }
@@ -599,12 +599,12 @@ typedef struct {
 typedef struct {
   isize  size;
   rawptr page;
-} Default_Page_Header;
+} Default_Allocator_Page_Header;
 
 typedef struct {
   rawptr next;
   isize  size;
-} Default_Pool_Allocator_Header;
+} Default_Allocator_Pool_Header;
 
 typedef struct {
   // sizeof    | Allocator 
@@ -614,7 +614,7 @@ typedef struct {
   // ]16..32 ] | 2         
   // ]32..64 ] | 3         
   // ]64..128] | 4         
-  Default_Pool_Allocator_Header  *fixed_allocator_blocks[5];
+  Default_Allocator_Pool_Header  *fixed_allocator_blocks[5];
   rawptr                          fixed_allocator_free  [5];
   Default_Allocator_Block_Header *dynamic_chunks;
 } Default_Allocator;
@@ -631,7 +631,7 @@ internal Allocator_Result default_allocator_proc(
 
   Allocator_Result result = {0};
   Default_Allocator *da = (Default_Allocator *)data;
-  Default_Page_Header *page_header = nil;
+  Default_Allocator_Page_Header *page_header = nil;
 
   isize size_category = 0;
   if (size > 128) {
@@ -664,9 +664,10 @@ internal Allocator_Result default_allocator_proc(
       return result;
     case 5:
       result.value = os_allocate_pages((size + MAX_ALIGN + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE);
+      assert(align <= MAX_ALIGN);
       old_memory   = result.value;
-      *(byte **)&result.value += max(size_of(Default_Page_Header), align);
-      ((Default_Page_Header *)result.value)[-1] = (Default_Page_Header) {
+      *(byte **)&result.value += max(size_of(Default_Allocator_Page_Header), align);
+      ((Default_Allocator_Page_Header *)result.value)[-1] = (Default_Allocator_Page_Header) {
         .size = (size + MAX_ALIGN + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE,
         .page = old_memory,
       };
@@ -686,7 +687,9 @@ internal Allocator_Result default_allocator_proc(
       da->fixed_allocator_free[size_category] = old_memory;
       return result;
     case 5:
-      page_header = &((Default_Page_Header *)old_memory)[-1];
+      page_header = &((Default_Allocator_Page_Header *)old_memory)[-1];
+      assert(page_header == page_header->page);
+      assert(page_header->size < 100000);
       assert(os_deallocate_pages(page_header->page, page_header->size));
       return result;
     }

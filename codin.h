@@ -372,7 +372,7 @@ internal void __runtime_init() {
 }
 
 internal void __thread_cleanup() {
-  growing_arena_allocator_destroy(__default_temp_allocator_arena);
+  // growing_arena_allocator_destroy(__default_temp_allocator_arena);
 }
 
 internal void __runtime_cleanup() { __thread_cleanup(); }

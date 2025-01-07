@@ -67,11 +67,11 @@ internal String __format_float_to_buffer(f64 value, Byte_Slice buffer, isize pre
 
   n += format_usize_to_buffer((usize)value, slice_start(buffer, n)).len;
 
-  if (precision != 0) {
+  if (precision > 0) {
     buffer.data[n] = '.';
     n += 1;
     isize shift = 1;
-    for_range(i, 0, precision) { shift *= 10; }
+    for_range(i, 0, precision - 1) { shift *= 10; }
 
     f64 comma_value = (value - (f64)(usize)value) * (f64)shift;
     if (comma_value - (f64)(usize)comma_value >= 0.5) {

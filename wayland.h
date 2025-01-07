@@ -1,4 +1,5 @@
 #include "codin.h"
+#include "ttf.h"
 #include "wayland_gen_common.h"
 #include "xkb.h"
 
@@ -12,6 +13,8 @@
 #include "ui.h"
 
 #include "spall.h"
+
+String last_key_string = {0};
 
 SpallBuffer  spall_buffer;
 SpallProfile spall_ctx;
@@ -457,7 +460,8 @@ internal void wayland_handle_events(Wayland_Connection *conn, Wayland_State *sta
             state->should_close = true;
           }
 
-          fmt_println(enum_to_string(Key, state->keymap.data[key + 8]));
+          last_key_string = enum_to_string(Key, state->keymap.data[key + 8]);
+          fmt_println(last_key_string);
         }
         break;
 
@@ -929,6 +933,19 @@ internal void wayland_draw_image_scaled(Wayland_State *state, i32 x, i32 y, i32 
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
+internal isize measure_text(String text);
+internal void wayland_draw_text_ttf(
+  Wayland_State  *state,
+  TTF_Font const *font,
+  String          str,
+  isize           font_size,
+  u32             color,
+  isize          *x_pos,
+  isize          *y_pos
+);
+
+TTF_Font ttf_font;
+
 internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   // slice_iter(ctx->commands, cmd, _i, {
@@ -984,9 +1001,13 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
       wayland_draw_box_shadow(wl_state, rect);
       break;
     case UI_Command_Type_Text:
-      x = cmd->variant.text.bounds.x0 + ctx->font.decender;
-      y = cmd->variant.text.bounds.y1 - ctx->font.decender;
-      wayland_draw_text(wl_state, &ctx->font, cmd->variant.text.text, cmd->variant.text.color, &x, &y);
+      x = cmd->variant.text.bounds.x0 + ctx->spacing;
+      y = (float)(cmd->variant.text.bounds.y0 + cmd->variant.text.bounds.y1) / 2 + ttf_get_font_height(&ttf_font, 28) / 2 - 1; 
+      wayland_draw_text_ttf(wl_state, &ttf_font, cmd->variant.text.text, 28, cmd->variant.text.color, &x, &y);
+
+      // x = cmd->variant.text.bounds.x0 + ctx->font.decender;
+      // y = cmd->variant.text.bounds.y1 - ctx->font.decender;
+      // wayland_draw_text(wl_state, &ctx->font, cmd->variant.text.text, cmd->variant.text.color, &x, &y);
       break;
     case UI_Command_Type_Image:
       rect = cmd->variant.image.rect;
@@ -1020,8 +1041,6 @@ UI_Context ui_context;
 
 String fps_string = {0};
 
-TTF_Font ttf_font;
-
 typedef struct {
   TTF_V_Metrics v_metrics;
   TTF_H_Metrics h_metrics;
@@ -1029,7 +1048,71 @@ typedef struct {
   u8           *pixels;
 } Cached_Glyph;
 
-Cached_Glyph glyph_cache[0xFFFF] = {0};
+Cached_Glyph glyph_cache[0x10FFFF] = {0};
+
+internal isize measure_text(String text) {
+  isize width = 0;
+  string_iter(text, codepoint, _i, {
+    width += glyph_cache[codepoint].h_metrics.advance;
+  });
+  return width;
+}
+
+internal void wayland_draw_text_ttf(
+  Wayland_State  *state,
+  TTF_Font const *font,
+  String          str,
+  isize           font_size,
+  u32             color,
+  isize          *x_pos,
+  isize          *y_pos
+) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+
+  isize start_x = *x_pos;
+  u32  *pixels  = (u32 *)state->shm_pool_data;
+
+  string_iter(str, codepoint, i, {
+    if (codepoint == '\n') {
+      *x_pos  = start_x;
+      *y_pos += ttf_get_line_height(font, font_size);
+      continue;
+    }
+    Cached_Glyph *cached_glyph = &glyph_cache[codepoint];
+    if (!cached_glyph->pixels) {
+      spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("render_glyph"), get_time_in_micros());
+      u32 glyph = ttf_get_codepoint_glyph(&ttf_font, codepoint);
+      ttf_get_glyph_h_metrics(&ttf_font, glyph, font_size, &cached_glyph->h_metrics);
+      ttf_get_glyph_v_metrics(&ttf_font, glyph, font_size, &cached_glyph->v_metrics);
+
+      ttf_get_glyph_bitmap(&ttf_font, glyph, font_size, &cached_glyph->w, &cached_glyph->h, &cached_glyph->pixels);
+      spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+    }
+
+    isize x = *x_pos + cached_glyph->h_metrics.bearing * (i != 0);
+    isize y = *y_pos - cached_glyph->v_metrics.height + cached_glyph->v_metrics.bearing;
+    for_range(iy, 0, cached_glyph->h) {
+      if (iy + y >= state->h) {
+        break;
+      }
+      if (iy + y < 0) {
+        continue;
+      }
+      for_range(ix, 0, cached_glyph->w) {
+        if (ix + x >= state->w) {
+          break;
+        }
+        if (ix + x < 0) {
+          continue;
+        }
+        u8 alpha = cached_glyph->pixels[ix + iy * cached_glyph->w];
+        alpha_blend_rgb8(&pixels[ix + x + (iy + y) * state->w], color, alpha);
+      }
+    }
+    *x_pos += cached_glyph->h_metrics.advance;
+  });
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+}
 
 internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Directory const *directory) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
@@ -1061,14 +1144,14 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
   struct Time curr_time = time_now();
   isize diff = curr_time.nsec - last_time.nsec;
 
-  ui_label(&ui_context, fmt_tprintf(LIT("%fms"), (f32)((f64)diff / Millisecond)));
+  ui_label(&ui_context, fmt_tprintf(LIT("%07.4fms"), (f32)((f64)diff / Millisecond)));
   last_time = curr_time;
 
   ui_label(&ui_context, str);
 
   ui_context.horizontal = false;
   ui_context.x  = 25;
-  ui_context.y += ui_context.spacing + ui_context.font.single_h + ui_context.font.decender;
+  ui_context.y += ui_context.spacing + ui_context.text_height + ui_context.spacing;
 
   // ui_image(&ui_context, (UI_Image) {.index = 0});
 
@@ -1084,44 +1167,29 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
   TTF_V_Metrics v_metrics;
   TTF_H_Metrics h_metrics;
 
-  int font_size = 32;
-
-  ttf_get_codepoint_v_metrics(&ttf_font, 'H', font_size, &v_metrics);
-
   isize font_x = 100;
-  isize font_y = 100 + v_metrics.height;
+  isize font_y = 200;
 
-  // wayland_draw_rect(state, 100, 100,    10000, 1, 0xFF62AEEF);
-  // wayland_draw_rect(state, 100, font_y, 10000, 1, 0xFF62AEEF);
+  isize font_size = 30;
 
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("font"), get_time_in_micros());
-  string_iter(LIT("An LLVM logo:  and an ohmyzsh logo:  all of this is written in  ;"), codepoint, _i, {
-    Cached_Glyph *cached_glyph = &glyph_cache[codepoint];
-    if (!cached_glyph->pixels) {
-      u32 glyph = ttf_get_codepoint_glyph(&ttf_font, codepoint);
-      ttf_get_glyph_h_metrics(&ttf_font, glyph, font_size, &cached_glyph->h_metrics);
-      ttf_get_glyph_v_metrics(&ttf_font, glyph, font_size, &cached_glyph->v_metrics);
+  wayland_draw_rect_outlines(
+    state,
+    100,
+    200 - ttf_get_font_height(&ttf_font, font_size) + 1,
+    measure_text(fps_string),
+    ttf_get_font_height(&ttf_font, font_size) + 2,
+    0xFFE06B74
+  );
+  wayland_draw_text_ttf(state, &ttf_font, fps_string, font_size, 0xFF98C379, &font_x, &font_y);
 
-      ttf_get_glyph_bitmap(&ttf_font, glyph, font_size, &cached_glyph->w, &cached_glyph->h, &cached_glyph->pixels);
-    }
+  font_x = 100;
+  font_y = 200 + ttf_get_line_height(&ttf_font, font_size);
 
-    isize x = font_x + cached_glyph->h_metrics.bearing;
-    isize y = font_y + cached_glyph->v_metrics.bearing;
-    for_range(_y, 0, cached_glyph->h) {
-      if (_y + y >= state->h) {
-        break;
-      }
-      for_range(_x, 0, cached_glyph->w) {
-        if (_x + x >= state->w) {
-          break;
-        }
-        u8 alpha = cached_glyph->pixels[_x + _y * cached_glyph->w];
-        alpha_blend_rgb8(&pixels[_x + x + (_y + y) * state->w], 0xFF62AEEF, alpha);
-      }
-    }
-    font_x += cached_glyph->h_metrics.advance;
-  });
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  str = LIT("An LLVM logo: \nAnd an 'oh my zsh' logo: \nAll of this is written in  (but without libc)\n( +  +  btw)\nabcdefghijlkmnopqrstuvwxyz\n");
+  
+  wayland_draw_text_ttf(state, &ttf_font, str, font_size, 0xFF62AEEF, &font_x, &font_y);
+
+  wayland_draw_text_ttf(state, &ttf_font, last_key_string, font_size, 0xFFE06B74, &font_x, &font_y);
 
   // for_range(_c, 1, Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out + 1) {
   //   Wayland_Wp_Cursor_Shape_Device_V1_Shape c = (Wayland_Wp_Cursor_Shape_Device_V1_Shape)_c;

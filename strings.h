@@ -225,10 +225,11 @@ internal String string_to_lower(String str, Allocator allocator) {
 }
 
 #define string_iter(string, elem, i, BLOCK)                                    \
-  for (isize i = 0; i < (string).len;) {                                       \
-    isize __string_iter_n;                                                     \
-    rune elem = utf8_rune_at((string), i, &__string_iter_n);                   \
-    if (__string_iter_n <= 0) { break; }                                       \
-    { BLOCK }                                                                  \
-    i += __string_iter_n;                                                      \
+  {                                                                            \
+    isize __string_iter_n = 0;                                                 \
+    for (isize i = 0; i < (string).len; i += __string_iter_n) {                \
+      rune elem = utf8_rune_at((string), i, &__string_iter_n);                 \
+      if (__string_iter_n <= 0) { break; }                                     \
+      { BLOCK }                                                                \
+    }                                                                          \
   }

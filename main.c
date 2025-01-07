@@ -6,13 +6,13 @@
 #define ttf_alloc(size) (unwrap_err(mem_alloc(size, context.allocator)))
 #define ttf_free(ptr) ((void)mem_free(ptr, 0, context.allocator))
 
-#define ttf_sort_i32s(ptr, n) {                                          \
-  Slice(i32) ttf_sort_i32s_slice = {.data = ptr, .len = n};              \
+#define ttf_sort_f32s(ptr, n) {                                          \
+  Slice(f32) ttf_sort_f32s_slice = {.data = ptr, .len = n};              \
   sort_slice_by(                                                         \
-    ttf_sort_i32s_slice,                                                 \
+    ttf_sort_f32s_slice,                                                 \
     index_i,                                                             \
     index_j,                                                             \
-    ttf_sort_i32s_slice.data[index_i] > ttf_sort_i32s_slice.data[index_j]\
+    ttf_sort_f32s_slice.data[index_i] > ttf_sort_f32s_slice.data[index_j]\
   );                                                                     \
 }
 
@@ -23,19 +23,141 @@ f32 ttf_absf(f32 x) {
   return x > 0 ? x : -x;
 }
 
-#define ttf_sqrtf mem_sqrtf
-f32 ttf_sqrtf(f32 x) {
-    f32 xhalf = 0.5f * x;
-    union {
-        f32 x;
-        i32 i;
-    } u;
-    u.x = x;
-    u.i = 0x5f375a86 - (u.i >> 1);
-    u.x = u.x * (1.5f - xhalf * u.x * u.x);
-    u.x = u.x * (1.5f - xhalf * u.x * u.x);
-    u.x = u.x * (1.5f - xhalf * u.x * u.x);
-    return 1.0 / u.x;
+// #define ttf_sqrtf ttf_sqrtf
+// f32 ttf_sqrtf(f32 x) {
+//     f32 xhalf = 0.5f * x;
+//     union {
+//         f32 x;
+//         i32 i;
+//     } u;
+//     u.x = x;
+//     u.i = 0x5f375a86 - (u.i >> 1);
+//     for_range(i, 0, 1000) {
+//       u.x = u.x * (1.5f - xhalf * u.x * u.x);
+//     }
+//     return 1.0 / u.x;
+// }
+
+static const double tiny = 1.0e-300;
+
+#define ttf_sqrtf(x) sqrt(x)
+
+f64 sqrt(f64 x) {
+	f64 z;
+	i32 sign = (int)0x80000000;
+	i32 ix0,s0,q,m,t,i;
+	u32 r,t1,s1,ix1,q1;
+
+  #define EXTRACT_WORDS(hi,lo,d)                                  \
+  do {                                                            \
+    union {u64 bits; f64 value; } __u;                            \
+    __u.value = (d);                                              \
+    (hi) = __u.bits >> 32;                                        \
+    (lo) = (u32)__u.bits;                                         \
+  } while (0)
+
+  #define INSERT_WORDS(d,hi,lo)                                   \
+  do {                                                            \
+    union {u64 bits; f64 value; } __u;                            \
+    __u.bits = ((u64)(hi) << 32) | (u32)(lo);                     \
+    (d) = __u.value;                                              \
+  } while (0)
+
+	EXTRACT_WORDS(ix0, ix1, x);
+
+	/* take care of Inf and NaN */
+	if ((ix0&0x7ff00000) == 0x7ff00000) {
+		return x*x + x;  /* sqrt(NaN)=NaN, sqrt(+inf)=+inf, sqrt(-inf)=sNaN */
+	}
+	/* take care of zero */
+	if (ix0 <= 0) {
+		if (((ix0&~sign)|ix1) == 0)
+			return x;  /* sqrt(+-0) = +-0 */
+		if (ix0 < 0)
+			return (x-x)/(x-x);  /* sqrt(-ve) = sNaN */
+	}
+	/* normalize x */
+	m = ix0>>20;
+	if (m == 0) {  /* subnormal x */
+		while (ix0 == 0) {
+			m -= 21;
+			ix0 |= (ix1>>11);
+			ix1 <<= 21;
+		}
+		for (i=0; (ix0&0x00100000) == 0; i++)
+			ix0<<=1;
+		m -= i - 1;
+		ix0 |= ix1>>(32-i);
+		ix1 <<= i;
+	}
+	m -= 1023;    /* unbias exponent */
+	ix0 = (ix0&0x000fffff)|0x00100000;
+	if (m & 1) {  /* odd m, double x to make it even */
+		ix0 += ix0 + ((ix1&sign)>>31);
+		ix1 += ix1;
+	}
+	m >>= 1;      /* m = [m/2] */
+
+	/* generate sqrt(x) bit by bit */
+	ix0 += ix0 + ((ix1&sign)>>31);
+	ix1 += ix1;
+	q = q1 = s0 = s1 = 0;  /* [q,q1] = sqrt(x) */
+	r = 0x00200000;        /* r = moving bit from right to left */
+
+	while (r != 0) {
+		t = s0 + r;
+		if (t <= ix0) {
+			s0   = t + r;
+			ix0 -= t;
+			q   += r;
+		}
+		ix0 += ix0 + ((ix1&sign)>>31);
+		ix1 += ix1;
+		r >>= 1;
+	}
+
+	r = sign;
+	while (r != 0) {
+		t1 = s1 + r;
+		t  = s0;
+		if (t < ix0 || (t == ix0 && t1 <= ix1)) {
+			s1 = t1 + r;
+			if ((t1&sign) == sign && (s1&sign) == 0)
+				s0++;
+			ix0 -= t;
+			if (ix1 < t1)
+				ix0--;
+			ix1 -= t1;
+			q1 += r;
+		}
+		ix0 += ix0 + ((ix1&sign)>>31);
+		ix1 += ix1;
+		r >>= 1;
+	}
+
+	/* use floating add to find out rounding direction */
+	if ((ix0|ix1) != 0) {
+		z = 1.0 - tiny; /* raise inexact flag */
+		if (z >= 1.0) {
+			z = 1.0 + tiny;
+			if (q1 == (u32)0xffffffff) {
+				q1 = 0;
+				q++;
+			} else if (z > 1.0) {
+				if (q1 == (u32)0xfffffffe)
+					q++;
+				q1 += 2;
+			} else
+				q1 += q1 & 1;
+		}
+	}
+	ix0 = (q>>1) + 0x3fe00000;
+	ix1 = q1>>1;
+	if (q&1)
+		ix1 |= sign;
+	ix0 += m << 20;
+	INSERT_WORDS(z, ix0, ix1);
+	return z;
 }
 
 #define TTF_IMPLEMENTATION
@@ -430,19 +552,21 @@ int main() {
   b8 font_ok = bmf_load_font(font_data, &font);
   assert(font_ok);
 
-  ui_context_init(&ui_context, font, 1, 1, context.allocator);
-  Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("flame.ppm"), context.temp_allocator));
-  Image backing_image;
-  Image rgba8_image;
-  b8 ok = ppm_load_bytes(image_data, &backing_image);
-  assert(ok);
-  image_clone_to_rgba8(&backing_image, &rgba8_image, context.allocator);
-  assert(ok);
-  UI_Image image = ui_create_image(&ui_context, rgba8_image);
-  (void)image;
+  // Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("flame.ppm"), context.temp_allocator));
+  // Image backing_image;
+  // Image rgba8_image;
+  // b8 ok = ppm_load_bytes(image_data, &backing_image);
+  // assert(ok);
+  // image_clone_to_rgba8(&backing_image, &rgba8_image, context.allocator);
+  // assert(ok);
+  // UI_Image image = ui_create_image(&ui_context, rgba8_image);
+  // (void)image;
 
   Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("JetBrainsMonoNerdFont-Medium.ttf"), context.allocator));
+  // Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("Crimson-Roman.ttf"), context.allocator));
   ttf_load_bytes(ttf_font_data.data, ttf_font_data.len, &ttf_font);
+
+  ui_context_init(&ui_context, measure_text, 1, 1, ttf_get_font_height(&ttf_font, 28), context.allocator);
 
   struct Time last_fps_print = time_now();
   isize frames_since_print = 0;
@@ -558,15 +682,15 @@ int main() {
   }
   wayland_connection_destroy(&wl_connection);
 
-  slice_delete(rgba8_image.pixels, context.allocator);
+  // slice_delete(rgba8_image.pixels, context.allocator);
   slice_delete(font_data, context.allocator);
   if (fps_string.len) {
     slice_delete(fps_string, context.allocator);
   }
 
 	spall_buffer_quit(&spall_ctx, &spall_buffer);
-	slice_delete(spall_buffer_backing, context.allocator);
 	spall_quit(&spall_ctx);
+	slice_delete(spall_buffer_backing, context.allocator);
 
   tracking_allocator_fmt_results_w(&stdout, &track);
   tracking_allocator_destroy(track);

@@ -91,6 +91,8 @@ typedef struct {
   ttf_u32                    maxp;
   ttf_u32                    n_glyphs;
   ttf_u32                    units_per_em;
+  ttf_i32                    line_height;
+  ttf_i32                    font_height;
   ttf_bool                   bmp;
 } TTF_Font;
 
@@ -187,6 +189,9 @@ TTF_DEF void ttf_get_glyph_v_metrics(
   ttf_f32         font_size,
   TTF_V_Metrics   *metrics
 );
+
+TTF_DEF ttf_f32 ttf_get_line_height(TTF_Font const *font, ttf_f32 font_size);
+TTF_DEF ttf_f32 ttf_get_font_height(TTF_Font const *font, ttf_f32 font_size);
 
 #ifdef TTF_IMPLEMENTATION
 
@@ -286,6 +291,156 @@ typedef struct {
   ttf_u16 numberOfHMetrics;
 } _TTF_Hhea_Table;
 
+typedef union {
+  ttf_u16 version;
+  struct {
+    ttf_u16 version;
+    ttf_i16 xAvgCharWidth;
+    ttf_u16 usWeightClass;
+    ttf_u16 usWidthClass;
+    ttf_u16 fsType;
+    ttf_i16 ySubscriptXSize;
+    ttf_i16 ySubscriptYSize;
+    ttf_i16 ySubscriptXOffset;
+    ttf_i16 ySubscriptYOffset;
+    ttf_i16 ySuperscriptXSize;
+    ttf_i16 ySuperscriptYSize;
+    ttf_i16 ySuperscriptXOffset;
+    ttf_i16 ySuperscriptYOffset;
+    ttf_i16 yStrikeoutSize;
+    ttf_i16 yStrikeoutPosition;
+    ttf_i16 sFamilyClass;
+    ttf_u8  panose[10];
+    ttf_u32 ulUnicodeRange1;
+    ttf_u32 ulUnicodeRange2;
+    ttf_u32 ulUnicodeRange3;
+    ttf_u32 ulUnicodeRange4;
+    char    achVendID[4];
+    ttf_u16 fsSelection;
+    ttf_u16 usFirstCharIndex;
+    ttf_u16 usLastCharIndex;
+    ttf_i16 sTypoAscender;
+    ttf_i16 sTypoDescender;
+    ttf_i16 sTypoLineGap;
+    ttf_u16 usWinAscent;
+    ttf_u16 usWinDescent;
+  } v0;
+  struct {
+    ttf_u16 version;
+    ttf_i16 xAvgCharWidth;
+    ttf_u16 usWeightClass;
+    ttf_u16 usWidthClass;
+    ttf_u16 fsType;
+    ttf_i16 ySubscriptXSize;
+    ttf_i16 ySubscriptYSize;
+    ttf_i16 ySubscriptXOffset;
+    ttf_i16 ySubscriptYOffset;
+    ttf_i16 ySuperscriptXSize;
+    ttf_i16 ySuperscriptYSize;
+    ttf_i16 ySuperscriptXOffset;
+    ttf_i16 ySuperscriptYOffset;
+    ttf_i16 yStrikeoutSize;
+    ttf_i16 yStrikeoutPosition;
+    ttf_i16 sFamilyClass;
+    ttf_u8  panose[10];
+    ttf_u32 ulUnicodeRange1;
+    ttf_u32 ulUnicodeRange2;
+    ttf_u32 ulUnicodeRange3;
+    ttf_u32 ulUnicodeRange4;
+    char    achVendID[4];
+    ttf_u16 fsSelection;
+    ttf_u16 usFirstCharIndex;
+    ttf_u16 usLastCharIndex;
+    ttf_i16 sTypoAscender;
+    ttf_i16 sTypoDescender;
+    ttf_i16 sTypoLineGap;
+    ttf_u16 usWinAscent;
+    ttf_u16 usWinDescent;
+    ttf_u32 ulCodePageRange1;
+    ttf_u32 ulCodePageRange2;
+  } v1;
+  struct {
+    ttf_u16 version;
+    ttf_i16 xAvgCharWidth;
+    ttf_u16 usWeightClass;
+    ttf_u16 usWidthClass;
+    ttf_u16 fsType;
+    ttf_i16 ySubscriptXSize;
+    ttf_i16 ySubscriptYSize;
+    ttf_i16 ySubscriptXOffset;
+    ttf_i16 ySubscriptYOffset;
+    ttf_i16 ySuperscriptXSize;
+    ttf_i16 ySuperscriptYSize;
+    ttf_i16 ySuperscriptXOffset;
+    ttf_i16 ySuperscriptYOffset;
+    ttf_i16 yStrikeoutSize;
+    ttf_i16 yStrikeoutPosition;
+    ttf_i16 sFamilyClass;
+    ttf_u8  panose[10];
+    ttf_u32 ulUnicodeRange1;
+    ttf_u32 ulUnicodeRange2;
+    ttf_u32 ulUnicodeRange3;
+    ttf_u32 ulUnicodeRange4;
+    char    achVendID[4];
+    ttf_u16 fsSelection;
+    ttf_u16 usFirstCharIndex;
+    ttf_u16 usLastCharIndex;
+    ttf_i16 sTypoAscender;
+    ttf_i16 sTypoDescender;
+    ttf_i16 sTypoLineGap;
+    ttf_u16 usWinAscent;
+    ttf_u16 usWinDescent;
+    ttf_u32 ulCodePageRange1;
+    ttf_u32 ulCodePageRange2;
+    ttf_i16 sxHeight;
+    ttf_i16 sCapHeight;
+    ttf_u16 usDefaultChar;
+    ttf_u16 usBreakChar;
+    ttf_u16	usMaxContext;
+  } v4;
+  struct {
+    ttf_u16 version;
+    ttf_i16 xAvgCharWidth;
+    ttf_u16 usWeightClass;
+    ttf_u16 usWidthClass;
+    ttf_u16 fsType;
+    ttf_i16 ySubscriptXSize;
+    ttf_i16 ySubscriptYSize;
+    ttf_i16 ySubscriptXOffset;
+    ttf_i16 ySubscriptYOffset;
+    ttf_i16 ySuperscriptXSize;
+    ttf_i16 ySuperscriptYSize;
+    ttf_i16 ySuperscriptXOffset;
+    ttf_i16 ySuperscriptYOffset;
+    ttf_i16 yStrikeoutSize;
+    ttf_i16 yStrikeoutPosition;
+    ttf_i16 sFamilyClass;
+    ttf_u8  panose[10];
+    ttf_u32 ulUnicodeRange1;
+    ttf_u32 ulUnicodeRange2;
+    ttf_u32 ulUnicodeRange3;
+    ttf_u32 ulUnicodeRange4;
+    char    achVendID[4];
+    ttf_u16 fsSelection;
+    ttf_u16 usFirstCharIndex;
+    ttf_u16 usLastCharIndex;
+    ttf_i16 sTypoAscender;
+    ttf_i16 sTypoDescender;
+    ttf_i16 sTypoLineGap;
+    ttf_u16 usWinAscent;
+    ttf_u16 usWinDescent;
+    ttf_u32 ulCodePageRange1;
+    ttf_u32 ulCodePageRange2;
+    ttf_i16 sxHeight;
+    ttf_i16 sCapHeight;
+    ttf_u16 usDefaultChar;
+    ttf_u16 usBreakChar;
+    ttf_u16 usMaxContext;
+    ttf_u16 usLowerOpticalPointSize;
+    ttf_u16 usUpperOpticalPointSize;
+  } v5;
+} _TTF_OS2_Header;
+
 #define TTF_INTERNAL static
 
 #ifndef ttf_alloc
@@ -298,13 +453,13 @@ typedef char ttf_alloc_defined_but_ttf_free_is_not[-1];
 #endif
 #endif
 
-#ifndef ttf_sort_i32s
+#ifndef ttf_sort_f32s
 #include <stdlib.h>
-#define ttf_sort_i32s(ptr, n) qsort(ptr, n, sizeof(ttf_i32), _ttf_compare_ttf_i32s)
+#define ttf_sort_f32s(ptr, n) qsort(ptr, n, sizeof(ttf_f32), _ttf_compare_ttf_f32s)
 
-TTF_INTERNAL ttf_i32 _ttf_compare_ttf_i32s(const void *a, const void *b) {
-  ttf_i32 fa = *(ttf_i32 *)a;
-  ttf_i32 fb = *(ttf_i32 *)b;
+TTF_INTERNAL ttf_i32 _ttf_compare_ttf_f32s(const void *a, const void *b) {
+  ttf_f32 fa = *(ttf_f32 *)a;
+  ttf_f32 fb = *(ttf_f32 *)b;
 
   return fa < fb;
 }
@@ -313,11 +468,6 @@ TTF_INTERNAL ttf_i32 _ttf_compare_ttf_i32s(const void *a, const void *b) {
 #ifndef ttf_memcpy
 #include <string.h>
 #define ttf_memcpy memcpy
-#endif
-
-#ifndef ttf_roundf
-#include <math.h>
-#define ttf_roundf roundf
 #endif
 
 #ifndef ttf_sqrtf
@@ -398,6 +548,14 @@ TTF_INTERNAL void _ttf_get_glyph_header(TTF_Font const *font, ttf_u32 glyph, _TT
 #define ttf_min(a, b) ((a) > (b) ? (b) : (a))
 #define ttf_max(a, b) ((a) < (b) ? (b) : (a))
 
+TTF_DEF ttf_f32 ttf_get_line_height(TTF_Font const *font, ttf_f32 font_size) {
+  return 2 * font_size * font->line_height / font->units_per_em;
+}
+
+TTF_DEF ttf_f32 ttf_get_font_height(TTF_Font const *font, ttf_f32 font_size) {
+  return font_size * font->font_height / font->units_per_em;
+}
+
 TTF_DEF void ttf_get_codepoint_h_metrics(
   TTF_Font const *font,
   ttf_u32         codepoint,
@@ -444,8 +602,8 @@ TTF_DEF void ttf_get_glyph_v_metrics(
 ) {
   _TTF_Glyph_Header gh;
   _ttf_get_glyph_header(font, glyph, &gh);
-  metrics->bearing = -font_size * (gh.yMax          ) / font->units_per_em;
-  metrics->height  =  font_size * (gh.yMax - gh.yMin) / font->units_per_em;
+  metrics->bearing = -font_size * (           gh.yMin) / font->units_per_em;
+  metrics->height  =  font_size * ( gh.yMax - gh.yMin) / font->units_per_em;
 }
 
 TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font) {
@@ -497,7 +655,8 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font) {
     if (CHECK_TAG("hhea")) {
       _TTF_Hhea_Table hhea;
       ttf_memcpy(&hhea, &data[table.offset], sizeof(hhea));
-      font->n_hmetrics = ttf_be16toh(hhea.numberOfHMetrics);
+      font->n_hmetrics  = ttf_be16toh(hhea.numberOfHMetrics);
+      font->line_height = (ttf_i16)ttf_be16toh(hhea.lineGap) + (ttf_i16)ttf_be16toh(hhea.ascender) + (ttf_i16)ttf_be16toh(hhea.descender);
     }
     if (CHECK_TAG("loca")) {
       font->loca = table.offset;
@@ -510,6 +669,29 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font) {
     }
     if (CHECK_TAG("hmtx")) {
       font->hmtx = table.offset;
+    }
+    if (CHECK_TAG("OS/2")) {
+      _TTF_OS2_Header os2;
+      ttf_memcpy(&os2, &data[table.offset], ttf_min(sizeof(os2), n - table.offset));
+      switch (ttf_be16toh(os2.version)) {
+      case 0:
+        return false;
+        break;
+
+      case 1:
+      case 2:
+      case 3:
+        return false;
+        break;
+
+      case 4:
+        font->font_height = ttf_be16toh(os2.v4.sCapHeight);
+        break;
+
+      case 5:
+        font->font_height = ttf_be16toh(os2.v5.sCapHeight);
+        break;
+      }
     }
   }
 
@@ -644,6 +826,12 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font) {
 
   if (font->n_groups == -1 || font->groups == TTF_NULL) {
     return ttf_false;
+  }
+
+  if (!font->font_height) {
+    _TTF_Glyph_Header gh;
+    _ttf_get_glyph_header(font, 0, &gh);
+    font->font_height = gh.yMax - gh.yMin;
   }
 
   return ttf_true;
@@ -1100,7 +1288,7 @@ TTF_DEF void ttf_render_shape_bitmap(
   #define Y_SAMPLES 4
   #define X_SAMPLES 4
 
-  ttf_i32   intersections[Y_SAMPLES][shape->n_linears + shape->n_beziers * 2];
+  ttf_f32   intersections[Y_SAMPLES][shape->n_linears + shape->n_beziers * 2];
   ttf_i32 n_intersections[Y_SAMPLES];
 
   #define INTERSECTION(x)                                                      \
@@ -1192,7 +1380,7 @@ TTF_DEF void ttf_render_shape_bitmap(
         }
       }
 
-      ttf_sort_i32s(intersections[y_sample], n_intersections[y_sample]);
+      ttf_sort_f32s(intersections[y_sample], n_intersections[y_sample]);
     }
 
     for (ttf_i32 ix = 0; ix < W; ix += 1) {

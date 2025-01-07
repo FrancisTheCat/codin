@@ -348,21 +348,15 @@ internal b8 _file_exists(String path) {
 
 internal OS_Result_String _get_current_directory(Allocator allocator) {
   OS_Result_String result = {0};
-  Builder buf = vector_make(Builder, 0, 4, allocator);
-  loop {
-    isize status = syscall(SYS_getcwd, buf.data, buf.cap);
-    if (!status) {
-      result.err = __errno_unwrap(status);
-      if (errno == ERANGE) {
-        vector_reserve(&buf, buf.cap * 2);
-        continue;
-      }
-      return result;
-    } else {
-      buf.len = cstring_len(buf.data);
-      result.value = builder_to_string(buf);
-      return result;
-    }
+  Byte_Slice buf = slice_make(Byte_Slice, 4096, allocator);
+  isize status = syscall(SYS_getcwd, buf.data, buf.len);
+  if (status <= 0) {
+    result.err = __errno_unwrap(status);
+    return result;
+  } else {
+    buf.len = cstring_len((cstring)buf.data);
+    result.value = bytes_to_string(buf);
+    return result;
   }
 }
 

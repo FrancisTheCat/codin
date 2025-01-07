@@ -121,22 +121,25 @@ typedef enum {
   UI_Color_MAX,
 } UI_Color;
 
+typedef isize (*ui_measure_text_proc)(String str);
+
 typedef struct {
-  Vector(UI_Command) commands;
-  i32                width, height;
-  i32                x, y;
-  i32                spacing;
-  b8                 horizontal;
+  Vector(UI_Command)    commands;
+  i32                   width, height;
+  i32                   x, y;
+  i32                   spacing;
+  b8                    horizontal;
   struct {
     i32 x, y;
     b8  hovering;
     b8  buttons[2];
   } mouse;
-  BMF_Font           font;
-  Slice(u32)         command_hashes;
-  Slice(u32)         prev_command_hashes;
-  Vector(Image)      images;
-  u32                colors[UI_Color_MAX];
+  ui_measure_text_proc  measure_text_proc;
+  i32                   text_height;
+  Slice(u32)            command_hashes;
+  Slice(u32)            prev_command_hashes;
+  Vector(Image)         images;
+  u32                   colors[UI_Color_MAX];
 } UI_Context;
 
 internal Rectangle ui_insert_rect(UI_Context *ctx, isize width, isize height) {
@@ -159,18 +162,21 @@ internal Rectangle ui_insert_rect(UI_Context *ctx, isize width, isize height) {
 
 #define UI_HASH_CELL_SIZE 32
 
-internal void ui_context_init(UI_Context *ctx, BMF_Font font, isize width, isize height, Allocator allocator) {
+internal void ui_context_init(UI_Context *ctx, ui_measure_text_proc measure_text_proc, isize width, isize height, isize text_height, Allocator allocator) {
   isize n_cells = ((width  + UI_HASH_CELL_SIZE - 1) / UI_HASH_CELL_SIZE) *
                   ((height + UI_HASH_CELL_SIZE - 1) / UI_HASH_CELL_SIZE);
+
   slice_init(&ctx->command_hashes,      n_cells, allocator);
   slice_init(&ctx->prev_command_hashes, n_cells, allocator);
-  vector_init(&ctx->commands, 0, 8, allocator);
-  vector_init(&ctx->images, 0, 8, allocator);
 
-  ctx->font    = font;
-  ctx->width   = width;
-  ctx->height  = height;
-  ctx->spacing = font.decender;
+  vector_init(&ctx->commands, 0, 8, allocator);
+  vector_init(&ctx->images,   0, 8, allocator);
+
+  ctx->measure_text_proc = measure_text_proc;
+  ctx->width             = width;
+  ctx->height            = height;
+  ctx->text_height       = text_height;
+  ctx->spacing           = 12;
 
   ctx->colors[UI_Color_Background            ] = 0xFF000000;
   ctx->colors[UI_Color_Image_Border          ] = 0xFF62AEEF;
@@ -208,12 +214,12 @@ internal b8 ui_mouse_in_rect(UI_Context *ctx, Rectangle const *rect) {
 }
 
 internal b8 ui_button(UI_Context *ctx, String text) {
-  i32 width = bmf_measure_text(&ctx->font, text);
+  i32 width = ctx->measure_text_proc(text);
   UI_Command cmd;
   Rectangle rect = ui_insert_rect(
     ctx,
-    width + ctx->font.decender * 2,
-    ctx->font.single_h + ctx->font.decender
+    width + ctx->spacing * 2,
+    ctx->text_height + ctx->spacing * 2
   );
 
   UI_Color color         = UI_Color_Button;
@@ -258,12 +264,12 @@ internal b8 ui_button(UI_Context *ctx, String text) {
 }
 
 internal void ui_label(UI_Context *ctx, String text) {
-  i32 width = bmf_measure_text(&ctx->font, text);
+  i32 width = ctx->measure_text_proc(text);
   UI_Command cmd;
   Rectangle rect = ui_insert_rect(
     ctx,
-    width + ctx->font.decender * 2,
-    ctx->font.single_h + ctx->font.decender
+    width + ctx->spacing * 2,
+    ctx->text_height + ctx->spacing * 2
   );
 
   UI_Color color         = UI_Color_Label;
