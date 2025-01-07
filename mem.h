@@ -1,5 +1,7 @@
 #include "codin.h"
 
+// #include "stdlib.h"
+
 typedef enum {
   AE_None = 0,
   AE_Out_Of_Memory = 1,
@@ -107,18 +109,18 @@ internal Allocator_Result _mem_alloc_aligned(isize size, isize align,
   //   allocator = context.allocator;
   // }
   assert(allocator.proc);
-  return allocator.proc(allocator.data, AM_Alloc, size, align, nil, location);
+  Allocator_Result ret = {0};
+  ret = allocator.proc(allocator.data, AM_Alloc, size, align, nil, location);
+  if (ret.err == AE_None && ret.value != nil) {
+    mem_zero(ret.value, size);
+  }
+  return ret;
 }
 
 #define mem_alloc(size, allocator) _mem_alloc(size, allocator, CALLER_LOCATION)
 internal Allocator_Result _mem_alloc(isize size, Allocator allocator,
                                      Source_Code_Location location) {
-  // if (!allocator.proc) {
-  //   allocator = context.allocator;
-  // }
-  assert(allocator.proc);
-  return allocator.proc(allocator.data, AM_Alloc, size, MAX_ALIGN, nil,
-                        location);
+  return _mem_alloc_aligned(size, MAX_ALIGN, allocator, location);
 }
 
 #define mem_tclone(value, allocator)                                           \
@@ -160,6 +162,8 @@ internal Allocator_Error _mem_free(rawptr ptr, isize size, Allocator allocator,
   // }
   assert(allocator.proc);
   return allocator.proc(allocator.data, AM_Free, size, 0, ptr, location).err;
+  // free(ptr);
+  // return AE_None;
 }
 
 #define mem_resize(data, old_size, new_size, allocator)                        \

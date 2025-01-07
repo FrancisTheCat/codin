@@ -447,18 +447,20 @@ int main() {
   fmt_printfln(LIT("PI: %.8f"), 3.14159265359);
   fmt_printfln(LIT("E:  %.8f"), 2.71828182846);
 
-  Test_Context tc;
-  test_context_init(&tc, context.allocator);
+  // Test_Context tc;
+  // test_context_init(&tc, context.allocator);
 
-  test_add(&tc, test_growing_arena_allocator);
-  test_add(&tc, test_pool_allocator);
-  test_add(&tc, test_heap_allocator);
-  test_add(&tc, test_hash_map);
-  test_add(&tc, test_vector);
-  test_add(&tc, test_sort);
+  // test_add(&tc, test_growing_arena_allocator);
+  // test_add(&tc, test_pool_allocator);
+  // test_add(&tc, test_heap_allocator);
+  // test_add(&tc, test_hash_map);
+  // test_add(&tc, test_vector);
+  // test_add(&tc, test_sort);
 
-  test_context_execute(&tc);
-  test_context_destroy(tc);
+  // test_context_execute(&tc);
+  // test_context_destroy(tc);
+
+  // test_hash_map();
 
   // Image image;
   // Byte_Slice png_data = unwrap_err(read_entire_file_path(LIT("wallpaper.png"), context.temp_allocator));

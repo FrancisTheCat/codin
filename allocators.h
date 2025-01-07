@@ -663,14 +663,14 @@ internal Allocator_Result default_allocator_proc(
       mem_zero(result.value, size);
       return result;
     case 5:
-      result.value = os_allocate_pages((size + MAX_ALIGN + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE);
-      assert(align <= MAX_ALIGN);
+      result.value = os_allocate_pages((size + sizeof(Default_Allocator_Page_Header) + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE);
+      assert(align <= sizeof(Default_Allocator_Page_Header));
       old_memory   = result.value;
-      *(byte **)&result.value += max(size_of(Default_Allocator_Page_Header), align);
-      ((Default_Allocator_Page_Header *)result.value)[-1] = (Default_Allocator_Page_Header) {
+      *(Default_Allocator_Page_Header *)result.value = (Default_Allocator_Page_Header) {
         .size = (size + MAX_ALIGN + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE,
         .page = old_memory,
       };
+      *(Default_Allocator_Page_Header **)&result.value += 1;
       return result;
     }
 
