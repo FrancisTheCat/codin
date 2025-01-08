@@ -275,8 +275,8 @@ internal String format_usize_to_buffer_hex(usize value, Byte_Slice buffer, b8 up
 })
 
 internal isize cstring_len(cstring s);
-internal void __write_cstring(cstring str) { syscall(1, 2, str, cstring_len(str)); }
-internal void __write_string(String str) { syscall(1, 2, str.data, str.len); }
+internal void __write_cstring(cstring str) { syscall(SYS_write, 2, str, cstring_len(str)); }
+internal void __write_string(String str) { syscall(SYS_write, 2, str.data, str.len); }
 internal void __write_usize_hex(usize value) {
 #define N 32
   byte buf[N] = {0};

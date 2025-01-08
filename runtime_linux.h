@@ -11,8 +11,6 @@ extern long __syscall0(long syscall                                             
 extern long __clone3(void*, long, long(*)(void*), void*);
 extern long __go_unmap_urself(void*, long, long);
 
-static _Thread_local int errno;
-
 static long syscall(long syscall_number, ...) {
   long ret;
   __builtin_va_list args;
@@ -25,7 +23,7 @@ static long syscall(long syscall_number, ...) {
   switch (syscall_number) {
   case SYS_fork:
     ret = __syscall0(syscall_number);
-    goto end;
+    break;
   case SYS_exit:
   case SYS_exit_group:
   case SYS_close:
@@ -33,7 +31,7 @@ static long syscall(long syscall_number, ...) {
   case SYS_unlink:
     arg0 = __builtin_va_arg(args, long);
     ret  = __syscall1(syscall_number, arg0);
-    goto end;
+    break;
   case SYS_arch_prctl:
   case SYS_nanosleep:
   case SYS_munmap:
@@ -51,7 +49,7 @@ static long syscall(long syscall_number, ...) {
     arg0 = __builtin_va_arg(args, long);
     arg1 = __builtin_va_arg(args, long);
     ret  = __syscall2(syscall_number, arg0, arg1);
-    goto end;
+    break;
   case SYS_read:
   case SYS_write:
   case SYS_socket:
@@ -70,7 +68,7 @@ static long syscall(long syscall_number, ...) {
     arg1 = __builtin_va_arg(args, long);
     arg2 = __builtin_va_arg(args, long);
     ret = __syscall3(syscall_number, arg0, arg1, arg2);
-    goto end;
+    break;
   case SYS_openat:
   case SYS_wait4:
     arg0 = __builtin_va_arg(args, long);
@@ -78,7 +76,7 @@ static long syscall(long syscall_number, ...) {
     arg2 = __builtin_va_arg(args, long);
     arg3 = __builtin_va_arg(args, long);
     ret = __syscall4(syscall_number, arg0, arg1, arg2, arg3);
-    goto end;
+    break;
   case SYS_waitid:
   case SYS_setsockopt:
     arg0 = __builtin_va_arg(args, long);
@@ -87,7 +85,7 @@ static long syscall(long syscall_number, ...) {
     arg3 = __builtin_va_arg(args, long);
     arg4 = __builtin_va_arg(args, long);
     ret = __syscall5(syscall_number, arg0, arg1, arg2, arg3, arg4);
-    goto end;
+    break;
   case SYS_mmap:
   case SYS_sendto:
   case SYS_recvfrom:
@@ -98,15 +96,16 @@ static long syscall(long syscall_number, ...) {
     arg4 = __builtin_va_arg(args, long);
     arg5 = __builtin_va_arg(args, long);
     ret = __syscall6(syscall_number, arg0, arg1, arg2, arg3, arg4, arg5);
-    goto end;
+    break;
+  default:
+    __syscall3(SYS_write, 2, (long)(char*)"INVALID SYSCALL\n", sizeof("INVALID SYSCALL\n"));
+    __builtin_trap();
   }
 
-  __syscall3(SYS_write, 2, (long)(char*)"INVALID SYSCALL\n", sizeof("INVALID SYSCALL\n"));
-  __builtin_trap();
-
-end:
-  if (ret < 0) {
-    errno = -ret;
-  }
   return ret;
+}
+
+static void __stack_chk_fail() {
+  syscall(SYS_write, 2, "stack smashing detected\n", 24);
+  __builtin_trap();
 }

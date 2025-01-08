@@ -15,7 +15,7 @@
 
 #include "spall.h"
 
-#define UI_FONT_SIZE 128
+#define UI_FONT_SIZE 28
 
 String last_key_string = {0};
 
@@ -297,12 +297,12 @@ typedef struct {
 
 internal b8 create_shared_memory_file(uintptr size, Wayland_State *state) {
   #define MFD_CLOEXEC       0x0001U
-  #define MFD_ALLOW_SEALING	0x0002U
+  #define MFD_ALLOW_SEALING 0x0002U
   #define MFD_HUGETLB       0x0004U
   /* not executable and sealed to prevent changing to executable. */
-  #define MFD_NOEXEC_SEAL    0x0008U
+  #define MFD_NOEXEC_SEAL   0x0008U
   /* executable */
-  #define MFD_EXEC		0x0010U
+  #define MFD_EXEC          0x0010U
   Fd fd = syscall(SYS_memfd_create, "/wayland_framebuffer_memfd", MFD_ALLOW_SEALING | MFD_CLOEXEC);
   if (fd == -1) {
     return false;
