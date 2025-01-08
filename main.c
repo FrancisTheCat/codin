@@ -3,8 +3,8 @@
 #include "iter.h"
 #include "xml.h"
 
-#define ttf_alloc(size) (unwrap_err(mem_alloc(size, context.allocator)))
-#define ttf_free(ptr) ((void)mem_free(ptr, 0, context.allocator))
+#define ttf_alloc(U, size) (unwrap_err(mem_alloc(size, *(Allocator *)U)))
+#define ttf_free(U, ptr) ((void)mem_free(ptr, 0, *(Allocator *)U))
 
 #define ttf_sort_f32s(ptr, n) {                                          \
   Slice(f32) ttf_sort_f32s_slice = {.data = ptr, .len = n};              \
@@ -12,7 +12,8 @@
     ttf_sort_f32s_slice,                                                 \
     index_i,                                                             \
     index_j,                                                             \
-    ttf_sort_f32s_slice.data[index_i] > ttf_sort_f32s_slice.data[index_j]\
+    ttf_sort_f32s_slice.data[index_i] >                                  \
+    ttf_sort_f32s_slice.data[index_j]                                    \
   );                                                                     \
 }
 
@@ -367,6 +368,12 @@ int main() {
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
   spall_ctx   = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
 
+  File_Info fi;
+  file_stat(spall_fd, &fi);
+  assert(fi.readable);
+  assert(fi.writeable);
+  assert(!fi.executable);
+
 	Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 1024, context.allocator);
 	spall_buffer = (SpallBuffer){
 		.length = spall_buffer_backing.len,
@@ -556,7 +563,9 @@ int main() {
 
   Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("JetBrainsMonoNerdFont-Medium.ttf"), context.allocator));
   // Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("Crimson-Roman.ttf"), context.allocator));
-  ttf_load_bytes(ttf_font_data.data, ttf_font_data.len, &ttf_font);
+  Growing_Arena_Allocator font_arena;
+  Allocator font_allocator = growing_arena_allocator_init(&font_arena, 4096, context.allocator);
+  ttf_load_bytes(ttf_font_data.data, ttf_font_data.len, &ttf_font, &font_allocator);
 
   ui_context_init(&ui_context, measure_text_ttf, 1, 1, ttf_get_font_height(&ttf_font, UI_FONT_SIZE), context.allocator);
 
@@ -667,12 +676,7 @@ int main() {
     mem_free_all(context.temp_allocator);
   }
 
-  for_range(i, 0, count_of(glyph_cache)) {
-    if (glyph_cache[i].pixels) {
-      mem_free(glyph_cache[i].pixels, 1, context.allocator);
-    }
-  }
-  ttf_destroy_font(&ttf_font);
+  growing_arena_allocator_destroy(font_arena);
   slice_delete(ttf_font_data, context.allocator);
 
   directory_delete(directory, context.allocator);

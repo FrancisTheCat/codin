@@ -179,7 +179,9 @@ internal OS_Result_Fd _open_file_at(Fd dir, String path, isize permissions) {
   return result;
 }
 
-internal OS_Error _stat(Fd fd, File_Info *fi) {
+internal isize fmt_printf(String format, ...);
+
+internal OS_Error _file_stat(Fd fd, File_Info *fi) {
   struct stat s;
   syscall_or_return_err(SYS_fstat, fd, &s);
 
@@ -188,6 +190,10 @@ internal OS_Error _stat(Fd fd, File_Info *fi) {
   fi->creation_time.nsec     = s.st_ctimensec + s.st_ctime * Second;
   fi->modification_time.nsec = s.st_mtimensec + s.st_mtime * Second;
   fi->is_dir = !!(s.st_mode & S_IFDIR);
+
+  fi->readable   = !!(s.st_mode & 00400);
+  fi->writeable  = !!(s.st_mode & 00200);
+  fi->executable = !!(s.st_mode & 00100);
 
   return OSE_None;
 }
@@ -237,7 +243,7 @@ internal OS_Result_Dir _read_dir(Fd fd, Allocator allocator) {
       current_file.name = cstring_to_string_clone(dirent->d_name, allocator);
       Fd child_fd =
           or_return_err(_open_file_at(fd, current_file.name, FP_Read));
-      if (_stat(child_fd, &current_file)) {
+      if (_file_stat(child_fd, &current_file)) {
         string_delete(current_file.name, allocator);
       } else {
         vector_append(&directory, current_file);

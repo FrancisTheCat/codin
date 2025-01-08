@@ -76,13 +76,16 @@ typedef struct {
   struct Time creation_time;
   struct Time modification_time;
   b8 is_dir;
+  b8 readable;
+  b8 writeable;
+  b8 executable;
 } File_Info;
 
 typedef enum {
-  FP_Read = 0b0001,
-  FP_Write = 0b0010,
-  FP_Create = 0b0100,
-  FP_Truncate = 0b1000,
+  FP_Read       = 0b0001,
+  FP_Write      = 0b0010,
+  FP_Create     = 0b0100,
+  FP_Truncate   = 0b1000,
   FP_Read_Write = 0b0011,
 } File_Permission;
 
@@ -107,7 +110,7 @@ internal OS_Result_Fd _open_file_at(Fd dir, String path, isize permissions);
 
 internal OS_Error _close_file(Fd fd);
 
-internal OS_Error _stat(Fd fd, File_Info *fi);
+internal OS_Error _file_stat(Fd fd, File_Info *fi);
 
 internal OS_Error _remove(String path);
 internal OS_Error _remove_at(Fd dir, String path);
@@ -146,14 +149,14 @@ internal OS_Result_Fd file_open(String path, isize permissions) {
 }
 
 internal OS_Error file_stat(Fd file, File_Info *info) {
-  return _stat(file, info);
+  return _file_stat(file, info);
 }
 
 [[nodiscard]]
 internal OS_Result_Bytes read_entire_file_fd(Fd fd, Allocator allocator) {
   OS_Result_Bytes result = {0};
   File_Info fi;
-  result.err = _stat(fd, &fi);
+  result.err = _file_stat(fd, &fi);
   if (result.err) {
     return result;
   }

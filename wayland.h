@@ -1156,7 +1156,7 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
   ui_context.x  = 25;
   ui_context.y += ui_context.spacing + ui_context.text_height + ui_context.spacing * 2;
 
-  ui_image(&ui_context, (UI_Image) {.index = 0});
+  // ui_image(&ui_context, (UI_Image) {.index = 0});
 
   (void)directory;
   // slice_iter(*directory, file, _i, {
