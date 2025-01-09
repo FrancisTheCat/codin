@@ -15,7 +15,7 @@
 
 #include "spall.h"
 
-#define UI_FONT_SIZE 28
+#define UI_FONT_SIZE 128
 
 String last_key_string = {0};
 

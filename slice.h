@@ -99,11 +99,14 @@
 
 #define linear_search(slice, value)                                            \
   ({                                                                           \
+    isize __linear_search_ret = -1;                                            \
     slice_iter(slice, elem, i, {                                               \
       if (*elem == value) {                                                    \
-        return i;                                                              \
+        __linear_search_ret = i;                                               \
+        break;                                                                 \
       }                                                                        \
     });                                                                        \
+    __linear_search_ret;                                                       \
   })
 
 #define linear_search_by(slice, compare_value, compare)                        \

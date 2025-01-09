@@ -105,7 +105,7 @@ static long syscall(long syscall_number, ...) {
   return ret;
 }
 
-static void __stack_chk_fail() {
+extern void __stack_chk_fail() {
   syscall(SYS_write, 2, "stack smashing detected\n", 24);
   __builtin_trap();
 }

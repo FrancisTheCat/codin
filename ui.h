@@ -175,7 +175,7 @@ internal void ui_context_init(UI_Context *ctx, ui_measure_text_proc measure_text
   ctx->width             = width;
   ctx->height            = height;
   ctx->text_height       = text_height;
-  ctx->spacing           = 12;
+  ctx->spacing           = 32;
 
   ctx->colors[UI_Color_Background            ] = 0xFF000000;
   ctx->colors[UI_Color_Image_Border          ] = 0xFF62AEEF;

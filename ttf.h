@@ -120,25 +120,72 @@ TTF_DEF void ttf_render_codepoint_bitmap(
   TTF_Font        const *font,
   ttf_u32                codepoint,
   ttf_f32                font_size,
-  ttf_u32               *w,
-  ttf_u32               *h,
+  ttf_u32                stride,
   ttf_u8                *pixels
 );
 TTF_DEF void ttf_render_glyph_bitmap(
   TTF_Font        const *font,
   ttf_u32                glyph,
   ttf_f32                font_size,
-  ttf_u32               *w,
-  ttf_u32               *h,
+  ttf_u32                stride,
   ttf_u8                *pixels
 );
 TTF_DEF void ttf_render_shape_bitmap(
   TTF_Font        const *font,
   TTF_Glyph_Shape const *shape,
   ttf_f32                font_size,
-  ttf_u32               *w,
-  ttf_u32               *h,
+  ttf_u32                stride,
   ttf_u8                *pixels
+);
+
+TTF_DEF void ttf_render_codepoint_sdf(
+  TTF_Font        const *font,
+  ttf_u32                codepoint,
+  ttf_f32                font_size,
+  ttf_f32                spread,
+  ttf_u32                components,
+  ttf_u32                stride,
+  ttf_u8                *pixels
+);
+TTF_DEF void ttf_render_glyph_sdf(
+  TTF_Font        const *font,
+  ttf_u32                glyph,
+  ttf_f32                font_size,
+  ttf_f32                spread,
+  ttf_u32                components,
+  ttf_u32                stride,
+  ttf_u8                *pixels
+);
+TTF_DEF void ttf_render_shape_sdf(
+  TTF_Font        const *font,
+  TTF_Glyph_Shape const *shape,
+  ttf_f32                font_size,
+  ttf_f32                spread,
+  ttf_u32                components,
+  ttf_u32                stride,
+  ttf_u8                *pixels
+);
+
+TTF_DEF void ttf_get_codepoint_bitmap_size(
+  TTF_Font        const *font,
+  ttf_u32                codepoint,
+  ttf_f32                font_size,
+  ttf_u32               *w,
+  ttf_u32               *h
+);
+TTF_DEF void ttf_get_glyph_bitmap_size(
+  TTF_Font        const *font,
+  ttf_u32                glyph,
+  ttf_f32                font_size,
+  ttf_u32               *w,
+  ttf_u32               *h
+);
+TTF_DEF void ttf_get_shape_bitmap_size(
+  TTF_Font        const *font,
+  TTF_Glyph_Shape const *shape,
+  ttf_f32                font_size,
+  ttf_u32               *w,
+  ttf_u32               *h
 );
 
 TTF_DEF void ttf_get_codepoint_bitmap(
@@ -1238,23 +1285,55 @@ TTF_DEF void ttf_get_glyph_shape(
   }
 }
 
-TTF_DEF void ttf_render_codepoint_bitmap(
+TTF_DEF void ttf_get_codepoint_bitmap_size(
   TTF_Font        const *font,
   ttf_u32                codepoint,
   ttf_f32                font_size,
   ttf_u32               *w,
-  ttf_u32               *h,
+  ttf_u32               *h
+) {
+  ttf_get_glyph_bitmap_size(font, ttf_get_codepoint_glyph(font, codepoint), font_size, w, h);
+}
+
+TTF_DEF void ttf_get_glyph_bitmap_size(
+  TTF_Font        const *font,
+  ttf_u32                glyph,
+  ttf_f32                font_size,
+  ttf_u32               *w,
+  ttf_u32               *h
+) {
+  TTF_Glyph_Shape shape = {0};
+  ttf_get_glyph_shape(font, glyph, &shape);
+  ttf_get_shape_bitmap_size(font, &shape, font_size, w, h);
+}
+
+TTF_DEF void ttf_get_shape_bitmap_size(
+  TTF_Font        const *font,
+  TTF_Glyph_Shape const *shape,
+  ttf_f32                font_size,
+  ttf_u32               *w,
+  ttf_u32               *h
+) {
+  const ttf_f32 scale = font_size / font->units_per_em;
+  *w = (shape->max.x - shape->min.x) * scale + 2;
+  *h = (shape->max.y - shape->min.y) * scale + 2;
+}
+
+TTF_DEF void ttf_render_codepoint_bitmap(
+  TTF_Font        const *font,
+  ttf_u32                codepoint,
+  ttf_f32                font_size,
+  ttf_u32                stride,
   ttf_u8                *pixels
 ) {
-  ttf_render_glyph_bitmap(font, ttf_get_codepoint_glyph(font, codepoint), font_size, w, h, pixels);
+  ttf_render_glyph_bitmap(font, ttf_get_codepoint_glyph(font, codepoint), font_size, stride, pixels);
 }
 
 TTF_DEF void ttf_render_glyph_bitmap(
   TTF_Font        const *font,
   ttf_u32                glyph,
   ttf_f32                font_size,
-  ttf_u32               *w,
-  ttf_u32               *h,
+  ttf_u32                stride,
   ttf_u8                *pixels
 ) {
   TTF_Glyph_Shape shape = {0};
@@ -1265,7 +1344,7 @@ TTF_DEF void ttf_render_glyph_bitmap(
   shape.linears = linears;
   ttf_get_glyph_shape(font, glyph, &shape);
 
-  ttf_render_shape_bitmap(font, &shape, font_size, w, h, pixels);
+  ttf_render_shape_bitmap(font, &shape, font_size, stride, pixels);
 }
 
 TTF_INTERNAL ttf_i32 _ttf_shape_get_intersections(
@@ -1365,21 +1444,13 @@ TTF_DEF void ttf_render_shape_bitmap(
   TTF_Font        const *font,
   TTF_Glyph_Shape const *shape,
   ttf_f32                font_size,
-  ttf_u32               *w,
-  ttf_u32               *h,
+  ttf_u32                stride,
   ttf_u8                *pixels
 ) {
   const ttf_f32 SCALE = font_size / font->units_per_em;
 
   const ttf_i32 W = (shape->max.x - shape->min.x) * SCALE + 2;
   const ttf_i32 H = (shape->max.y - shape->min.y) * SCALE + 2;
-
-  *w = W;
-  *h = H;
-
-  if (!pixels) {
-    return;
-  }
 
   #define Y_SAMPLES 4
   #define X_SAMPLES 4
@@ -1409,7 +1480,7 @@ TTF_DEF void ttf_render_shape_bitmap(
           }
         }
       }
-      pixels[(ttf_i32)(ix + iy * W)] = (ttf_f32)255 * hits / (Y_SAMPLES * X_SAMPLES);
+      pixels[ix + iy * (W + stride)] = (ttf_f32)255 * hits / (Y_SAMPLES * X_SAMPLES);
     }
   }
 }
@@ -1417,8 +1488,7 @@ TTF_DEF void ttf_render_shape_bitmap(
 TTF_INTERNAL ttf_f32 _ttf_sdf2_linear(
   TTF_Segment_Linear const *linear,
   ttf_f32                   x,
-  ttf_f32                   y,
-  ttf_f32                   em2
+  ttf_f32                   y
 ) {
   ttf_f32 bax = linear->b.x - linear->a.x;
   ttf_f32 bay = linear->b.y - linear->a.y;
@@ -1435,7 +1505,7 @@ TTF_INTERNAL ttf_f32 _ttf_sdf2_linear(
   ttf_f32 vx = (1 - t) * linear->a.x + t * linear->b.x;
   ttf_f32 vy = (1 - t) * linear->a.y + t * linear->b.y;
 
-  ttf_f32 v  = (vx - x) * (vx - x) * em2 + (vy - y) * (vy - y) * em2;
+  ttf_f32 v  = (vx - x) * (vx - x) + (vy - y) * (vy - y);
   return v;
 }
 
@@ -1444,8 +1514,8 @@ TTF_DEF void ttf_render_shape_sdf(
   TTF_Glyph_Shape const *shape,
   ttf_f32                font_size,
   ttf_f32                spread,
-  ttf_u32               *w,
-  ttf_u32               *h,
+  ttf_u32                components,
+  ttf_u32                stride,
   ttf_u8                *pixels
 ) {
   const ttf_f32 SCALE = font_size / font->units_per_em;
@@ -1453,70 +1523,90 @@ TTF_DEF void ttf_render_shape_sdf(
   const ttf_i32 W = (shape->max.x - shape->min.x) * SCALE + 2;
   const ttf_i32 H = (shape->max.y - shape->min.y) * SCALE + 2;
 
-  *w = W;
-  *h = H;
-
-  if (!pixels) {
-    return;
-  }
-
   ttf_f32 intersections[shape->n_linears + shape->n_beziers * 2];
 
   for (ttf_i32 iy = 0; iy < H; iy += 1) {
     ttf_f32 y = (H - iy - 1) / SCALE + shape->min.y;
     ttf_i32 n_intersections = _ttf_shape_get_intersections(shape, intersections, y);
+    ttf_f32 values[components];
+
     for (ttf_i32 ix = 0; ix < W; ix += 1) {
       ttf_f32 x = ix / SCALE + shape->min.x;
-      ttf_f32 value = 100000;
-
-      ttf_f32 em2 = 1 / font->units_per_em * font->units_per_em;
-      em2 = 1;
+      for (ttf_i32 i = 0; i < components; i += 1) {
+        values[i] = 1e10;
+      }
 
       for (ttf_i32 i = 0; i < shape->n_linears; i += 1) {
         TTF_Segment_Linear linear = shape->linears[i];
-        ttf_f32 v = _ttf_sdf2_linear(&linear, x, y, em2);
-        if (v < value) {
-          value = v;
+        ttf_f32 v = _ttf_sdf2_linear(&linear, x, y);
+
+        ttf_i32 idx = -1;
+        for (int i = 0; i < components; i += 1) {
+          if (values[i] > v) {
+            idx = i;
+            break;
+          }
+        }
+        if (idx != -1) {
+          for (int i = components - 1; i > idx; i -= 1) {
+            values[i] = values[i - 1];
+          }
+          values[idx] = v;
         }
       }
       
       for (ttf_i32 i = 0; i < shape->n_beziers; i += 1) {
         TTF_Segment_Bezier bezier = shape->beziers[i];
         TTF_Segment_Linear linear;
-        #define N_SEGMENTS 2
+        #define N_SEGMENTS 16
         for (ttf_i32 i = 0; i < N_SEGMENTS; i += 1) {
-          ttf_f32 t0 =  i      / N_SEGMENTS;
-          ttf_f32 t1 = (i + 1) / N_SEGMENTS;
+          ttf_f32 t0 =  (ttf_f32)i      / N_SEGMENTS;
+          ttf_f32 t1 = ((ttf_f32)i + 1) / N_SEGMENTS;
           linear.a.x = (1 - t0) * ((1 - t0) * bezier.p0.x + t0 * bezier.p1.x) + t0 * ((1 - t0) * bezier.p1.x + t0 * bezier.p2.x);
           linear.a.y = (1 - t0) * ((1 - t0) * bezier.p0.y + t0 * bezier.p1.y) + t0 * ((1 - t0) * bezier.p1.y + t0 * bezier.p2.y);
           linear.b.x = (1 - t1) * ((1 - t1) * bezier.p0.x + t1 * bezier.p1.x) + t1 * ((1 - t1) * bezier.p1.x + t1 * bezier.p2.x);
           linear.b.y = (1 - t1) * ((1 - t1) * bezier.p0.y + t1 * bezier.p1.y) + t1 * ((1 - t1) * bezier.p1.y + t1 * bezier.p2.y);
-          ttf_f32 v = _ttf_sdf2_linear(&linear, x, y, em2);
-          if (v < value) {
-            value = v;
+          ttf_f32 v = _ttf_sdf2_linear(&linear, x, y);
+
+          ttf_i32 idx = -1;
+          for (int i = 0; i < components; i += 1) {
+            if (values[i] > v) {
+              idx = i;
+              break;
+            }
+          }
+          if (idx != -1) {
+            for (int i = components - 1; i > idx; i -= 1) {
+              values[i] = values[i - 1];
+            }
+            values[idx] = v;
           }
         }
       }
 
-      value  = ttf_sqrtf(value);
-      value /= spread;
+      for (int i = 0; i < components; i += 1) {
+        ttf_f32 value = values[0];
 
-      if (value > 1) {
-        value = 1;
-      } else if (value < 0) {
-        value = 0;
-      }
+        value  = ttf_sqrtf(value);
+        value /= spread;
+
+        if (value > 1) {
+          value = 1;
+        } else if (value < 0) {
+          value = 0;
+        }
       
-      while ((n_intersections != 0) && x > intersections[n_intersections - 1]) {
-        n_intersections -= 1;
-      }
+        while ((n_intersections != 0) && x > intersections[n_intersections - 1]) {
+          n_intersections -= 1;
+        }
 
-      if (n_intersections & 1) {
-        value = 0.5 * value + 0.5;
-      } else {
-        value = 0.5 * (1 - value);
+        if (n_intersections & 1) {
+          value = 0.5 * value + 0.5;
+        } else {
+          value = 0.5 * (1 - value);
+        }
+        pixels[(ix + iy * (W + stride)) * components + i] = (ttf_f32)255 * value;
       }
-      pixels[ix + iy * W] = (ttf_f32)255 * value;
     }
   }
 }
@@ -1562,7 +1652,7 @@ TTF_DEF void ttf_get_shape_bitmap(
   ttf_u32 W;
   ttf_u32 H;
 
-  ttf_render_shape_bitmap(font, shape, font_size, &W, &H, TTF_NULL);
+  ttf_get_shape_bitmap_size(font, shape, font_size, &W, &H);
 
   *pixels = (ttf_u8 *)ttf_alloc(font->allocator, W * H);
   *w = W;
@@ -1572,7 +1662,8 @@ TTF_DEF void ttf_get_shape_bitmap(
     return;
   }
 
-  ttf_render_shape_sdf(font, shape, font_size, 300, &W, &H, *pixels);
+  ttf_render_shape_bitmap(font, shape, font_size, 0, *pixels);
+  // ttf_render_shape_sdf(font, shape, font_size, 128, 1, 0, *pixels);
 }
 
 #undef ttf_max

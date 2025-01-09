@@ -125,6 +125,23 @@ typedef Vector(byte) Byte_Buffer;
     removed_item;                                                              \
   })
 
+#define vector_insert(_vector, _index, value)                                  \
+  ({                                                                           \
+    type_of(_vector) vector = _vector;                                         \
+    type_of(_index)  index  = _index;                                          \
+    type_of(vector->data[0]) removed_item = vector->data[index];               \
+    vector_append(vector, value);                                              \
+    for (                                                                      \
+      isize __vector_insert_i = vector->len - 1;                               \
+      __vector_insert_i < index;                                               \
+      __vector_insert_i++                                                      \
+    ) {                                                                        \
+      vector->data[__vector_insert_i] = vector->data[__vector_insert_i - 1];   \
+    }                                                                          \
+    vector->data[index] = value;                                               \
+    removed_item;                                                              \
+  })
+
 #define vector_iter slice_iter
 
 #define vector_to_slice(Type, _vector)                                         \
