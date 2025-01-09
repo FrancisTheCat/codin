@@ -360,8 +360,8 @@ void spall_close_callback(SpallProfile *self) {
 }
 
 int main() {
-  // Tracking_Allocator track;
-  // context.allocator = tracking_allocator_init(&track, context.allocator);
+  Tracking_Allocator track;
+  context.allocator = tracking_allocator_init(&track, context.allocator);
 
   context.logger = create_file_logger(1);
 
@@ -569,6 +569,11 @@ int main() {
 
   ui_context_init(&ui_context, measure_text_ttf, 1, 1, ttf_get_font_height(&ttf_font, UI_FONT_SIZE), context.allocator);
 
+  slice_init(&ui_hash_chunks, 30 * 30, context.allocator);
+  slice_init(&ui_prev_chunks, 30 * 30, context.allocator);
+  ui_hash_chunks_x = 30;
+  ui_hash_chunks_y = 30;
+  
   Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("flame.ppm"), context.temp_allocator));
   Image backing_image;
   Image rgba8_image;
@@ -645,6 +650,13 @@ int main() {
     
       state.wl_buffer = wayland_wl_shm_pool_create_buffer(&wl_connection, state.wl_shm_pool, 0, state.w, state.h, state.stride, Wayland_Wl_Shm_Format_Xrgb8888);
 
+      ui_hash_chunks_x = (state.w + UI_HASH_CHUNK_SIZE - 1) / UI_HASH_CHUNK_SIZE;
+      ui_hash_chunks_y = (state.h + UI_HASH_CHUNK_SIZE - 1) / UI_HASH_CHUNK_SIZE;
+      slice_delete(ui_hash_chunks, context.allocator);
+      slice_delete(ui_prev_chunks, context.allocator);
+      slice_init(&ui_hash_chunks, ui_hash_chunks_x * ui_hash_chunks_y, context.allocator);
+      slice_init(&ui_prev_chunks, ui_hash_chunks_x * ui_hash_chunks_y, context.allocator);
+  
       state.buffer_state  = Buffer_State_Released;
       state.should_resize = false;
     }
@@ -694,12 +706,15 @@ int main() {
     slice_delete(fps_string, context.allocator);
   }
 
+  slice_delete(ui_hash_chunks, context.allocator);
+  slice_delete(ui_prev_chunks, context.allocator);
+
 	spall_buffer_quit(&spall_ctx, &spall_buffer);
 	spall_quit(&spall_ctx);
 	slice_delete(spall_buffer_backing, context.allocator);
 
-  // tracking_allocator_fmt_results_w(&stdout, &track);
-  // tracking_allocator_destroy(track);
+  tracking_allocator_fmt_results_w(&stdout, &track);
+  tracking_allocator_destroy(track);
 
   return 0;
 }

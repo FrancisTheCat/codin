@@ -132,6 +132,8 @@ struct cmsghdr * __cmsg_nxthdr(struct msghdr *__mhdr, struct cmsghdr *__cmsg) {
 }
 
 internal isize wayland_recieve_messages(Wayland_Connection *conn) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+
   local_persist byte _control_buf[256] = {0};
   isize remaining = conn->end - conn->start;
   assert(remaining < conn->buffer.len / 2);
@@ -148,7 +150,9 @@ internal isize wayland_recieve_messages(Wayland_Connection *conn) {
     .control    = _control_buf,
     .controllen = size_of(_control_buf),
   };
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("SYS_recvmsg"), get_time_in_micros());
   conn->end   = remaining + syscall(SYS_recvmsg, conn->socket, &msg, 0);
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
   conn->start = 0;
 
   struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
@@ -157,6 +161,7 @@ internal isize wayland_recieve_messages(Wayland_Connection *conn) {
     chdr = CMSG_NXTHDR(&msg, chdr);
   }
 
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
   return conn->end;
 }
 
@@ -175,6 +180,8 @@ internal void wayland_skip_event(Wayland_Connection *conn) {
 }
 
 internal void wayland_connection_flush(Wayland_Connection *conn) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+
   if (conn->builder.len) {
     Byte_Slice control_buf;
     slice_init(&control_buf, CMSG_SPACE(conn->fds_out.len * size_of(int)), context.temp_allocator);
@@ -202,6 +209,8 @@ internal void wayland_connection_flush(Wayland_Connection *conn) {
     vector_clear(&conn->builder);
     vector_clear(&conn->fds_out);
   }
+
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void wayland_connection_destroy(Wayland_Connection const *conn) {
@@ -591,32 +600,39 @@ internal void wayland_handle_events(Wayland_Connection *conn, Wayland_State *sta
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal void wayland_draw_rect_outlines(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+typedef struct {
+  Rectangle rect;
+  u32       w, h;
+  u32      *pixels;
+} Draw_Context;
+
+internal void wayland_draw_rect_outlines(Draw_Context *ctx, i32 x, i32 y, i32 w, i32 h, u32 color) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
-  u32 *pixels = (u32 *)state->shm_pool_data;
 
-  if (in_range(x, 0, state->w)) {
-    for_range(_y, max(y, 0), min(y + h, state->h)) {
-      pixels[x + _y * state->w] = color;
-    }
-  }
-
-  if (in_range(x + w - 1, 0, state->w) && w) {
-    for_range(_y, max(y, 0), min(y + h, state->h)) {
-      pixels[x + w - 1 + _y * state->w] = color;
+  if (in_range(x, ctx->rect.x0, ctx->rect.x1)) {
+    for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+      ctx->pixels[x + _y * ctx->w] = color;
     }
   }
 
-  if (in_range(y, 0, state->h)) {
-    for_range(_x, max(x, 0), min(x + w, state->w)) {
-      pixels[_x + y * state->w] = color;
+  if (in_range(x + w - 1, ctx->rect.x0, ctx->rect.x1) && w) {
+    for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+      ctx->pixels[x + w - 1 + _y * ctx->w] = color;
     }
   }
-  if (in_range(y + h - 1, 0, state->h) && h) {
-    for_range(_x, max(x, 0), min(x + w, state->w)) {
-      pixels[_x + (y + h - 1) * state->w] = color;
+
+  if (in_range(y, ctx->rect.y0, ctx->rect.y1)) {
+    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+      ctx->pixels[_x + y * ctx->w] = color;
     }
   }
+
+  if (in_range(y + h - 1, ctx->rect.y0, ctx->rect.y1) && h) {
+    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+      ctx->pixels[_x + (y + h - 1) * ctx->w] = color;
+    }
+  }
+
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
@@ -640,126 +656,123 @@ internal void alpha_blend_rgba8(u32 *dst, u32 src) {
   alpha_blend_rgb8(dst, src, src >> 24);
 }
 
-internal void wayland_draw_rect_outlines_alpha(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+internal void wayland_draw_rect_outlines_alpha(Draw_Context *ctx, i32 x, i32 y, i32 w, i32 h, u32 color) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   if ((color & 0xFF) == 0xFF) {
-    wayland_draw_rect_outlines(state, x, y, w, h, color);
+    wayland_draw_rect_outlines(ctx, x, y, w, h, color);
     return;
   }
-  u32 *pixels = (u32 *)state->shm_pool_data;
 
-  if (in_range(x, 0, state->w)) {
-    for_range(_y, max(y, 0), min(y + h, state->h)) {
-      alpha_blend_rgba8(&pixels[x + _y * state->w], color);
-    }
-  }
-
-  if (in_range(x + w - 1, 0, state->w) && w) {
-    for_range(_y, max(y, 0), min(y + h, state->h)) {
-      alpha_blend_rgba8(&pixels[x + w - 1 + _y * state->w], color);
+  if (in_range(x, ctx->rect.x0, ctx->rect.x1)) {
+    for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+      alpha_blend_rgba8(&ctx->pixels[x + _y * ctx->w], color);
     }
   }
 
-  if (in_range(y, 0, state->h)) {
-    for_range(_x, max(x, 0), min(x + w, state->w)) {
-      alpha_blend_rgba8(&pixels[_x + y * state->w], color);
+  if (in_range(x + w - 1, ctx->rect.x0, ctx->rect.x1) && w) {
+    for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+      alpha_blend_rgba8(&ctx->pixels[x + w - 1 + _y * ctx->w], color);
     }
   }
-  if (in_range(y + h - 1, 0, state->h) && h) {
-    for_range(_x, max(x, 0), min(x + w, state->w)) {
-      alpha_blend_rgba8(&pixels[_x + (y + h - 1) * state->w], color);
+
+  if (in_range(y, ctx->rect.y0, ctx->rect.y1)) {
+    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+      alpha_blend_rgba8(&ctx->pixels[_x + y * ctx->w], color);
     }
   }
+
+  if (in_range(y + h - 1, ctx->rect.y0, ctx->rect.y1) && h) {
+    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+      alpha_blend_rgba8(&ctx->pixels[_x + (y + h - 1) * ctx->w], color);
+    }
+  }
+
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal void wayland_draw_rect(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+internal void wayland_draw_rect(Draw_Context *ctx, i32 x, i32 y, i32 w, i32 h, u32 color) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
-  u32 *pixels = (u32 *)state->shm_pool_data;
-  for_range(_y, max(y, 0), min(y + h, state->h)) {
-    for_range(_x, max(x, 0), min(x + w, state->w)) {
-      pixels[_x + _y * state->w] = color;
+  for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+      ctx->pixels[_x + _y * ctx->w] = color;
     }
   }
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal void wayland_draw_rect_alpha(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 color) {
+internal void wayland_draw_rect_alpha(Draw_Context *ctx, i32 x, i32 y, i32 w, i32 h, u32 color) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   if ((color >> 24) == 0xFF) {
-    wayland_draw_rect(state, x, y, w, h, color);
+    wayland_draw_rect(ctx, x, y, w, h, color);
     return;
   }
-  u32 *pixels = (u32 *)state->shm_pool_data;
-  for_range(_y, max(y, 0), min(y + h, state->h)) {
-    for_range(_x, max(x, 0), min(x + w, state->w)) {
-      alpha_blend_rgba8(&pixels[_x + _y * state->w], color);
+  for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+      alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], color);
     }
   }
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal void wayland_draw_rect_gradient_v(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 _start, u32 _end) {
+internal void wayland_draw_rect_gradient_v(Draw_Context *ctx, i32 x, i32 y, i32 w, i32 h, u32 _start, u32 _end) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
-  u32 *pixels = (u32 *)state->shm_pool_data;
 
   Array(u8, 4) start = transmute(type_of(start), _start);
   Array(u8, 4) end   = transmute(type_of(end),   _end  );
   Array(u8, 4) color = {0};
   
-  for_range(_y, max(y, 0), min(y + h, state->h)) {
+  for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
     u8 t = (255 * (_y - y)) / h;
     for_range(i, 0, 4) {
       color.data[i] = (((u16)start.data[i] * (u16)(255 - t)) >> 8) +
                       (((u16)end.  data[i] * (u16)(      t)) >> 8);
     }
-    for_range(_x, max(x, 0), min(x + w, state->w)) {
-      alpha_blend_rgba8(&pixels[_x + _y * state->w], transmute(u32, color));
+    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+      alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], transmute(u32, color));
     }
   }
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal void wayland_draw_rect_gradient_h(Wayland_State *state, i32 x, i32 y, i32 w, i32 h, u32 _start, u32 _end) {
+internal void wayland_draw_rect_gradient_h(Draw_Context *ctx, i32 x, i32 y, i32 w, i32 h, u32 _start, u32 _end) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
-  u32 *pixels = (u32 *)state->shm_pool_data;
 
   Array(u8, 4) start = transmute(type_of(start), _start);
   Array(u8, 4) end   = transmute(type_of(end),   _end  );
   Array(u8, 4) color = {0};
 
   // TODO(Franz): Update this value based on profiling
-  if (state->h < 64) {
-    for_range(_x, max(x, 0), min(x + w, state->w)) {
+  if (ctx->h < 64) {
+    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
       u8 t = (255 * (_x - x)) / w;
       for_range(i, 0, 4) {
         color.data[i] = (((u16)start.data[i] * (u16)(255 - t)) >> 8) +
                         (((u16)end.  data[i] * (u16)(      t)) >> 8);
       }
-      for_range(_y, max(y, 0), min(y + h, state->h)) {
-        alpha_blend_rgba8(&pixels[_x + _y * state->w], transmute(u32, color));
+      for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+        alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], transmute(u32, color));
       }
     }
   } else {
-    for_range(_y, max(y, 0), min(y + h, state->h)) {
-      for_range(_x, max(x, 0), min(x + w, state->w)) {
+    for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+      for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
         u8 t = (u8)((f32)(255 * (_x - x)) / (f32)w); // NOTE(Franz): this vectorizes *way* better in my crude tests
         for_range(i, 0, 4) {
           color.data[i] = (((u16)start.data[i] * (u16)(255 - t)) >> 8) +
                           (((u16)end.  data[i] * (u16)(      t)) >> 8);
         }
-        alpha_blend_rgba8(&pixels[_x + _y * state->w], transmute(u32, color));
+        alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], transmute(u32, color));
       }
     }
   }
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal isize wayland_draw_text_bmf(Wayland_State *state, BMF_Font const *font, String str, u32 color, isize *x, isize *y) {
+internal isize wayland_draw_text_bmf(Draw_Context *ctx, BMF_Font const *font, String str, u32 color, isize *x, isize *y) {
+  unimplemented();
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   isize start_x = *x;
 
-  u32 *pixels = (u32 *)state->shm_pool_data;
   BMF_Baked_Quad_I q;
   u16 color_alpha = color >> 24;
 
@@ -772,10 +785,10 @@ internal isize wayland_draw_text_bmf(Wayland_State *state, BMF_Font const *font,
       bmf_get_baked_quad_i(font, '.', x, y, &q);
     }
 
-    if (q.x0 >= state->w) {
+    if (q.x0 >= ctx->rect.x1) {
       break;
     }
-    if (q.y0 >= state->h) {
+    if (q.y0 >= ctx->rect.y1) {
       break;
     }
 
@@ -783,7 +796,10 @@ internal isize wayland_draw_text_bmf(Wayland_State *state, BMF_Font const *font,
       isize _y = ry + q.y0;
       isize _v = ry + q.v0;
 
-      if (_y >= state->h) {
+      if (_y < ctx->rect.y0) {
+        continue;
+      }
+      if (_y >= ctx->rect.y1) {
         break;
       }
 
@@ -791,19 +807,22 @@ internal isize wayland_draw_text_bmf(Wayland_State *state, BMF_Font const *font,
         isize _x = rx + q.x0;
         isize _u = rx + q.u0;
 
-        if (_x >= state->w) {
+        if (_x < ctx->rect.x0) {
+          continue;
+        }
+        if (_x >= ctx->rect.x1) {
           break;
         }
 
         u16 alpha = font->atlas.data[_u + _v * font->atlas_width];
-        alpha_blend_rgb8(&pixels[_x + _y * state->w], color, (alpha * color_alpha) >> 8);
+        alpha_blend_rgb8(&ctx->pixels[_x + _y * ctx->w], color, (alpha * color_alpha) >> 8);
       }
     }
   })
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
+internal void wayland_draw_box_shadow(Draw_Context *ctx, Rectangle rect) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   #define UI_SHADOW_RADIUS       16
   #define UI_SHADOW_INV_STRENGTH 2
@@ -812,39 +831,45 @@ internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
   // input: squared distance to completely shadowed region
   #define UI_SHADOW_FUNC(x2) (x2 / UI_SHADOW_INV_STRENGTH)
 
-  u32 *pixels = (u32 *)state->shm_pool_data;
+  u32 *pixels = ctx->pixels;
   for_range(_y, 0, UI_SHADOW_RADIUS) {
-    if (_y + rect.y1 >= state->h) {
+    if (_y + rect.y1 < ctx->rect.y0) {
+      continue;
+    }
+    if (_y + rect.y1 >= ctx->rect.y1) {
       break;
     }
     u8 t = (255 * (UI_SHADOW_RADIUS - _y)) / UI_SHADOW_RADIUS;
     t = ((u16)t * (u16)t) >> 8;
-    for_range(_x, rect.x0 + UI_SHADOW_RADIUS, rect.x1) {
-      if (_x >= state->w) {
-        break;
-      }
-      alpha_blend_rgb8(&pixels[_x + state->w * (_y + rect.y1)], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
+    for_range(_x, max(rect.x0 + UI_SHADOW_RADIUS, ctx->rect.x0), min(rect.x1, ctx->rect.x1)) {
+      alpha_blend_rgb8(&pixels[_x + ctx->w * (_y + rect.y1)], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
     }
   }
   for_range(_x, 0, UI_SHADOW_RADIUS) {
-    if (rect.x1 + _x >= state->w) {
+    if (_x + rect.x1 < ctx->rect.x0) {
+      continue;
+    }
+    if (_x + rect.x1 >= ctx->rect.x1) {
       break;
     }
     u8 t = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
     t = ((u16)t * (u16)t) >> 8;
-    for_range(_y, rect.y0 + UI_SHADOW_RADIUS, rect.y1) {
-      if (_y >= state->h) {
-        break;
-      }
-      alpha_blend_rgb8(&pixels[rect.x1 + _x + state->w * _y], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
+    for_range(_y, max(rect.y0 + UI_SHADOW_RADIUS, ctx->rect.y0), min(rect.y1, ctx->rect.y1)) {
+      alpha_blend_rgb8(&pixels[rect.x1 + _x + ctx->w * _y], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
     }
   }
   for_range(_y, 0, UI_SHADOW_RADIUS) {
-    if (_y + rect.y1 >= state->h) {
+    if (_y + rect.y1 < ctx->rect.y0) {
+      continue;
+    }
+    if (_y + rect.y1 >= ctx->rect.y1) {
       break;
     }
     for_range(_x, 0, UI_SHADOW_RADIUS) {
-      if (rect.x1 + _x >= state->w) {
+      if (_x + rect.x1 < ctx->rect.x0) {
+        continue;
+      }
+      if (_x + rect.x1 >= ctx->rect.x1) {
         break;
       }
       u8 tx = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
@@ -855,15 +880,21 @@ internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
 
       u8 t = ((u16)tx * (u16)ty) >> 8;
 
-      alpha_blend_rgb8(&pixels[rect.x1 + _x + state->w * (_y + rect.y1)], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
+      alpha_blend_rgb8(&pixels[rect.x1 + _x + ctx->w * (_y + rect.y1)], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
     }
   }
   for_range(_y, 0, UI_SHADOW_RADIUS) {
-    if (_y + rect.y1 >= state->h) {
+    if (_y + rect.y1 < ctx->rect.y0) {
+      continue;
+    }
+    if (_y + rect.y1 >= ctx->rect.y1) {
       break;
     }
     for_range(_x, 0, UI_SHADOW_RADIUS) {
-      if (rect.x0 + _x >= state->w) {
+      if (_x + rect.x0 < ctx->rect.x0) {
+        continue;
+      }
+      if (_x + rect.x0 >= ctx->rect.x1) {
         break;
       }
       u8 tx = (255 * _x) / UI_SHADOW_RADIUS;
@@ -874,15 +905,21 @@ internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
 
       u8 t = ((u16)tx * (u16)ty) >> 8;
 
-      alpha_blend_rgb8(&pixels[rect.x0 + _x + state->w * (_y + rect.y1)], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
+      alpha_blend_rgb8(&pixels[rect.x0 + _x + ctx->w * (_y + rect.y1)], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
     }
   }
   for_range(_y, 0, UI_SHADOW_RADIUS) {
-    if (_y + rect.y0 >= state->h) {
+    if (_y + rect.y0 < ctx->rect.y0) {
+      continue;
+    }
+    if (_y + rect.y0 >= ctx->rect.y1) {
       break;
     }
     for_range(_x, 0, UI_SHADOW_RADIUS) {
-      if (rect.x1 + _x >= state->w) {
+      if (_x + rect.x1 < ctx->rect.x0) {
+        continue;
+      }
+      if (_x + rect.x1 >= ctx->rect.x1) {
         break;
       }
       u8 tx = (255 * (UI_SHADOW_RADIUS - _x)) / UI_SHADOW_RADIUS;
@@ -893,27 +930,26 @@ internal void wayland_draw_box_shadow(Wayland_State *state, Rectangle rect) {
 
       u8 t = ((u16)tx * (u16)ty) >> 8;
 
-      alpha_blend_rgb8(&pixels[rect.x1 + _x + state->w * (_y + rect.y0)], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
+      alpha_blend_rgb8(&pixels[rect.x1 + _x + ctx->w * (_y + rect.y0)], UI_SHADOW_COLOR, UI_SHADOW_FUNC(t));
     }
   }
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal void wayland_draw_image(Wayland_State *state, i32 x, i32 y, Image const *image) {
+internal void wayland_draw_image(Draw_Context *ctx, i32 x, i32 y, Image const *image) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   assert(image->pixel_type == PT_u8);
   assert(image->components == 4);
-  u32 *pixels = (u32 *)state->shm_pool_data;
   for_range(_y, 0, image->height) {
-    if (_y + y >= state->h) {
+    if (_y + y >= ctx->h) {
       break;
     }
     for_range(_x, 0, image->width) {
-      if (_x + x >= state->w) {
+      if (_x + x >= ctx->w) {
         break;
       }
       u32 pixel = ((u32 *)image->pixels.data)[_x + _y * image->width];
-      alpha_blend_rgba8(&pixels[_x + x + (_y + y) * state->w], pixel);
+      alpha_blend_rgba8(&ctx->pixels[_x + x + (_y + y) * ctx->w], pixel);
     }
   }
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
@@ -943,7 +979,7 @@ internal void wayland_draw_image_scaled(Wayland_State *state, i32 x, i32 y, i32 
 
 internal isize measure_text_ttf(String text);
 internal void wayland_draw_text_ttf(
-  Wayland_State  *state,
+  Draw_Context   *ctx,
   TTF_Font const *font,
   String          str,
   isize           font_size,
@@ -954,12 +990,44 @@ internal void wayland_draw_text_ttf(
 
 TTF_Font ttf_font;
 
-internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
+#define UI_HASH_CHUNK_SIZE 128
+Slice(u32) ui_hash_chunks;
+u32 ui_hash_chunks_x, ui_hash_chunks_y;
+Slice(u32) ui_prev_chunks;
+Slice(b8)  ui_commands_dirty;
+
+internal void ui_update_overlapping_cells(Rectangle const *r, u32 hash) {
+  int x0 = r->x0 / UI_HASH_CHUNK_SIZE;
+  int y0 = r->y0 / UI_HASH_CHUNK_SIZE;
+  int x1 = r->x1 / UI_HASH_CHUNK_SIZE;
+  int y1 = r->y1 / UI_HASH_CHUNK_SIZE;
+  for (int y = max(y0, 0); y <= min(y1, ui_hash_chunks_y - 1); y++) {
+    for (int x = max(x0, 0); x <= min(x1, ui_hash_chunks_x - 1); x++) {
+      ui_hash_chunks.data[x + y * ui_hash_chunks_x] =
+        ui_hash_bytes(ui_hash_chunks.data[x + y * ui_hash_chunks_x], any_to_bytes(&hash));
+    }
+  }
+}
+
+internal void wayland_ui_redraw_region(
+  UI_Context    *ctx,
+  Wayland_State *wl_state,
+  Rectangle      region
+) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
-  // slice_iter(ctx->commands, cmd, _i, {
-  //   u32 hash = hash_ui_command(0, *cmd);
-  //   // ui_state->command_hashes
-  // });
+
+  Draw_Context draw_ctx = {0};
+
+  draw_ctx.rect.x0 = max(region.x0, 0);
+  draw_ctx.rect.y0 = max(region.y0, 0);
+  draw_ctx.rect.x1 = min(region.x1, wl_state->w);
+  draw_ctx.rect.y1 = min(region.y1, wl_state->h);
+  draw_ctx.w       = wl_state->w;
+  draw_ctx.h       = wl_state->h;
+  draw_ctx.pixels  = (u32 *)wl_state->shm_pool_data;
+
+  wayland_draw_rect(&draw_ctx, region.x0, region.y0, region.x1 - region.x0, region.y1 - region.y0, 0xFF1E2128);
+
   Rectangle rect;
   isize x, y;
   slice_iter(ctx->commands, cmd, _i, {
@@ -970,7 +1038,7 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
     case UI_Command_Type_Gradient:
       rect = cmd->variant.box.rect;
       wayland_draw_rect_gradient_v(
-        wl_state,
+        &draw_ctx,
         rect.x0 + 1,
         rect.y0 + 1,
         rect.x1 - rect.x0 - 2,
@@ -979,19 +1047,19 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
         cmd->variant.box.color2
       );
       wayland_draw_rect_outlines_alpha(
-        wl_state,
+        &draw_ctx,
         rect.x0,
         rect.y0,
         rect.x1 - rect.x0,
         rect.y1 - rect.y0,
         cmd->variant.box.outline
       );
-      wayland_draw_box_shadow(wl_state, rect);
+      wayland_draw_box_shadow(&draw_ctx, rect);
       break;
     case UI_Command_Type_Box:
       rect = cmd->variant.box.rect;
       wayland_draw_rect_alpha(
-        wl_state,
+        &draw_ctx,
         rect.x0 + 1,
         rect.y0 + 1,
         rect.x1 - rect.x0 - 2,
@@ -999,49 +1067,122 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
         cmd->variant.box.color
       );
       wayland_draw_rect_outlines_alpha(
-        wl_state,
+        &draw_ctx,
         rect.x0,
         rect.y0,
         rect.x1 - rect.x0,
         rect.y1 - rect.y0,
         cmd->variant.box.outline
       );
-      wayland_draw_box_shadow(wl_state, rect);
+      wayland_draw_box_shadow(&draw_ctx, rect);
       break;
     case UI_Command_Type_Text:
       x = cmd->variant.text.bounds.x0 + ctx->spacing;
       y = (float)(cmd->variant.text.bounds.y0 + cmd->variant.text.bounds.y1) / 2 + ttf_get_font_height(&ttf_font, UI_FONT_SIZE) / 2 - 1; 
-      wayland_draw_text_ttf(wl_state, &ttf_font, cmd->variant.text.text, UI_FONT_SIZE, cmd->variant.text.color, &x, &y);
+      wayland_draw_text_ttf(&draw_ctx, &ttf_font, cmd->variant.text.text, UI_FONT_SIZE, cmd->variant.text.color, &x, &y);
 
-      // x = cmd->variant.text.bounds.x0 + ctx->font.decender;
-      // y = cmd->variant.text.bounds.y1 - ctx->font.decender;
-      // wayland_draw_text(wl_state, &ctx->font, cmd->variant.text.text, cmd->variant.text.color, &x, &y);
+      // x = cmd->variant.text.bounds.x0 + ctx->spacing;
+      // y = cmd->variant.text.bounds.y1 - ctx->spacing;
+      // wayland_draw_text_bmf(wl_state, &bmf_font, cmd->variant.text.text, cmd->variant.text.color, &x, &y);
       break;
     case UI_Command_Type_Image:
       rect = cmd->variant.image.rect;
       wayland_draw_image(
-        wl_state,
+        &draw_ctx,
         rect.x0,
         rect.y0,
         &ctx->images.data[cmd->variant.image.image.index]
       );
       wayland_draw_rect_outlines_alpha(
-        wl_state,
+        &draw_ctx,
         rect.x0,
         rect.y0,
         rect.x1 - rect.x0,
         rect.y1 - rect.y0,
         cmd->variant.image.outline
       );
-      wayland_draw_box_shadow(wl_state, rect);
+      wayland_draw_box_shadow(&draw_ctx, rect);
       break;
     }
     spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
   });
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+}
+
+internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("ui_state_hash"), get_time_in_micros());
+  slice_iter(ui_hash_chunks, hash, _i, *hash = UI_HASH_INITIAL; );
+  slice_iter(ctx->commands, cmd, _i, {
+    u32 hash = ui_command_hash(UI_HASH_INITIAL, cmd);
+    Rectangle rect;
+    ui_command_bounds(cmd, &rect);
+    ui_update_overlapping_cells(&rect, hash);
+  });
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+
+  Draw_Context draw_ctx = {0};
+
+  draw_ctx.rect.x0 = 0;
+  draw_ctx.rect.y0 = 0;
+  draw_ctx.rect.x1 = wl_state->w;
+  draw_ctx.rect.y1 = wl_state->h;
+  draw_ctx.pixels  = (u32 *)wl_state->shm_pool_data;
+  draw_ctx.w       = wl_state->w;
+  draw_ctx.h       = wl_state->h;
+
+  slice_iter(ui_hash_chunks, hash, i, {
+    if (*hash != ui_prev_chunks.data[i]) {
+      wayland_ui_redraw_region(
+        ctx,
+        wl_state,
+        (Rectangle) {
+          .x0 = (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
+          .y0 = (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
+          .x1 = (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + UI_HASH_CHUNK_SIZE,
+          .y1 = (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + UI_HASH_CHUNK_SIZE,
+        }
+      );
+    //   wayland_draw_rect_outlines(
+    //     &draw_ctx,
+    //     (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
+    //     (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
+    //     (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + UI_HASH_CHUNK_SIZE,
+    //     (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + UI_HASH_CHUNK_SIZE,
+    //     0xFFFF0000
+    //   );
+    // } else {
+    //   wayland_draw_rect_outlines(
+    //     &draw_ctx,
+    //     (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
+    //     (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
+    //     (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + UI_HASH_CHUNK_SIZE,
+    //     (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + UI_HASH_CHUNK_SIZE,
+    //     0xFF00FF00
+    //   );
+    }
+  });
+
+  // wayland_ui_redraw_region(
+  //   ctx,
+  //   wl_state,
+  //   (Rectangle) {
+  //     .x0 = 0,
+  //     .y0 = 0,
+  //     .x1 = wl_state->w,
+  //     .y1 = wl_state->h,
+  //   }
+  // );
+
+  type_of(ui_prev_chunks) tmp = ui_prev_chunks;
+  ui_prev_chunks = transmute(type_of(ui_prev_chunks), ui_hash_chunks);
+  ui_hash_chunks = transmute(type_of(ui_hash_chunks), tmp);
 
   vector_clear(&ctx->commands);
   ctx->x = 25;
   ctx->y = 25;
+
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
@@ -1061,13 +1202,23 @@ Cached_Glyph glyph_cache[0x10FFFF] = {0};
 internal isize measure_text_ttf(String text) {
   isize width = 0;
   string_iter(text, codepoint, _i, {
-    width += glyph_cache[codepoint].h_metrics.advance;
+    Cached_Glyph *cached_glyph = &glyph_cache[codepoint];
+    if (!cached_glyph->pixels) {
+      spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("render_glyph"), get_time_in_micros());
+      u32 glyph = ttf_get_codepoint_glyph(&ttf_font, codepoint);
+      ttf_get_glyph_h_metrics(&ttf_font, glyph, UI_FONT_SIZE, &cached_glyph->h_metrics);
+      ttf_get_glyph_v_metrics(&ttf_font, glyph, UI_FONT_SIZE, &cached_glyph->v_metrics);
+
+      ttf_get_glyph_bitmap(&ttf_font, glyph, UI_FONT_SIZE, &cached_glyph->w, &cached_glyph->h, &cached_glyph->pixels);
+      spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+    }
+    width += cached_glyph->h_metrics.advance;
   });
   return width;
 }
 
 internal void wayland_draw_text_ttf(
-  Wayland_State  *state,
+  Draw_Context   *ctx,
   TTF_Font const *font,
   String          str,
   isize           font_size,
@@ -1078,7 +1229,6 @@ internal void wayland_draw_text_ttf(
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
 
   isize start_x = *x_pos;
-  u32  *pixels  = (u32 *)state->shm_pool_data;
 
   string_iter(str, codepoint, i, {
     if (codepoint == '\n') {
@@ -1100,21 +1250,21 @@ internal void wayland_draw_text_ttf(
     isize x = *x_pos + cached_glyph->h_metrics.bearing * (i != 0);
     isize y = *y_pos - cached_glyph->v_metrics.height + cached_glyph->v_metrics.bearing;
     for_range(iy, 0, cached_glyph->h) {
-      if (iy + y >= state->h) {
+      if (iy + y >= ctx->rect.y1) {
         break;
       }
-      if (iy + y < 0) {
+      if (iy + y < ctx->rect.y0) {
         continue;
       }
       for_range(ix, 0, cached_glyph->w) {
-        if (ix + x >= state->w) {
+        if (ix + x >= ctx->rect.x1) {
           break;
         }
-        if (ix + x < 0) {
+        if (ix + x < ctx->rect.x0) {
           continue;
         }
         u8 alpha = cached_glyph->pixels[ix + iy * cached_glyph->w];
-        alpha_blend_rgb8(&pixels[ix + x + (iy + y) * state->w], color, alpha);
+        alpha_blend_rgb8(&ctx->pixels[ix + x + (iy + y) * ctx->w], color, alpha);
       }
     }
     *x_pos += cached_glyph->h_metrics.advance;
@@ -1125,14 +1275,6 @@ internal void wayland_draw_text_ttf(
 internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Directory const *directory) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   u32 *pixels = (u32 *)state->shm_pool_data;
-
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("Clear Background"), get_time_in_micros());
-  u32 color = 0xFF1E2128;
-  for_range(i, 0, state->w * state->h) {
-    pixels[i] = color;
-  }
-  
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   String str = LIT("The quick brown fox jumps over the lazy dog");
   ui_context.mouse.x = state->mouse_x;

@@ -67,27 +67,49 @@ typedef struct {
   UI_Command_Type type;
 } UI_Command;
 
+#define UI_HASH_INITIAL 0x811c9dc5
+
 internal u32 ui_hash_bytes(u32 in, Byte_Slice bytes) {
   slice_iter(bytes, byte, _i, {
-    in += *byte;
+    in = (in ^ *byte) * 0x01000193;
   })
   return in;
 }
 
-internal u32 hash_ui_command(u32 in, UI_Command command) {
-  switch (command.type) {
+internal void ui_command_bounds(UI_Command const *command, Rectangle *rect) {
+  switch (command->type) {
+  case UI_Command_Type_None:
+    *rect = (Rectangle) {0};
+    break;
+  case UI_Command_Type_Box:
+  case UI_Command_Type_Gradient:
+    *rect = command->variant.box.rect;
+    break;
+  case UI_Command_Type_Text:
+    *rect = command->variant.text.bounds;
+    break;
+  case UI_Command_Type_Image:
+    *rect = command->variant.image.rect;
+    break;
+  default:
+    unreachable();
+  }
+}
+
+internal u32 ui_command_hash(u32 in, UI_Command const *command) {
+  switch (command->type) {
   case UI_Command_Type_None:
     break;
   case UI_Command_Type_Box:
   case UI_Command_Type_Gradient:
-    ui_hash_bytes(in, any_to_bytes(&command.variant.box));
+    in = ui_hash_bytes(in, any_to_bytes(&command->variant.box));
     break;
   case UI_Command_Type_Text:
-    ui_hash_bytes(in, string_to_bytes(command.variant.text.text));
-    ui_hash_bytes(in, slice_start(any_to_bytes(&command.variant.text), offset_of(UI_Command_Text, bounds)));
+    in = ui_hash_bytes(in, string_to_bytes(command->variant.text.text));
+    in = ui_hash_bytes(in, slice_start(any_to_bytes(&command->variant.text), offset_of(UI_Command_Text, bounds)));
     break;
   case UI_Command_Type_Image:
-    ui_hash_bytes(in, any_to_bytes(&command.variant.image));
+    in = ui_hash_bytes(in, any_to_bytes(&command->variant.image));
     break;
   }
   return in;
