@@ -1585,10 +1585,11 @@ TTF_DEF void ttf_render_shape_sdf(
       }
 
       for (int i = 0; i < components; i += 1) {
-        ttf_f32 value = values[0];
+        ttf_f32 value = values[i];
 
         value  = ttf_sqrtf(value);
         value /= spread;
+        value /= font->units_per_em;
 
         if (value > 1) {
           value = 1;
@@ -1655,15 +1656,15 @@ TTF_DEF void ttf_get_shape_bitmap(
   ttf_get_shape_bitmap_size(font, shape, font_size, &W, &H);
 
   *pixels = (ttf_u8 *)ttf_alloc(font->allocator, W * H);
-  *w = W;
-  *h = H;
-
   if (!*pixels) {
     return;
   }
 
+  *w = W;
+  *h = H;
+
   ttf_render_shape_bitmap(font, shape, font_size, 0, *pixels);
-  // ttf_render_shape_sdf(font, shape, font_size, 128, 1, 0, *pixels);
+  // ttf_render_shape_sdf(font, shape, font_size, 0.2, 1, 0, *pixels);
 }
 
 #undef ttf_max
