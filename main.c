@@ -539,7 +539,7 @@ int main() {
 
   // context.logger.proc = nil;
 
-  byte _connection_buffer[4096];
+  byte _connection_buffer[512];
   Wayland_Connection wl_connection;
   b8 conn_ok = wayland_display_connect(context.allocator, (Byte_Slice) {.data = _connection_buffer, .len = size_of(_connection_buffer)}, &wl_connection);
   assert(conn_ok);

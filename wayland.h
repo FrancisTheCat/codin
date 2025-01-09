@@ -133,9 +133,14 @@ struct cmsghdr * __cmsg_nxthdr(struct msghdr *__mhdr, struct cmsghdr *__cmsg) {
 
 internal isize wayland_recieve_messages(Wayland_Connection *conn) {
   local_persist byte _control_buf[256] = {0};
+  isize remaining = conn->end - conn->start;
+  assert(remaining < conn->buffer.len / 2);
+  for_range(i, conn->start, conn->end) {
+    conn->buffer.data[i - conn->start] = conn->buffer.data[i];
+  }
   struct iovec iov = {
-    .base = conn->buffer.data,
-    .len  = conn->buffer.len,
+    .base =        conn->buffer.data + remaining,
+    .len  = (usize)conn->buffer.len  - remaining,
   };
   struct msghdr msg = {
     .iov        = &iov,
@@ -143,7 +148,7 @@ internal isize wayland_recieve_messages(Wayland_Connection *conn) {
     .control    = _control_buf,
     .controllen = size_of(_control_buf),
   };
-  conn->end   = syscall(SYS_recvmsg, conn->socket, &msg, 0);
+  conn->end   = remaining + syscall(SYS_recvmsg, conn->socket, &msg, 0);
   conn->start = 0;
 
   struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);

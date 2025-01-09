@@ -84,11 +84,9 @@ typedef struct {
   ttf_u32                    cmap;
   ttf_u32                    glyf;
   ttf_u32                    loca;
-  ttf_u32                    head;
   ttf_u32                    n_hmetrics;
   ttf_u32                    n_vmetrics;
   ttf_u32                    hmtx;
-  ttf_u32                    maxp;
   ttf_u32                    n_glyphs;
   ttf_u32                    units_per_em;
   ttf_i32                    line_height;
@@ -143,7 +141,6 @@ TTF_DEF void ttf_render_codepoint_sdf(
   ttf_u32                codepoint,
   ttf_f32                font_size,
   ttf_f32                spread,
-  ttf_u32                components,
   ttf_u32                stride,
   ttf_u8                *pixels
 );
@@ -152,7 +149,6 @@ TTF_DEF void ttf_render_glyph_sdf(
   ttf_u32                glyph,
   ttf_f32                font_size,
   ttf_f32                spread,
-  ttf_u32                components,
   ttf_u32                stride,
   ttf_u8                *pixels
 );
@@ -161,7 +157,6 @@ TTF_DEF void ttf_render_shape_sdf(
   TTF_Glyph_Shape const *shape,
   ttf_f32                font_size,
   ttf_f32                spread,
-  ttf_u32                components,
   ttf_u32                stride,
   ttf_u8                *pixels
 );
@@ -694,12 +689,10 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *a
       _TTF_Maxp_Table maxp;
       ttf_memcpy(&maxp, &data[table.offset], sizeof(maxp));
       font->n_glyphs = ttf_be16toh(maxp.numGlyphs);
-      font->maxp     = table.offset;
     }
     if (CHECK_TAG("head")) {
       _TTF_Font_Header_Table head;
       ttf_memcpy(&head, &data[table.offset], sizeof(head));
-      font->head = table.offset;
       font->units_per_em = ttf_be16toh(head.unitsPerEm);
     }
     if (CHECK_TAG("hhea")) {
@@ -1514,7 +1507,6 @@ TTF_DEF void ttf_render_shape_sdf(
   TTF_Glyph_Shape const *shape,
   ttf_f32                font_size,
   ttf_f32                spread,
-  ttf_u32                components,
   ttf_u32                stride,
   ttf_u8                *pixels
 ) {
@@ -1528,30 +1520,18 @@ TTF_DEF void ttf_render_shape_sdf(
   for (ttf_i32 iy = 0; iy < H; iy += 1) {
     ttf_f32 y = (H - iy - 1) / SCALE + shape->min.y;
     ttf_i32 n_intersections = _ttf_shape_get_intersections(shape, intersections, y);
-    ttf_f32 values[components];
 
     for (ttf_i32 ix = 0; ix < W; ix += 1) {
       ttf_f32 x = ix / SCALE + shape->min.x;
-      for (ttf_i32 i = 0; i < components; i += 1) {
-        values[i] = 1e10;
-      }
+
+      ttf_f32 value = 1e10;
 
       for (ttf_i32 i = 0; i < shape->n_linears; i += 1) {
         TTF_Segment_Linear linear = shape->linears[i];
         ttf_f32 v = _ttf_sdf2_linear(&linear, x, y);
 
-        ttf_i32 idx = -1;
-        for (int i = 0; i < components; i += 1) {
-          if (values[i] > v) {
-            idx = i;
-            break;
-          }
-        }
-        if (idx != -1) {
-          for (int i = components - 1; i > idx; i -= 1) {
-            values[i] = values[i - 1];
-          }
-          values[idx] = v;
+        if (value > v) {
+          value = v;
         }
       }
       
@@ -1568,46 +1548,32 @@ TTF_DEF void ttf_render_shape_sdf(
           linear.b.y = (1 - t1) * ((1 - t1) * bezier.p0.y + t1 * bezier.p1.y) + t1 * ((1 - t1) * bezier.p1.y + t1 * bezier.p2.y);
           ttf_f32 v = _ttf_sdf2_linear(&linear, x, y);
 
-          ttf_i32 idx = -1;
-          for (int i = 0; i < components; i += 1) {
-            if (values[i] > v) {
-              idx = i;
-              break;
-            }
-          }
-          if (idx != -1) {
-            for (int i = components - 1; i > idx; i -= 1) {
-              values[i] = values[i - 1];
-            }
-            values[idx] = v;
+          if (value > v) {
+            value = v;
           }
         }
       }
 
-      for (int i = 0; i < components; i += 1) {
-        ttf_f32 value = values[i];
+      value  = ttf_sqrtf(value);
+      value /= spread;
+      value /= font->units_per_em;
 
-        value  = ttf_sqrtf(value);
-        value /= spread;
-        value /= font->units_per_em;
-
-        if (value > 1) {
-          value = 1;
-        } else if (value < 0) {
-          value = 0;
-        }
-      
-        while ((n_intersections != 0) && x > intersections[n_intersections - 1]) {
-          n_intersections -= 1;
-        }
-
-        if (n_intersections & 1) {
-          value = 0.5 * value + 0.5;
-        } else {
-          value = 0.5 * (1 - value);
-        }
-        pixels[(ix + iy * (W + stride)) * components + i] = (ttf_f32)255 * value;
+      if (value > 1) {
+        value = 1;
+      } else if (value < 0) {
+        value = 0;
       }
+    
+      while ((n_intersections != 0) && x > intersections[n_intersections - 1]) {
+        n_intersections -= 1;
+      }
+
+      if (n_intersections & 1) {
+        value = 0.5 * value + 0.5;
+      } else {
+        value = 0.5 * (1 - value);
+      }
+      pixels[ix + iy * (W + stride)] = (ttf_f32)255 * value;
     }
   }
 }
@@ -1657,6 +1623,8 @@ TTF_DEF void ttf_get_shape_bitmap(
 
   *pixels = (ttf_u8 *)ttf_alloc(font->allocator, W * H);
   if (!*pixels) {
+    *w = 0;
+    *h = 0;
     return;
   }
 
@@ -1664,7 +1632,7 @@ TTF_DEF void ttf_get_shape_bitmap(
   *h = H;
 
   ttf_render_shape_bitmap(font, shape, font_size, 0, *pixels);
-  // ttf_render_shape_sdf(font, shape, font_size, 0.2, 1, 0, *pixels);
+  // ttf_render_shape_sdf(font, shape, font_size, 0.1, 0, *pixels);
 }
 
 #undef ttf_max
