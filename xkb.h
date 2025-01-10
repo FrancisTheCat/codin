@@ -2,378 +2,161 @@
 
 typedef i32 Keycode;
 
+#define KEYS_X                                                                 \
+  X( Key_Null, "" )                                                            \
+                                                                               \
+  X( Key_0, "0" )                                                              \
+  X( Key_1, "1" )                                                              \
+  X( Key_2, "2" )                                                              \
+  X( Key_3, "3" )                                                              \
+  X( Key_4, "4" )                                                              \
+  X( Key_5, "5" )                                                              \
+  X( Key_6, "6" )                                                              \
+  X( Key_7, "7" )                                                              \
+  X( Key_8, "8" )                                                              \
+  X( Key_9, "9" )                                                              \
+                                                                               \
+  X( Key_A, "a" )                                                              \
+  X( Key_B, "b" )                                                              \
+  X( Key_C, "c" )                                                              \
+  X( Key_D, "d" )                                                              \
+  X( Key_E, "e" )                                                              \
+  X( Key_F, "f" )                                                              \
+  X( Key_G, "g" )                                                              \
+  X( Key_H, "h" )                                                              \
+  X( Key_I, "i" )                                                              \
+  X( Key_J, "j" )                                                              \
+  X( Key_K, "k" )                                                              \
+  X( Key_L, "l" )                                                              \
+  X( Key_M, "m" )                                                              \
+  X( Key_N, "n" )                                                              \
+  X( Key_O, "o" )                                                              \
+  X( Key_P, "p" )                                                              \
+  X( Key_Q, "q" )                                                              \
+  X( Key_R, "r" )                                                              \
+  X( Key_S, "s" )                                                              \
+  X( Key_T, "t" )                                                              \
+  X( Key_U, "u" )                                                              \
+  X( Key_V, "v" )                                                              \
+  X( Key_W, "w" )                                                              \
+  X( Key_X, "x" )                                                              \
+  X( Key_Y, "y" )                                                              \
+  X( Key_Z, "z" )                                                              \
+                                                                               \
+  X( Key_F0,  "F0"  )                                                          \
+  X( Key_F1,  "F1"  )                                                          \
+  X( Key_F2,  "F2"  )                                                          \
+  X( Key_F3,  "F3"  )                                                          \
+  X( Key_F4,  "F4"  )                                                          \
+  X( Key_F5,  "F5"  )                                                          \
+  X( Key_F6,  "F6"  )                                                          \
+  X( Key_F7,  "F7"  )                                                          \
+  X( Key_F8,  "F8"  )                                                          \
+  X( Key_F9,  "F9"  )                                                          \
+  X( Key_F10, "F10" )                                                          \
+  X( Key_F11, "F11" )                                                          \
+  X( Key_F12, "F12" )                                                          \
+  X( Key_F13, "F13" )                                                          \
+  X( Key_F14, "F14" )                                                          \
+  X( Key_F15, "F15" )                                                          \
+  X( Key_F16, "F16" )                                                          \
+  X( Key_F17, "F17" )                                                          \
+  X( Key_F18, "F18" )                                                          \
+  X( Key_F19, "F19" )                                                          \
+  X( Key_F20, "F20" )                                                          \
+  X( Key_F21, "F21" )                                                          \
+  X( Key_F22, "F22" )                                                          \
+  X( Key_F23, "F23" )                                                          \
+  X( Key_F24, "F24" )                                                          \
+                                                                               \
+  X( Key_Exclam,      "exclam"      )                                          \
+  X( Key_At,          "at"          )                                          \
+  X( Key_Hashtag,     "numbersign"  )                                          \
+  X( Key_Dollar,      "dollar"      )                                          \
+  X( Key_Percent,     "percent"     )                                          \
+  X( Key_Caret,       "asciicircum" )                                          \
+  X( Key_Ampersand,   "ampersand"   )                                          \
+  X( Key_Asterisk,    "asterisk"    )                                          \
+  X( Key_Paren_Left,  "parenleft"   )                                          \
+  X( Key_Paren_Right, "parenright"  )                                          \
+                                                                               \
+  X( Key_Brace_Left,    "braceleft"    )                                       \
+  X( Key_Brace_Right,   "braceright"   )                                       \
+  X( Key_Bracket_Left,  "bracketleft"  )                                       \
+  X( Key_Bracket_Right, "bracketright" )                                       \
+                                                                               \
+  X( Key_Semicolon,  "semicolon"  )                                            \
+  X( Key_Colon,      "colon"      )                                            \
+  X( Key_Quote,      "quotedbl"   )                                            \
+  X( Key_Apostrophe, "apostrophe" )                                            \
+  X( Key_Period,     "period"     )                                            \
+  X( Key_Greater,    "greater"    )                                            \
+  X( Key_Comma,      "comma"      )                                            \
+  X( Key_Less,       "less"       )                                            \
+  X( Key_Slash,      "slash"      )                                            \
+  X( Key_Question,   "question"   )                                            \
+  X( Key_Backslash,  "backslash"  )                                            \
+  X( Key_Bar,        "bar"        )                                            \
+                                                                               \
+  X( Key_Plus,       "plus"       )                                            \
+  X( Key_Minus,      "minus"      )                                            \
+  X( Key_Equal,      "equal"      )                                            \
+  X( Key_Underscore, "underscore" )                                            \
+  X( Key_Grave,      "grave"      )                                            \
+  X( Key_Tilde,      "asciitilde" )                                            \
+                                                                               \
+  X( Key_Left,      "Left"      )                                              \
+  X( Key_Right,     "Right"     )                                              \
+  X( Key_Up,        "Up"        )                                              \
+  X( Key_Down,      "Down"      )                                              \
+                                                                               \
+  X( Key_Space,     "space"     )                                              \
+  X( Key_Escape,    "Escape"    )                                              \
+  X( Key_Return,    "Return"    )                                              \
+  X( Key_Backspace, "BackSpace" )                                              \
+  X( Key_Tab,       "Tab"       )                                              \
+  X( Key_Caps_Lock, "Caps_Lock" )                                              \
+                                                                               \
+  X( Key_LShift,    "Shift_L"   )                                              \
+  X( Key_RShift,    "Shift_R"   )                                              \
+  X( Key_LControl,  "Control_L" )                                              \
+  X( Key_RControl,  "Control_R" )                                              \
+  X( Key_LAlt,      "Alt_L"     )                                              \
+  X( Key_RAlt,      "Alt_R"     )                                              \
+  X( Key_LSuper,    "Super_L"   )                                              \
+  X( Key_RSuper,    "Super_R"   )                                              \
+                                                                               \
+  X( Key_MAX_VALUE, "" )                                                       \
+
+#define X(key, _xkb_name) key,
 typedef enum {
-  Key_Null = 0,
-
-  Key_0 = '0',
-  Key_1,
-  Key_2,
-  Key_3,
-  Key_4,
-  Key_5,
-  Key_6,
-  Key_7,
-  Key_8,
-  Key_9,
-
-  Key_A = 'A',
-  Key_B,
-  Key_C,
-  Key_D,
-  Key_E,
-  Key_F,
-  Key_G,
-  Key_H,
-  Key_I,
-  Key_J,
-  Key_K,
-  Key_L,
-  Key_M,
-  Key_N,
-  Key_O,
-  Key_P,
-  Key_Q,
-  Key_R,
-  Key_S,
-  Key_T,
-  Key_U,
-  Key_V,
-  Key_W,
-  Key_X,
-  Key_Y,
-  Key_Z,
-
-  Key_F0,
-  Key_F1,
-  Key_F2,
-  Key_F3,
-  Key_F4,
-  Key_F5,
-  Key_F6,
-  Key_F7,
-  Key_F8,
-  Key_F9,
-  Key_F10,
-  Key_F11,
-  Key_F12,
-  Key_F13,
-  Key_F14,
-  Key_F15,
-  Key_F16,
-  Key_F17,
-  Key_F18,
-  Key_F19,
-  Key_F20,
-  Key_F21,
-  Key_F22,
-  Key_F23,
-  Key_F24,
-
-  Key_Comma,
-  Key_Period,
-  Key_Slash,
-  Key_Semicolon,
-  Key_Quote,
-
-  Key_Left,
-  Key_Right,
-  Key_Up,
-  Key_Down,
-
-  Key_Space,
-  Key_Escape,
-  Key_Return,
-  Key_Backspace,
-  Key_Tab,
-  Key_Caps_Lock,
-
-  Key_LShift,
-  Key_RShift,
-  Key_LControl,
-  Key_RControl,
-  Key_LAlt,
-  Key_RAlt,
-  Key_LSuper,
-  Key_RSuper,
-
-  Key_MAX_VALUE,
+  KEYS_X
 } Key;
+#undef X
 
 ENUM_TO_STRING_PROC_DECL(Key, key) {
+  #define X(key, _xkb_name) case key: return LIT(#key);
   switch (key) {
-  case Key_Null:
-    return LIT("Key_Null");
-  case Key_0:
-    return LIT("Key_0");
-  case Key_1:
-    return LIT("Key_1");
-  case Key_2:
-    return LIT("Key_2");
-  case Key_3:
-    return LIT("Key_3");
-  case Key_4:
-    return LIT("Key_4");
-  case Key_5:
-    return LIT("Key_5");
-  case Key_6:
-    return LIT("Key_6");
-  case Key_7:
-    return LIT("Key_7");
-  case Key_8:
-    return LIT("Key_8");
-  case Key_9:
-    return LIT("Key_9");
-  case Key_F0:
-    return LIT("Key_F0");
-  case Key_F1:
-    return LIT("Key_F1");
-  case Key_F2:
-    return LIT("Key_F2");
-  case Key_F3:
-    return LIT("Key_F3");
-  case Key_F4:
-    return LIT("Key_F4");
-  case Key_F5:
-    return LIT("Key_F5");
-  case Key_F6:
-    return LIT("Key_F6");
-  case Key_F7:
-    return LIT("Key_F7");
-  case Key_F8:
-    return LIT("Key_F8");
-  case Key_F9:
-    return LIT("Key_F9");
-  case Key_F10:
-    return LIT("Key_F10");
-  case Key_F11:
-    return LIT("Key_F11");
-  case Key_F12:
-    return LIT("Key_F12");
-  case Key_F13:
-    return LIT("Key_F13");
-  case Key_F14:
-    return LIT("Key_F14");
-  case Key_F15:
-    return LIT("Key_F15");
-  case Key_F16:
-    return LIT("Key_F16");
-  case Key_F17:
-    return LIT("Key_F17");
-  case Key_F18:
-    return LIT("Key_F18");
-  case Key_F19:
-    return LIT("Key_F19");
-  case Key_F20:
-    return LIT("Key_F20");
-  case Key_F21:
-    return LIT("Key_F21");
-  case Key_F22:
-    return LIT("Key_F22");
-  case Key_F23:
-    return LIT("Key_F23");
-  case Key_F24:
-    return LIT("Key_F24");
-  case Key_A:
-    return LIT("Key_A");
-  case Key_B:
-    return LIT("Key_B");
-  case Key_C:
-    return LIT("Key_C");
-  case Key_D:
-    return LIT("Key_D");
-  case Key_E:
-    return LIT("Key_E");
-  case Key_F:
-    return LIT("Key_F");
-  case Key_G:
-    return LIT("Key_G");
-  case Key_H:
-    return LIT("Key_H");
-  case Key_I:
-    return LIT("Key_I");
-  case Key_J:
-    return LIT("Key_J");
-  case Key_K:
-    return LIT("Key_K");
-  case Key_L:
-    return LIT("Key_L");
-  case Key_M:
-    return LIT("Key_M");
-  case Key_N:
-    return LIT("Key_N");
-  case Key_O:
-    return LIT("Key_O");
-  case Key_P:
-    return LIT("Key_P");
-  case Key_Q:
-    return LIT("Key_Q");
-  case Key_R:
-    return LIT("Key_R");
-  case Key_S:
-    return LIT("Key_S");
-  case Key_T:
-    return LIT("Key_T");
-  case Key_U:
-    return LIT("Key_U");
-  case Key_V:
-    return LIT("Key_V");
-  case Key_W:
-    return LIT("Key_W");
-  case Key_X:
-    return LIT("Key_X");
-  case Key_Y:
-    return LIT("Key_Y");
-  case Key_Z:
-    return LIT("Key_Z");
-  case Key_Space:
-    return LIT("Key_Space");
-  case Key_Escape:
-    return LIT("Key_Escape");
-  case Key_Return:;
-    return LIT("Key_Return");
-  case Key_Backspace:
-    return LIT("Key_Backspace");
-  case Key_Tab:
-    return LIT("Key_Tab");
-  case Key_Caps_Lock:
-    return LIT("Key_Caps_Lock");
-  case Key_LShift:
-    return LIT("Key_LShift");
-  case Key_RShift:
-    return LIT("Key_RShift");
-  case Key_LControl:
-    return LIT("Key_LControl");
-  case Key_RControl:
-    return LIT("Key_RControl");
-  case Key_LAlt:
-    return LIT("Key_LAlt");
-  case Key_RAlt:
-    return LIT("Key_RAlt");
-  case Key_LSuper:
-    return LIT("Key_LSuper");
-  case Key_RSuper:
-    return LIT("Key_RSuper");
-  case Key_Comma:
-    return LIT("Key_Comma");
-  case Key_Period:
-    return LIT("Key_Period");
-  case Key_Slash:
-    return LIT("Key_Slash");
-  case Key_Semicolon:
-    return LIT("Key_Semicolon");
-  case Key_Quote:
-    return LIT("Key_Quote");
-  case Key_Left:
-    return LIT("Key_Left");
-  case Key_Right:
-    return LIT("Key_Right");
-  case Key_Up:
-    return LIT("Key_Up");
-  case Key_Down:
-    return LIT("Key_Down");
-  case Key_MAX_VALUE:
-    return LIT("Key_MAX_VALUE");
-    break;
+    KEYS_X
   }
-
+  #undef X
   return LIT("Key_INVALID");
 }
 
-typedef Slice(Key) Keymap;
+typedef struct {
+  Key  *lowercase;
+  Key  *uppercase;
+  isize len;
+} Keymap;
 
+#define X(key, xkb_name) { key, xkb_name },
 struct {
   Key     key;
   cstring name;
 } key_names[] = {
-  { Key_1, "1" },
-  { Key_2, "2" },
-  { Key_3, "3" },
-  { Key_4, "4" },
-  { Key_5, "5" },
-  { Key_6, "6" },
-  { Key_7, "7" },
-  { Key_8, "8" },
-  { Key_9, "9" },
-  { Key_0, "0" },
-
-  { Key_F1,   "F1"  },
-  { Key_F2,   "F2"  },
-  { Key_F3,   "F3"  },
-  { Key_F4,   "F4"  },
-  { Key_F5,   "F5"  },
-  { Key_F6,   "F6"  },
-  { Key_F7,   "F7"  },
-  { Key_F8,   "F8"  },
-  { Key_F9,   "F9"  },
-  { Key_F10,  "F10" },
-  { Key_F11,  "F11" },
-  { Key_F12,  "F12" },
-  { Key_F13,  "F13" },
-  { Key_F14,  "F14" },
-  { Key_F15,  "F15" },
-  { Key_F16,  "F16" },
-  { Key_F17,  "F17" },
-  { Key_F18,  "F18" },
-  { Key_F19,  "F19" },
-  { Key_F20,  "F20" },
-  { Key_F21,  "F21" },
-  { Key_F22,  "F22" },
-  { Key_F23,  "F23" },
-  { Key_F24,  "F24" },
-
-  { Key_A, "a" },
-  { Key_B, "b" },
-  { Key_C, "c" },
-  { Key_D, "d" },
-  { Key_E, "e" },
-  { Key_F, "f" },
-  { Key_G, "g" },
-  { Key_H, "h" },
-  { Key_I, "i" },
-  { Key_J, "j" },
-  { Key_K, "k" },
-  { Key_L, "l" },
-  { Key_M, "m" },
-  { Key_N, "n" },
-  { Key_O, "o" },
-  { Key_P, "p" },
-  { Key_Q, "q" },
-  { Key_R, "r" },
-  { Key_S, "s" },
-  { Key_T, "t" },
-  { Key_U, "u" },
-  { Key_V, "v" },
-  { Key_W, "w" },
-  { Key_X, "x" },
-  { Key_Y, "y" },
-  { Key_Z, "z" },
-
-  { Key_Semicolon, "semicolon" },
-  { Key_Comma,     "comma"     },
-  { Key_Period,    "period"    },
-  { Key_Slash,     "slash"     },
-
-  { Key_Left,      "Left"      },
-  { Key_Right,     "Right"     },
-  { Key_Up,        "Up"        },
-  { Key_Down,      "Down"      },
-
-  { Key_Space,     "space"     },
-  { Key_Escape,    "Escape"    },
-  { Key_Return,    "Return"    },
-  { Key_Backspace, "BackSpace" },
-  { Key_Tab,       "Tab"       },
-  { Key_Caps_Lock, "Caps_Lock" },
-
-  { Key_LShift,    "Shift_L"   },
-  { Key_RShift,    "Shift_R"   },
-  { Key_LControl,  "Control_L" },
-  { Key_RControl,  "Control_R" },
-  { Key_LAlt,      "Alt_L"     },
-  { Key_RAlt,      "Alt_R"     },
-  { Key_LSuper,    "Super_L"   },
-  { Key_RSuper,    "Super_R"   },
+    KEYS_X
 };
+#undef X
 
 typedef enum {
   XKB_T_Ident,
@@ -564,8 +347,10 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
     }
   });
 
-  Vector(Key) keymap;
-  vector_init(&keymap, 0, 8, allocator);
+  Vector(Key) lowercase;
+  vector_init(&lowercase, 0, 8, allocator);
+  Vector(Key) uppercase;
+  vector_init(&uppercase, 0, 8, allocator);
 
   slice_iter(tokens, token, i, {
     if (token->type == XKB_T_Ident && string_equal(token->string, LIT("xkb_symbols"))) {
@@ -601,6 +386,14 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
         symbol_name = tokens.data[current].string;
         current += 1;
 
+        Keycode keycode = -1;
+        for_range(i, 0, keycodes.len) {
+          if (string_equal(keycodes.data[i], symbol_name)) {
+            keycode = i;
+            break;
+          }
+        }
+
         if (tokens.data[current].type != XKB_T_Open_Squirly) {
           log_error(LIT("Failed to parse xkb layout"));
           return false;
@@ -628,21 +421,37 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
           }
         }
 
-        Keycode keycode = -1;
-        for_range(i, 0, keycodes.len) {
-          if (string_equal(keycodes.data[i], symbol_name)) {
-            keycode = i;
-            break;
-          }
+        while (lowercase.len < keycode) {
+          vector_append(&lowercase, Key_Null);
+        }
+        if (lowercase.len > keycode) {
+          lowercase.data[key] = key;
+        } else {
+          vector_append(&lowercase, key);
         }
 
-        while (keymap.len < keycode) {
-          vector_append(&keymap, Key_Null);
-        }
-        if (keymap.len > keycode) {
-          keymap.data[key] = key;
-        } else {
-          vector_append(&keymap, key);
+        if (tokens.data[current].type == XKB_T_Comma) {
+          current += 1;
+          value = tokens.data[current].string;
+          current += 1;
+
+          key = Key_Null;
+          for_range(i, 0, count_of(key_names)) {
+            type_of(key_names[i]) name = key_names[i];
+            if (string_equal(cstring_to_string(name.name), value)) {
+              key = name.key;
+              break;
+            }
+          }
+
+          while (uppercase.len < keycode) {
+            vector_append(&uppercase, Key_Null);
+          }
+          if (uppercase.len > keycode) {
+            uppercase.data[key] = key;
+          } else {
+            vector_append(&uppercase, key);
+          }
         }
 
         current += 1;
@@ -657,7 +466,16 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
     }
   });
 
-  *out_keymap = vector_to_slice(Keymap, keymap);
+  vector_reserve(&uppercase, lowercase.len);
+  vector_iter(uppercase, uk, i, {
+    if (*uk == Key_Null) {
+      *uk = lowercase.data[i];
+    }
+  })
+
+  out_keymap->lowercase = lowercase.data;
+  out_keymap->uppercase = uppercase.data;
+  out_keymap->len       = lowercase.len;
 
   return true;
 }

@@ -539,7 +539,7 @@ int main() {
 
   // context.logger.proc = nil;
 
-  byte _connection_buffer[512];
+  byte _connection_buffer[1024];
   Wayland_Connection wl_connection;
   b8 conn_ok = wayland_display_connect(context.allocator, (Byte_Slice) {.data = _connection_buffer, .len = size_of(_connection_buffer)}, &wl_connection);
   assert(conn_ok);
@@ -695,7 +695,7 @@ int main() {
   ui_context_destroy(&ui_context, context.allocator);
 
   if (state.keymap_data.data) {
-    slice_delete(state.keymap, context.allocator);
+    mem_free(state.keymap.lowercase, state.keymap.len, context.allocator);
     os_deallocate_pages(state.keymap_data.data, state.keymap_data.len);
   }
   wayland_connection_destroy(&wl_connection);

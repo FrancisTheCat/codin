@@ -450,13 +450,14 @@ internal void wayland_handle_events(Wayland_Connection *conn, Wayland_State *sta
 
         if (state->keymap_data.data) {
           os_deallocate_pages(state->keymap_data.data, state->keymap_data.len);
-          slice_delete(state->keymap, context.allocator);
+          mem_free(state->keymap.lowercase, state->keymap.len, context.allocator);
         }
 
         n = (size + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE;
         state->keymap_data.data = (rawptr)syscall(SYS_mmap, nil, n * OS_PAGE_SIZE, PROT_READ, MAP_PRIVATE, fd, 0);
         state->keymap_data.len  = n;
         ok = parse_key_codes((String){.data = (char *)state->keymap_data.data, .len = size}, &state->keymap, context.allocator);
+        write_entire_file_path(LIT("keymap.txt"), (Byte_Slice){.data = (byte *)state->keymap_data.data, .len = size});
         assert(ok);
         break;
 
@@ -466,18 +467,26 @@ internal void wayland_handle_events(Wayland_Connection *conn, Wayland_State *sta
         u32 key;
         Wayland_Wl_Keyboard_Key_State key_state;
 
-        wayland_parse_event_wl_keyboard_key(conn, &serial, &time, &key, &key_state);
+        Key *keymap;
 
-        if (key + 8 < state->keymap.len) {
-          if (state->keymap.data[key + 8]) {
-            state->keys[state->keymap.data[key + 8]] = key_state == Wayland_Wl_Keyboard_Key_State_Pressed;
+        wayland_parse_event_wl_keyboard_key(conn, &serial, &time, &key, &key_state);
+        key += 8;
+        if (state->keys[Key_LShift] || state->keys[Key_RShift]) {
+          keymap = state->keymap.uppercase;
+        } else {
+          keymap = state->keymap.lowercase;
+        }
+
+        if (key < state->keymap.len) {
+          if (keymap[key]) {
+            state->keys[keymap[key]] = key_state == Wayland_Wl_Keyboard_Key_State_Pressed;
           }
 
-          if (state->keymap.data[key + 8] == Key_Escape && key_state == Wayland_Wl_Keyboard_Key_State_Pressed) {
+          if (keymap[key] == Key_Escape && key_state == Wayland_Wl_Keyboard_Key_State_Pressed) {
             state->should_close = true;
           }
 
-          last_key_string = enum_to_string(Key, state->keymap.data[key + 8]);
+          last_key_string = enum_to_string(Key, keymap[key]);
           fmt_println(last_key_string);
         }
         break;
