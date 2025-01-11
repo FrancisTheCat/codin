@@ -620,8 +620,10 @@ TTF_DEF void ttf_get_glyph_h_metrics(
   } TTF_Long_Hor_Metric_Record;
   TTF_Long_Hor_Metric_Record *records = (TTF_Long_Hor_Metric_Record *)&font->data[font->hmtx];
   if (glyph >= font->n_hmetrics) {
-    metrics->advance = font_size * ttf_be16toh(             records[font->n_hmetrics - 1].advance                   ) / font->units_per_em;
-    metrics->bearing = font_size * ttf_be16toh(((ttf_i16 *)&records[font->n_hmetrics    ])[glyph - font->n_hmetrics]) / font->units_per_em;
+    metrics->advance =
+      font_size * ttf_be16toh(             records[font->n_hmetrics - 1].advance                   ) / font->units_per_em;
+    metrics->bearing =
+      font_size * ttf_be16toh(((ttf_i16 *)&records[font->n_hmetrics    ])[glyph - font->n_hmetrics]) / font->units_per_em;
     return;
   }
   metrics->advance = font_size *          ttf_be16toh(records[glyph].advance) / font->units_per_em;
@@ -673,10 +675,11 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *a
 
   _TTF_Table_Record *table_records = (_TTF_Table_Record *)&data[sizeof(_TTF_File_Header)];
   
-  font->n_glyphs = -1;
-  font->loca     = -1;
-  font->glyf     = -1;
-  font->cmap     = -1;
+  font->n_glyphs   = -1;
+  font->loca       = -1;
+  font->glyf       = -1;
+  font->cmap       = -1;
+  font->n_hmetrics = -1;
 
   for (ttf_i32 table_index = 0; table_index < header.numTables; table_index += 1) {
     _TTF_Table_Record table;
@@ -739,10 +742,12 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *a
   }
 
   if (
-    font->n_glyphs == -1 ||
-    font->loca     == -1 ||
-    font->glyf     == -1 ||
-    font->cmap     == -1
+    font->n_glyphs   == -1 ||
+    font->loca       == -1 ||
+    font->glyf       == -1 ||
+    font->hmtx       == -1 ||
+    font->n_hmetrics == -1 ||
+    font->cmap       == -1
   ) {
     return ttf_false;
   }

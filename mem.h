@@ -1,36 +1,21 @@
 #include "codin.h"
 
-// #include "stdlib.h"
+#define ALLOCATOR_ERRORS(X)                                                    \
+  X(AE_None)                                                                   \
+  X(AE_Out_Of_Memory)                                                          \
+  X(AE_Invalid_Arguments)                                                      \
+  X(AE_Unimplemented)
 
-typedef enum {
-  AE_None = 0,
-  AE_Out_Of_Memory = 1,
-  AE_Invalid_Arguments = 2,
-  AE_Unimplemented = 3,
-} Allocator_Error;
-
-ENUM_TO_STRING_PROC_DECL(Allocator_Error, e) {
-  switch (e) {
-  case AE_None:
-    return LIT("AE_None");
-  case AE_Out_Of_Memory:
-    return LIT("AE_Out_Of_Memory");
-  case AE_Invalid_Arguments:
-    return LIT("AE_Invalid_Arguments");
-  case AE_Unimplemented:
-    return LIT("AE_Unimplemented");
-  default:
-    return LIT("AE_INVALID");
-  }
-}
+X_ENUM(Allocator_Error, ALLOCATOR_ERRORS)
 
 typedef Result(rawptr, Allocator_Error) Allocator_Result;
 
-typedef enum {
-  AM_Alloc,
-  AM_Free,
-  AM_Free_All,
-} Allocator_Mode;
+#define ALLOCATOR_MODES(X)                                                      \
+  X(AM_Alloc)                                                                  \
+  X(AM_Free)                                                                   \
+  X(AM_Free_All)                                                               \
+
+X_ENUM(Allocator_Mode, ALLOCATOR_MODES)
 
 typedef Allocator_Result (*Allocator_Proc)(rawptr data, Allocator_Mode mode,
                                            isize size, isize align,
@@ -53,18 +38,6 @@ typedef struct {
 #define Gibibyte (1024 * Mebibyte)
 #define Tebibyte (1024 * Gibibyte)
 #define Pebibyte (1024 * Tebibyte)
-
-ENUM_TO_STRING_PROC_DECL(Allocator_Mode, m) {
-  switch (m) {
-  case AM_Alloc:
-    return LIT("AM_Alloc");
-  case AM_Free:
-    return LIT("AM_Free");
-  case AM_Free_All:
-    return LIT("AM_Free_All");
-  }
-  return LIT("AM_INVALID");
-}
 
 internal void mem_zero(rawptr data, isize len) {
   for (int i = 0; i < len; i += 1) {

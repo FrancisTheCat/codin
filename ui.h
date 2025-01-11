@@ -26,6 +26,12 @@ typedef struct {
   i32 index;
 } UI_Image;
 
+typedef enum {
+  UI_Cursor_Default = 0,
+  UI_Cursor_Pointer,
+  UI_Cursor_Text,
+} UI_Cursor;
+
 typedef struct {
   Rectangle rect;
   u32       tint;
@@ -33,30 +39,14 @@ typedef struct {
   UI_Image  image;
 } UI_Command_Image;
 
-typedef enum {
-  UI_Command_Type_None = 0,
-  UI_Command_Type_Box,
-  UI_Command_Type_Gradient,
-  UI_Command_Type_Text,
-  UI_Command_Type_Image,
-} UI_Command_Type;
+#define UI_COMMAND_TYPES(X)                                                    \
+  X(UI_Command_Type_None)                                                      \
+  X(UI_Command_Type_Box)                                                       \
+  X(UI_Command_Type_Gradient)                                                  \
+  X(UI_Command_Type_Text)                                                      \
+  X(UI_Command_Type_Image)
 
-ENUM_TO_STRING_PROC_DECL(UI_Command_Type, type) {
-  switch (type) {
-  case UI_Command_Type_None:
-    return LIT("UI_Command_Type_None");
-  case UI_Command_Type_Box:
-    return LIT("UI_Command_Type_Box");
-  case UI_Command_Type_Gradient:
-    return LIT("UI_Command_Type_Gradient");
-  case UI_Command_Type_Text:
-    return LIT("UI_Command_Type_Text");
-  case UI_Command_Type_Image:
-    return LIT("UI_Command_Type_Image");
-  default:
-    return LIT("UI_Command_Type_INVALID");
-  }
-}
+X_ENUM(UI_Command_Type, UI_COMMAND_TYPES)
 
 typedef struct {
   union {
@@ -157,9 +147,8 @@ typedef struct {
   } mouse;
   ui_measure_text_proc  measure_text_proc;
   i32                   text_height;
-  Slice(u32)            command_hashes;
-  Slice(u32)            prev_command_hashes;
   Vector(Image)         images;
+  UI_Cursor             cursor;
   u32                   colors[UI_Color_MAX];
 } UI_Context;
 
@@ -181,15 +170,7 @@ internal Rectangle ui_insert_rect(UI_Context *ctx, isize width, isize height) {
   }
 }
 
-#define UI_HASH_CELL_SIZE 32
-
 internal void ui_context_init(UI_Context *ctx, ui_measure_text_proc measure_text_proc, isize width, isize height, isize text_height, Allocator allocator) {
-  isize n_cells = ((width  + UI_HASH_CELL_SIZE - 1) / UI_HASH_CELL_SIZE) *
-                  ((height + UI_HASH_CELL_SIZE - 1) / UI_HASH_CELL_SIZE);
-
-  slice_init(&ctx->command_hashes,      n_cells, allocator);
-  slice_init(&ctx->prev_command_hashes, n_cells, allocator);
-
   vector_init(&ctx->commands, 0, 8, allocator);
   vector_init(&ctx->images,   0, 8, allocator);
 
@@ -197,30 +178,33 @@ internal void ui_context_init(UI_Context *ctx, ui_measure_text_proc measure_text
   ctx->width             = width;
   ctx->height            = height;
   ctx->text_height       = text_height;
-  ctx->spacing           = 10;
+  ctx->spacing           = 2 * text_height / 3;
 
-  ctx->colors[UI_Color_Background            ] = 0xFF000000;
+  ctx->colors[UI_Color_Background            ] = 0xFF1E2128;
+
   ctx->colors[UI_Color_Image_Border          ] = 0xFF62AEEF;
+
   ctx->colors[UI_Color_Label                 ] = 0x22FFFFFF;
   ctx->colors[UI_Color_Label_Text            ] = 0xFFABB2BF;
   ctx->colors[UI_Color_Label_Outline         ] = 0xFFABB2BF;
+
   ctx->colors[UI_Color_Button                ] = 0x22FFFFFF;
-  ctx->colors[UI_Color_Button_2              ] = 0x11FFFFFF;
+  ctx->colors[UI_Color_Button_2              ] = 0x22FFFFFF;
   ctx->colors[UI_Color_Button_Text           ] = 0xFFABB2BF;
   ctx->colors[UI_Color_Button_Outline        ] = 0xFF62AEEF;
+
   ctx->colors[UI_Color_Button_Hovered        ] = 0x33FFFFFF;
-  ctx->colors[UI_Color_Button_Hovered_2      ] = 0x22FFFFFF;
+  ctx->colors[UI_Color_Button_Hovered_2      ] = 0x33FFFFFF;
   ctx->colors[UI_Color_Button_Hovered_Text   ] = 0xFFABB2BF;
   ctx->colors[UI_Color_Button_Hovered_Outline] = 0xFFE06B74;
+
   ctx->colors[UI_Color_Button_Clicked        ] = 0x44FFFFFF;
-  ctx->colors[UI_Color_Button_Clicked_2      ] = 0x33FFFFFF;
+  ctx->colors[UI_Color_Button_Clicked_2      ] = 0x44FFFFFF;
   ctx->colors[UI_Color_Button_Clicked_Text   ] = 0xFFABB2BF;
   ctx->colors[UI_Color_Button_Clicked_Outline] = 0xFFE06B74;
 }
 
 internal void ui_context_destroy(UI_Context *ctx, Allocator allocator) {
-  slice_delete(ctx->command_hashes,      allocator);
-  slice_delete(ctx->prev_command_hashes, allocator);
   vector_delete(ctx->commands);
   vector_delete(ctx->images);
 }
@@ -232,6 +216,14 @@ internal b8 ui_mouse_in_rect(UI_Context *ctx, Rectangle const *rect) {
     }
   }
   return false;
+}
+
+internal void ui_reset(UI_Context *ctx) {
+  vector_clear(&ctx->commands);
+
+  ctx->x      = 25;
+  ctx->y      = 25;
+  ctx->cursor = UI_Cursor_Default;
 }
 
 internal b8 ui_button(UI_Context *ctx, String text) {
@@ -249,6 +241,8 @@ internal b8 ui_button(UI_Context *ctx, String text) {
   UI_Color outline_color = UI_Color_Button_Outline;
   
   if (ui_mouse_in_rect(ctx, &rect)) {
+    ctx->cursor = UI_Cursor_Pointer;
+
     if (ctx->mouse.buttons[0]) {
       GB_STATIC_ASSERT(size_of(i32) == size_of(UI_Color));
       *(i32 *)&color         += 8;
@@ -292,6 +286,11 @@ internal void ui_label(UI_Context *ctx, String text) {
     width + ctx->spacing * 2,
     ctx->text_height + ctx->spacing * 2
   );
+
+  if (ui_mouse_in_rect(ctx, &rect)) {
+    ctx->cursor = UI_Cursor_Text;
+  }
+
 
   UI_Color color         = UI_Color_Label;
   UI_Color text_color    = UI_Color_Label_Text;

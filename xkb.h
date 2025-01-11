@@ -149,34 +149,32 @@ typedef struct {
   isize len;
 } Keymap;
 
-#define X(key, xkb_name) { key, xkb_name },
-struct {
-  Key     key;
-  cstring name;
-} key_names[] = {
+#define X(key, xkb_name) [key] = xkb_name,
+cstring key_names[] = {
     KEYS_X
 };
 #undef X
 
-typedef enum {
-  XKB_T_Ident,
-  XKB_T_String,
-  XKB_T_Symbol,
-  XKB_T_Number,
-  XKB_T_Period        = '.',
-  XKB_T_Plus          = '+',
-  XKB_T_Minus         = '-',
-  XKB_T_Bang          = '!',
-  XKB_T_Comma         = ',',
-  XKB_T_Equals        = '=',
-  XKB_T_Semicolon     = ';',
-  XKB_T_Open_Squirly  = '{',
-  XKB_T_Close_Squirly = '}',
-  XKB_T_Open_Square   = '[',
-  XKB_T_Close_Square  = ']',
-  XKB_T_Open_Paren    = '(',
-  XKB_T_Close_Paren   = ')',
-} XKB_Token_Type;
+#define XKB_TOKENS(X)                                                          \
+  X(XKB_T_Ident,          0  )                                                 \
+  X(XKB_T_String,         1  )                                                 \
+  X(XKB_T_Symbol,         2  )                                                 \
+  X(XKB_T_Number,         3  )                                                 \
+  X(XKB_T_Bang,           '!')                                                 \
+  X(XKB_T_Plus,           '+')                                                 \
+  X(XKB_T_Period,         '.')                                                 \
+  X(XKB_T_Comma,          ',')                                                 \
+  X(XKB_T_Minus,          '-')                                                 \
+  X(XKB_T_Open_Paren,     '(')                                                 \
+  X(XKB_T_Close_Paren,    ')')                                                 \
+  X(XKB_T_Semicolon,      ';')                                                 \
+  X(XKB_T_Equals,         '=')                                                 \
+  X(XKB_T_Open_Square,    '[')                                                 \
+  X(XKB_T_Close_Square,   ']')                                                 \
+  X(XKB_T_Open_Squirly,   '{')                                                 \
+  X(XKB_T_Close_Squirly,  '}')                                                 \
+
+X_ENUM_EXPLICIT(XKB_Token_Type, XKB_TOKENS)
 
 typedef struct {
   XKB_Token_Type type;
@@ -184,7 +182,7 @@ typedef struct {
   isize          number;
 } XKB_Token;
 
-internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocator) {
+internal b8 xkb_parse_key_codes(String source, Keymap *out_keymap, Allocator allocator) {
   Vector(XKB_Token) tokens;
   vector_init(&tokens, 0, 8, context.temp_allocator);
 
@@ -400,8 +398,14 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
         }
         current += 1;
 
-        while (tokens.data[current].type != XKB_T_Open_Square) {
-          current += 1;
+        if (tokens.data[current].type != XKB_T_Open_Square) {
+          while (!(
+            tokens.data[current].type == XKB_T_Ident &&
+            string_equal(tokens.data[current].string, LIT("symbols")))
+          ) {
+            current += 1;
+          }
+          current += 5;
         }
         current += 1;
 
@@ -413,10 +417,10 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
         current += 1;
 
         Key key = Key_Null;
-        for_range(i, 0, count_of(key_names)) {
-          type_of(key_names[i]) name = key_names[i];
-          if (string_equal(cstring_to_string(name.name), value)) {
-            key = name.key;
+        for_range(k, 0, count_of(key_names)) {
+          cstring name = key_names[k];
+          if (string_equal(cstring_to_string(name), value)) {
+            key = (Key)k;
             break;
           }
         }
@@ -436,10 +440,10 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
           current += 1;
 
           key = Key_Null;
-          for_range(i, 0, count_of(key_names)) {
-            type_of(key_names[i]) name = key_names[i];
-            if (string_equal(cstring_to_string(name.name), value)) {
-              key = name.key;
+          for_range(k, 0, count_of(key_names)) {
+            cstring name = key_names[k];
+            if (string_equal(cstring_to_string(name), value)) {
+              key = (Key)k;
               break;
             }
           }
@@ -467,6 +471,7 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
   });
 
   vector_reserve(&uppercase, lowercase.len);
+  uppercase.len = uppercase.len;
   vector_iter(uppercase, uk, i, {
     if (*uk == Key_Null) {
       *uk = lowercase.data[i];
@@ -478,4 +483,9 @@ internal b8 parse_key_codes(String source, Keymap *out_keymap, Allocator allocat
   out_keymap->len       = lowercase.len;
 
   return true;
+}
+
+internal void xkb_keymap_destroy(Keymap const* km, Allocator allocator) {
+  mem_free(km->lowercase, km->len, allocator);
+  mem_free(km->uppercase, km->len, allocator);
 }

@@ -26,10 +26,7 @@
 #define diverging void
 
 #define size_of(...) sizeof(__VA_ARGS__)
-#define offset_of(Type, member) ((isize)({                                     \
-   Type __offset_of_type;                                                      \
-   ((byte *)&__offset_of_type.member) - ((byte *)&__offset_of_type);           \
-}))
+#define offset_of __builtin_offsetof
 #define type_of(...) typeof(__VA_ARGS__)
 #define count_of(...) (size_of(__VA_ARGS__) / size_of(*__VA_ARGS__))
 #define align_of(...) __alignof__(__VA_ARGS__)
@@ -315,6 +312,8 @@ internal void __runtime_cleanup();
 #include "result.h"
 
 #include "enum.h"
+
+#include "union.h"
 
 #include "mem.h"
 

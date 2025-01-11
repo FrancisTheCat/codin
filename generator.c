@@ -35,19 +35,13 @@ String string_to_ada_case(String s, Allocator allocator) {
 void generate_enum(Writer const *w, String prefix, XML_Object const *xml) {
   String name = xml_get_property(xml, LIT("name"));
 
-  Builder to_string;
-  builder_init(&to_string, 0, 8, context.temp_allocator);
-  Writer  sw = writer_from_builder(&to_string);
-
   String prefix_ada = string_to_ada_case(prefix, context.temp_allocator);
   String name_ada = string_to_ada_case(name, context.temp_allocator);
-
-  fmt_wprintf(&sw, LIT("ENUM_TO_STRING_PROC_DECL(Wayland_%S_%S, v) {\n\tswitch (v) {\n"), prefix_ada, name_ada);
 
   prefix = prefix_ada;
   name   = name_ada;
 
-  fmt_wprintln(w, LIT("typedef enum {"));
+  fmt_wprintln(w, LIT("#define WAYLAND_X_ENUM_VARIANTS(X) \\"));
 
   slice_iter(xml->children, child, i, {
     if (!string_equal(child->type, LIT("entry"))) {
@@ -56,15 +50,10 @@ void generate_enum(Writer const *w, String prefix, XML_Object const *xml) {
     String variant_name = xml_get_property(child, LIT("name"));
     String value        = xml_get_property(child, LIT("value"));
     String enum_name    = fmt_tprintf(LIT("Wayland_%S_%S_%S"), prefix, name, string_to_ada_case(variant_name, context.temp_allocator));
-    fmt_wprintf(w, LIT("\t%S = %S,\n"), enum_name, value);
-    fmt_wprintf(&sw, LIT("\tcase %S:\n\t\treturn LIT(\"%S\");\n"), enum_name, enum_name);
+    fmt_wprintf(w, LIT("\tX(%S, %S)\\\n"), enum_name, value);
   });
 
-  fmt_wprintf(w, LIT("} Wayland_%S_%S;\n\n"), prefix, name);
-
-  fmt_wprintf(&sw, LIT("\t}\n\treturn LIT(\"Wayland_%S_%S_INVALID\");\n}\n\n"), prefix, name);
-
-  fmt_wprint(w, builder_to_string(to_string));
+  fmt_wprintf(w, LIT("\nX_ENUM_EXPLICIT(Wayland_%S_%S, WAYLAND_X_ENUM_VARIANTS);\n\n#undef WAYLAND_X_ENUM_VARIANTS\n\n"), prefix, name);
 }
 
 void generate_request(Writer const *w, String prefix, XML_Object const *xml, isize request_id) {

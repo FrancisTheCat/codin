@@ -2,6 +2,14 @@
 #include "image.h"
 #include "iter.h"
 #include "xml.h"
+#include "union.h"
+
+#define VARIANTS(X) \
+  X(i32)            \
+  X(f32)            \
+  X(String)         \
+
+X_UNION(My_Union, VARIANTS)
 
 #define ttf_alloc(U, size) (unwrap_err(mem_alloc(size, *(Allocator *)U)))
 #define ttf_free(U, ptr) ((void)mem_free(ptr, 0, *(Allocator *)U))
@@ -562,17 +570,19 @@ int main() {
   // assert(font_ok);
 
   Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("JetBrainsMonoNerdFont-Medium.ttf"), context.allocator));
+  // Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("Lexend-Regular.ttf"), context.allocator));
   // Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("Crimson-Roman.ttf"), context.allocator));
   Growing_Arena_Allocator font_arena;
   Allocator font_allocator = growing_arena_allocator_init(&font_arena, 4096, context.allocator);
-  ttf_load_bytes(ttf_font_data.data, ttf_font_data.len, &ttf_font, &font_allocator);
+  b8 font_ok = ttf_load_bytes(ttf_font_data.data, ttf_font_data.len, &ttf_font, &font_allocator);
+  assert(font_ok);
 
   ui_context_init(&ui_context, measure_text_ttf, 1, 1, ttf_get_font_height(&ttf_font, UI_FONT_SIZE), context.allocator);
 
-  slice_init(&ui_hash_chunks, 30 * 30, context.allocator);
-  slice_init(&ui_prev_chunks, 30 * 30, context.allocator);
-  ui_hash_chunks_x = 30;
-  ui_hash_chunks_y = 30;
+  ui_hash_chunks_x = (state.w + UI_HASH_CHUNK_SIZE - 1) / UI_HASH_CHUNK_SIZE;
+  ui_hash_chunks_y = (state.h + UI_HASH_CHUNK_SIZE - 1) / UI_HASH_CHUNK_SIZE;
+  slice_init(&ui_hash_chunks, ui_hash_chunks_x * ui_hash_chunks_y, context.allocator);
+  slice_init(&ui_prev_chunks, ui_hash_chunks_x * ui_hash_chunks_y, context.allocator);
   
   Byte_Slice image_data = unwrap_err(read_entire_file_path(LIT("flame.ppm"), context.temp_allocator));
   Image backing_image;
@@ -608,12 +618,12 @@ int main() {
         state.wl_pointer = wayland_wl_seat_get_pointer(&wl_connection, state.wl_seat);
       }
 
-      // if (!!state.wl_data_device_manager && !state.wl_data_source) {
-      //   state.wl_data_source = wayland_wl_data_device_manager_create_data_source(&wl_connection, state.wl_data_device_manager);
-      //   wayland_wl_data_source_offer(&wl_connection, state.wl_data_source, LIT("text/plain"));
-      //   state.wl_data_device = wayland_wl_data_device_manager_get_data_device(&wl_connection, state.wl_data_device_manager, state.wl_seat);
-      //   wayland_wl_data_device_set_selection(&wl_connection, state.wl_data_device, state.wl_data_source, 0);
-      // }
+      if (!!state.wl_data_device_manager && !state.wl_data_source) {
+        state.wl_data_source = wayland_wl_data_device_manager_create_data_source(&wl_connection, state.wl_data_device_manager);
+        wayland_wl_data_source_offer(&wl_connection, state.wl_data_source, LIT("text/plain"));
+        state.wl_data_device = wayland_wl_data_device_manager_get_data_device(&wl_connection, state.wl_data_device_manager, state.wl_seat);
+        wayland_wl_data_device_set_selection(&wl_connection, state.wl_data_device, state.wl_data_source, 0);
+      }
     }
 
     if (state.surface_state == Surface_State_Acked_Configure && state.buffer_state == Buffer_State_Released) {
@@ -695,7 +705,7 @@ int main() {
   ui_context_destroy(&ui_context, context.allocator);
 
   if (state.keymap_data.data) {
-    mem_free(state.keymap.lowercase, state.keymap.len, context.allocator);
+    xkb_keymap_destroy(&state.keymap, context.allocator);
     os_deallocate_pages(state.keymap_data.data, state.keymap_data.len);
   }
   wayland_connection_destroy(&wl_connection);

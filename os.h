@@ -26,47 +26,20 @@ Reader __stdin;
 Writer __stdout;
 Writer __stderr;
 
-typedef enum {
-  OSE_None = 0,
-  OSE_No_Perm,
-  OSE_No_Child,
-  OSE_No_File,
-  OSE_Bad_Fd,
-  OSE_Bad_Arguments,
-  OSE_Is_Dir,
-  OSE_No_Mem,
-  OSE_Partial_Write,
-  OSE_Partial_Read,
-  OSE_Other,
-} OS_Error;
+#define OS_ERRORS(X)                                                           \
+  X(OSE_None)                                                                  \
+  X(OSE_No_Perm)                                                               \
+  X(OSE_No_Child)                                                              \
+  X(OSE_No_File)                                                               \
+  X(OSE_Bad_Fd)                                                                \
+  X(OSE_Bad_Arguments)                                                         \
+  X(OSE_Is_Dir)                                                                \
+  X(OSE_No_Mem)                                                                \
+  X(OSE_Partial_Write)                                                         \
+  X(OSE_Partial_Read)                                                          \
+  X(OSE_Other)
 
-ENUM_TO_STRING_PROC_DECL(OS_Error, err) {
-  switch (err) {
-  case OSE_None:
-    return LIT("OSE_None");
-  case OSE_No_Perm:
-    return LIT("OSE_No_Perm");
-  case OSE_No_Child:
-    return LIT("OSE_No_Child");
-  case OSE_No_File:
-    return LIT("OSE_No_File");
-  case OSE_Bad_Fd:
-    return LIT("OSE_Bad_Fd");
-  case OSE_Bad_Arguments:
-    return LIT("OSE_Bad_Arguments");
-  case OSE_Is_Dir:
-    return LIT("OSE_Is_Dir");
-  case OSE_No_Mem:
-    return LIT("OSE_No_Mem");
-  case OSE_Partial_Write:
-    return LIT("OSE_Partial_Write");
-  case OSE_Partial_Read:
-    return LIT("OSE_Partial_Read");
-  case OSE_Other:
-    return LIT("OSE_Other");
-  }
-  return LIT("OSE_INVALID");
-}
+X_ENUM(OS_Error, OS_ERRORS)
 
 typedef struct {
   String full_path;

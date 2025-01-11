@@ -1,28 +1,13 @@
 #include "codin.h"
 
-typedef enum {
-  LL_Debug = 0,
-  LL_Info,
-  LL_Warn,
-  LL_Error,
-  LL_Fatal,
-} Log_Level;
+#define LOG_LEVELS(X)                                                          \
+  X(LL_Debug)                                                                  \
+  X(LL_Info)                                                                   \
+  X(LL_Warn)                                                                   \
+  X(LL_Error)                                                                  \
+  X(LL_Fatal)                                                                  \
 
-ENUM_TO_STRING_PROC_DECL(Log_Level, l) {
-  switch (l) {
-  case LL_Debug:
-    return LIT("LL_Debug");
-  case LL_Info:
-    return LIT("LL_Info");
-  case LL_Warn:
-    return LIT("LL_Warn");
-  case LL_Error:
-    return LIT("LL_Error");
-  case LL_Fatal:
-    return LIT("LL_Fatal");
-  }
-  return LIT("LL_INVALID");
-}
+X_ENUM(Log_Level, LOG_LEVELS)
 
 typedef void (*Logger_Proc)(rawptr, Log_Level, String, Source_Code_Location const *);
 

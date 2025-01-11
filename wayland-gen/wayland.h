@@ -3,842 +3,362 @@
 #include "codin.h"
 #include "wayland_gen_common.h"
 
-typedef enum {
-	Wayland_Wl_Display_Error_Invalid_Object = 0,
-	Wayland_Wl_Display_Error_Invalid_Method = 1,
-	Wayland_Wl_Display_Error_No_Memory = 2,
-	Wayland_Wl_Display_Error_Implementation = 3,
-} Wayland_Wl_Display_Error;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Display_Error_Invalid_Object, 0)\
+	X(Wayland_Wl_Display_Error_Invalid_Method, 1)\
+	X(Wayland_Wl_Display_Error_No_Memory, 2)\
+	X(Wayland_Wl_Display_Error_Implementation, 3)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Display_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Display_Error_Invalid_Object:
-		return LIT("Wayland_Wl_Display_Error_Invalid_Object");
-	case Wayland_Wl_Display_Error_Invalid_Method:
-		return LIT("Wayland_Wl_Display_Error_Invalid_Method");
-	case Wayland_Wl_Display_Error_No_Memory:
-		return LIT("Wayland_Wl_Display_Error_No_Memory");
-	case Wayland_Wl_Display_Error_Implementation:
-		return LIT("Wayland_Wl_Display_Error_Implementation");
-	}
-	return LIT("Wayland_Wl_Display_Error_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Wl_Display_Error, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Wl_Shm_Error_Invalid_Format = 0,
-	Wayland_Wl_Shm_Error_Invalid_Stride = 1,
-	Wayland_Wl_Shm_Error_Invalid_Fd = 2,
-} Wayland_Wl_Shm_Error;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shm_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Shm_Error_Invalid_Format:
-		return LIT("Wayland_Wl_Shm_Error_Invalid_Format");
-	case Wayland_Wl_Shm_Error_Invalid_Stride:
-		return LIT("Wayland_Wl_Shm_Error_Invalid_Stride");
-	case Wayland_Wl_Shm_Error_Invalid_Fd:
-		return LIT("Wayland_Wl_Shm_Error_Invalid_Fd");
-	}
-	return LIT("Wayland_Wl_Shm_Error_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Shm_Error_Invalid_Format, 0)\
+	X(Wayland_Wl_Shm_Error_Invalid_Stride, 1)\
+	X(Wayland_Wl_Shm_Error_Invalid_Fd, 2)\
 
-typedef enum {
-	Wayland_Wl_Shm_Format_Argb8888 = 0,
-	Wayland_Wl_Shm_Format_Xrgb8888 = 1,
-	Wayland_Wl_Shm_Format_C8 = 0x20203843,
-	Wayland_Wl_Shm_Format_Rgb332 = 0x38424752,
-	Wayland_Wl_Shm_Format_Bgr233 = 0x38524742,
-	Wayland_Wl_Shm_Format_Xrgb4444 = 0x32315258,
-	Wayland_Wl_Shm_Format_Xbgr4444 = 0x32314258,
-	Wayland_Wl_Shm_Format_Rgbx4444 = 0x32315852,
-	Wayland_Wl_Shm_Format_Bgrx4444 = 0x32315842,
-	Wayland_Wl_Shm_Format_Argb4444 = 0x32315241,
-	Wayland_Wl_Shm_Format_Abgr4444 = 0x32314241,
-	Wayland_Wl_Shm_Format_Rgba4444 = 0x32314152,
-	Wayland_Wl_Shm_Format_Bgra4444 = 0x32314142,
-	Wayland_Wl_Shm_Format_Xrgb1555 = 0x35315258,
-	Wayland_Wl_Shm_Format_Xbgr1555 = 0x35314258,
-	Wayland_Wl_Shm_Format_Rgbx5551 = 0x35315852,
-	Wayland_Wl_Shm_Format_Bgrx5551 = 0x35315842,
-	Wayland_Wl_Shm_Format_Argb1555 = 0x35315241,
-	Wayland_Wl_Shm_Format_Abgr1555 = 0x35314241,
-	Wayland_Wl_Shm_Format_Rgba5551 = 0x35314152,
-	Wayland_Wl_Shm_Format_Bgra5551 = 0x35314142,
-	Wayland_Wl_Shm_Format_Rgb565 = 0x36314752,
-	Wayland_Wl_Shm_Format_Bgr565 = 0x36314742,
-	Wayland_Wl_Shm_Format_Rgb888 = 0x34324752,
-	Wayland_Wl_Shm_Format_Bgr888 = 0x34324742,
-	Wayland_Wl_Shm_Format_Xbgr8888 = 0x34324258,
-	Wayland_Wl_Shm_Format_Rgbx8888 = 0x34325852,
-	Wayland_Wl_Shm_Format_Bgrx8888 = 0x34325842,
-	Wayland_Wl_Shm_Format_Abgr8888 = 0x34324241,
-	Wayland_Wl_Shm_Format_Rgba8888 = 0x34324152,
-	Wayland_Wl_Shm_Format_Bgra8888 = 0x34324142,
-	Wayland_Wl_Shm_Format_Xrgb2101010 = 0x30335258,
-	Wayland_Wl_Shm_Format_Xbgr2101010 = 0x30334258,
-	Wayland_Wl_Shm_Format_Rgbx1010102 = 0x30335852,
-	Wayland_Wl_Shm_Format_Bgrx1010102 = 0x30335842,
-	Wayland_Wl_Shm_Format_Argb2101010 = 0x30335241,
-	Wayland_Wl_Shm_Format_Abgr2101010 = 0x30334241,
-	Wayland_Wl_Shm_Format_Rgba1010102 = 0x30334152,
-	Wayland_Wl_Shm_Format_Bgra1010102 = 0x30334142,
-	Wayland_Wl_Shm_Format_Yuyv = 0x56595559,
-	Wayland_Wl_Shm_Format_Yvyu = 0x55595659,
-	Wayland_Wl_Shm_Format_Uyvy = 0x59565955,
-	Wayland_Wl_Shm_Format_Vyuy = 0x59555956,
-	Wayland_Wl_Shm_Format_Ayuv = 0x56555941,
-	Wayland_Wl_Shm_Format_Nv12 = 0x3231564e,
-	Wayland_Wl_Shm_Format_Nv21 = 0x3132564e,
-	Wayland_Wl_Shm_Format_Nv16 = 0x3631564e,
-	Wayland_Wl_Shm_Format_Nv61 = 0x3136564e,
-	Wayland_Wl_Shm_Format_Yuv410 = 0x39565559,
-	Wayland_Wl_Shm_Format_Yvu410 = 0x39555659,
-	Wayland_Wl_Shm_Format_Yuv411 = 0x31315559,
-	Wayland_Wl_Shm_Format_Yvu411 = 0x31315659,
-	Wayland_Wl_Shm_Format_Yuv420 = 0x32315559,
-	Wayland_Wl_Shm_Format_Yvu420 = 0x32315659,
-	Wayland_Wl_Shm_Format_Yuv422 = 0x36315559,
-	Wayland_Wl_Shm_Format_Yvu422 = 0x36315659,
-	Wayland_Wl_Shm_Format_Yuv444 = 0x34325559,
-	Wayland_Wl_Shm_Format_Yvu444 = 0x34325659,
-	Wayland_Wl_Shm_Format_R8 = 0x20203852,
-	Wayland_Wl_Shm_Format_R16 = 0x20363152,
-	Wayland_Wl_Shm_Format_Rg88 = 0x38384752,
-	Wayland_Wl_Shm_Format_Gr88 = 0x38385247,
-	Wayland_Wl_Shm_Format_Rg1616 = 0x32334752,
-	Wayland_Wl_Shm_Format_Gr1616 = 0x32335247,
-	Wayland_Wl_Shm_Format_Xrgb16161616f = 0x48345258,
-	Wayland_Wl_Shm_Format_Xbgr16161616f = 0x48344258,
-	Wayland_Wl_Shm_Format_Argb16161616f = 0x48345241,
-	Wayland_Wl_Shm_Format_Abgr16161616f = 0x48344241,
-	Wayland_Wl_Shm_Format_Xyuv8888 = 0x56555958,
-	Wayland_Wl_Shm_Format_Vuy888 = 0x34325556,
-	Wayland_Wl_Shm_Format_Vuy101010 = 0x30335556,
-	Wayland_Wl_Shm_Format_Y210 = 0x30313259,
-	Wayland_Wl_Shm_Format_Y212 = 0x32313259,
-	Wayland_Wl_Shm_Format_Y216 = 0x36313259,
-	Wayland_Wl_Shm_Format_Y410 = 0x30313459,
-	Wayland_Wl_Shm_Format_Y412 = 0x32313459,
-	Wayland_Wl_Shm_Format_Y416 = 0x36313459,
-	Wayland_Wl_Shm_Format_Xvyu2101010 = 0x30335658,
-	Wayland_Wl_Shm_Format_Xvyu12_16161616 = 0x36335658,
-	Wayland_Wl_Shm_Format_Xvyu16161616 = 0x38345658,
-	Wayland_Wl_Shm_Format_Y0l0 = 0x304c3059,
-	Wayland_Wl_Shm_Format_X0l0 = 0x304c3058,
-	Wayland_Wl_Shm_Format_Y0l2 = 0x324c3059,
-	Wayland_Wl_Shm_Format_X0l2 = 0x324c3058,
-	Wayland_Wl_Shm_Format_Yuv420_8bit = 0x38305559,
-	Wayland_Wl_Shm_Format_Yuv420_10bit = 0x30315559,
-	Wayland_Wl_Shm_Format_Xrgb8888_A8 = 0x38415258,
-	Wayland_Wl_Shm_Format_Xbgr8888_A8 = 0x38414258,
-	Wayland_Wl_Shm_Format_Rgbx8888_A8 = 0x38415852,
-	Wayland_Wl_Shm_Format_Bgrx8888_A8 = 0x38415842,
-	Wayland_Wl_Shm_Format_Rgb888_A8 = 0x38413852,
-	Wayland_Wl_Shm_Format_Bgr888_A8 = 0x38413842,
-	Wayland_Wl_Shm_Format_Rgb565_A8 = 0x38413552,
-	Wayland_Wl_Shm_Format_Bgr565_A8 = 0x38413542,
-	Wayland_Wl_Shm_Format_Nv24 = 0x3432564e,
-	Wayland_Wl_Shm_Format_Nv42 = 0x3234564e,
-	Wayland_Wl_Shm_Format_P210 = 0x30313250,
-	Wayland_Wl_Shm_Format_P010 = 0x30313050,
-	Wayland_Wl_Shm_Format_P012 = 0x32313050,
-	Wayland_Wl_Shm_Format_P016 = 0x36313050,
-	Wayland_Wl_Shm_Format_Axbxgxrx106106106106 = 0x30314241,
-	Wayland_Wl_Shm_Format_Nv15 = 0x3531564e,
-	Wayland_Wl_Shm_Format_Q410 = 0x30313451,
-	Wayland_Wl_Shm_Format_Q401 = 0x31303451,
-	Wayland_Wl_Shm_Format_Xrgb16161616 = 0x38345258,
-	Wayland_Wl_Shm_Format_Xbgr16161616 = 0x38344258,
-	Wayland_Wl_Shm_Format_Argb16161616 = 0x38345241,
-	Wayland_Wl_Shm_Format_Abgr16161616 = 0x38344241,
-	Wayland_Wl_Shm_Format_C1 = 0x20203143,
-	Wayland_Wl_Shm_Format_C2 = 0x20203243,
-	Wayland_Wl_Shm_Format_C4 = 0x20203443,
-	Wayland_Wl_Shm_Format_D1 = 0x20203144,
-	Wayland_Wl_Shm_Format_D2 = 0x20203244,
-	Wayland_Wl_Shm_Format_D4 = 0x20203444,
-	Wayland_Wl_Shm_Format_D8 = 0x20203844,
-	Wayland_Wl_Shm_Format_R1 = 0x20203152,
-	Wayland_Wl_Shm_Format_R2 = 0x20203252,
-	Wayland_Wl_Shm_Format_R4 = 0x20203452,
-	Wayland_Wl_Shm_Format_R10 = 0x20303152,
-	Wayland_Wl_Shm_Format_R12 = 0x20323152,
-	Wayland_Wl_Shm_Format_Avuy8888 = 0x59555641,
-	Wayland_Wl_Shm_Format_Xvuy8888 = 0x59555658,
-	Wayland_Wl_Shm_Format_P030 = 0x30333050,
-} Wayland_Wl_Shm_Format;
+X_ENUM_EXPLICIT(Wayland_Wl_Shm_Error, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shm_Format, v) {
-	switch (v) {
-	case Wayland_Wl_Shm_Format_Argb8888:
-		return LIT("Wayland_Wl_Shm_Format_Argb8888");
-	case Wayland_Wl_Shm_Format_Xrgb8888:
-		return LIT("Wayland_Wl_Shm_Format_Xrgb8888");
-	case Wayland_Wl_Shm_Format_C8:
-		return LIT("Wayland_Wl_Shm_Format_C8");
-	case Wayland_Wl_Shm_Format_Rgb332:
-		return LIT("Wayland_Wl_Shm_Format_Rgb332");
-	case Wayland_Wl_Shm_Format_Bgr233:
-		return LIT("Wayland_Wl_Shm_Format_Bgr233");
-	case Wayland_Wl_Shm_Format_Xrgb4444:
-		return LIT("Wayland_Wl_Shm_Format_Xrgb4444");
-	case Wayland_Wl_Shm_Format_Xbgr4444:
-		return LIT("Wayland_Wl_Shm_Format_Xbgr4444");
-	case Wayland_Wl_Shm_Format_Rgbx4444:
-		return LIT("Wayland_Wl_Shm_Format_Rgbx4444");
-	case Wayland_Wl_Shm_Format_Bgrx4444:
-		return LIT("Wayland_Wl_Shm_Format_Bgrx4444");
-	case Wayland_Wl_Shm_Format_Argb4444:
-		return LIT("Wayland_Wl_Shm_Format_Argb4444");
-	case Wayland_Wl_Shm_Format_Abgr4444:
-		return LIT("Wayland_Wl_Shm_Format_Abgr4444");
-	case Wayland_Wl_Shm_Format_Rgba4444:
-		return LIT("Wayland_Wl_Shm_Format_Rgba4444");
-	case Wayland_Wl_Shm_Format_Bgra4444:
-		return LIT("Wayland_Wl_Shm_Format_Bgra4444");
-	case Wayland_Wl_Shm_Format_Xrgb1555:
-		return LIT("Wayland_Wl_Shm_Format_Xrgb1555");
-	case Wayland_Wl_Shm_Format_Xbgr1555:
-		return LIT("Wayland_Wl_Shm_Format_Xbgr1555");
-	case Wayland_Wl_Shm_Format_Rgbx5551:
-		return LIT("Wayland_Wl_Shm_Format_Rgbx5551");
-	case Wayland_Wl_Shm_Format_Bgrx5551:
-		return LIT("Wayland_Wl_Shm_Format_Bgrx5551");
-	case Wayland_Wl_Shm_Format_Argb1555:
-		return LIT("Wayland_Wl_Shm_Format_Argb1555");
-	case Wayland_Wl_Shm_Format_Abgr1555:
-		return LIT("Wayland_Wl_Shm_Format_Abgr1555");
-	case Wayland_Wl_Shm_Format_Rgba5551:
-		return LIT("Wayland_Wl_Shm_Format_Rgba5551");
-	case Wayland_Wl_Shm_Format_Bgra5551:
-		return LIT("Wayland_Wl_Shm_Format_Bgra5551");
-	case Wayland_Wl_Shm_Format_Rgb565:
-		return LIT("Wayland_Wl_Shm_Format_Rgb565");
-	case Wayland_Wl_Shm_Format_Bgr565:
-		return LIT("Wayland_Wl_Shm_Format_Bgr565");
-	case Wayland_Wl_Shm_Format_Rgb888:
-		return LIT("Wayland_Wl_Shm_Format_Rgb888");
-	case Wayland_Wl_Shm_Format_Bgr888:
-		return LIT("Wayland_Wl_Shm_Format_Bgr888");
-	case Wayland_Wl_Shm_Format_Xbgr8888:
-		return LIT("Wayland_Wl_Shm_Format_Xbgr8888");
-	case Wayland_Wl_Shm_Format_Rgbx8888:
-		return LIT("Wayland_Wl_Shm_Format_Rgbx8888");
-	case Wayland_Wl_Shm_Format_Bgrx8888:
-		return LIT("Wayland_Wl_Shm_Format_Bgrx8888");
-	case Wayland_Wl_Shm_Format_Abgr8888:
-		return LIT("Wayland_Wl_Shm_Format_Abgr8888");
-	case Wayland_Wl_Shm_Format_Rgba8888:
-		return LIT("Wayland_Wl_Shm_Format_Rgba8888");
-	case Wayland_Wl_Shm_Format_Bgra8888:
-		return LIT("Wayland_Wl_Shm_Format_Bgra8888");
-	case Wayland_Wl_Shm_Format_Xrgb2101010:
-		return LIT("Wayland_Wl_Shm_Format_Xrgb2101010");
-	case Wayland_Wl_Shm_Format_Xbgr2101010:
-		return LIT("Wayland_Wl_Shm_Format_Xbgr2101010");
-	case Wayland_Wl_Shm_Format_Rgbx1010102:
-		return LIT("Wayland_Wl_Shm_Format_Rgbx1010102");
-	case Wayland_Wl_Shm_Format_Bgrx1010102:
-		return LIT("Wayland_Wl_Shm_Format_Bgrx1010102");
-	case Wayland_Wl_Shm_Format_Argb2101010:
-		return LIT("Wayland_Wl_Shm_Format_Argb2101010");
-	case Wayland_Wl_Shm_Format_Abgr2101010:
-		return LIT("Wayland_Wl_Shm_Format_Abgr2101010");
-	case Wayland_Wl_Shm_Format_Rgba1010102:
-		return LIT("Wayland_Wl_Shm_Format_Rgba1010102");
-	case Wayland_Wl_Shm_Format_Bgra1010102:
-		return LIT("Wayland_Wl_Shm_Format_Bgra1010102");
-	case Wayland_Wl_Shm_Format_Yuyv:
-		return LIT("Wayland_Wl_Shm_Format_Yuyv");
-	case Wayland_Wl_Shm_Format_Yvyu:
-		return LIT("Wayland_Wl_Shm_Format_Yvyu");
-	case Wayland_Wl_Shm_Format_Uyvy:
-		return LIT("Wayland_Wl_Shm_Format_Uyvy");
-	case Wayland_Wl_Shm_Format_Vyuy:
-		return LIT("Wayland_Wl_Shm_Format_Vyuy");
-	case Wayland_Wl_Shm_Format_Ayuv:
-		return LIT("Wayland_Wl_Shm_Format_Ayuv");
-	case Wayland_Wl_Shm_Format_Nv12:
-		return LIT("Wayland_Wl_Shm_Format_Nv12");
-	case Wayland_Wl_Shm_Format_Nv21:
-		return LIT("Wayland_Wl_Shm_Format_Nv21");
-	case Wayland_Wl_Shm_Format_Nv16:
-		return LIT("Wayland_Wl_Shm_Format_Nv16");
-	case Wayland_Wl_Shm_Format_Nv61:
-		return LIT("Wayland_Wl_Shm_Format_Nv61");
-	case Wayland_Wl_Shm_Format_Yuv410:
-		return LIT("Wayland_Wl_Shm_Format_Yuv410");
-	case Wayland_Wl_Shm_Format_Yvu410:
-		return LIT("Wayland_Wl_Shm_Format_Yvu410");
-	case Wayland_Wl_Shm_Format_Yuv411:
-		return LIT("Wayland_Wl_Shm_Format_Yuv411");
-	case Wayland_Wl_Shm_Format_Yvu411:
-		return LIT("Wayland_Wl_Shm_Format_Yvu411");
-	case Wayland_Wl_Shm_Format_Yuv420:
-		return LIT("Wayland_Wl_Shm_Format_Yuv420");
-	case Wayland_Wl_Shm_Format_Yvu420:
-		return LIT("Wayland_Wl_Shm_Format_Yvu420");
-	case Wayland_Wl_Shm_Format_Yuv422:
-		return LIT("Wayland_Wl_Shm_Format_Yuv422");
-	case Wayland_Wl_Shm_Format_Yvu422:
-		return LIT("Wayland_Wl_Shm_Format_Yvu422");
-	case Wayland_Wl_Shm_Format_Yuv444:
-		return LIT("Wayland_Wl_Shm_Format_Yuv444");
-	case Wayland_Wl_Shm_Format_Yvu444:
-		return LIT("Wayland_Wl_Shm_Format_Yvu444");
-	case Wayland_Wl_Shm_Format_R8:
-		return LIT("Wayland_Wl_Shm_Format_R8");
-	case Wayland_Wl_Shm_Format_R16:
-		return LIT("Wayland_Wl_Shm_Format_R16");
-	case Wayland_Wl_Shm_Format_Rg88:
-		return LIT("Wayland_Wl_Shm_Format_Rg88");
-	case Wayland_Wl_Shm_Format_Gr88:
-		return LIT("Wayland_Wl_Shm_Format_Gr88");
-	case Wayland_Wl_Shm_Format_Rg1616:
-		return LIT("Wayland_Wl_Shm_Format_Rg1616");
-	case Wayland_Wl_Shm_Format_Gr1616:
-		return LIT("Wayland_Wl_Shm_Format_Gr1616");
-	case Wayland_Wl_Shm_Format_Xrgb16161616f:
-		return LIT("Wayland_Wl_Shm_Format_Xrgb16161616f");
-	case Wayland_Wl_Shm_Format_Xbgr16161616f:
-		return LIT("Wayland_Wl_Shm_Format_Xbgr16161616f");
-	case Wayland_Wl_Shm_Format_Argb16161616f:
-		return LIT("Wayland_Wl_Shm_Format_Argb16161616f");
-	case Wayland_Wl_Shm_Format_Abgr16161616f:
-		return LIT("Wayland_Wl_Shm_Format_Abgr16161616f");
-	case Wayland_Wl_Shm_Format_Xyuv8888:
-		return LIT("Wayland_Wl_Shm_Format_Xyuv8888");
-	case Wayland_Wl_Shm_Format_Vuy888:
-		return LIT("Wayland_Wl_Shm_Format_Vuy888");
-	case Wayland_Wl_Shm_Format_Vuy101010:
-		return LIT("Wayland_Wl_Shm_Format_Vuy101010");
-	case Wayland_Wl_Shm_Format_Y210:
-		return LIT("Wayland_Wl_Shm_Format_Y210");
-	case Wayland_Wl_Shm_Format_Y212:
-		return LIT("Wayland_Wl_Shm_Format_Y212");
-	case Wayland_Wl_Shm_Format_Y216:
-		return LIT("Wayland_Wl_Shm_Format_Y216");
-	case Wayland_Wl_Shm_Format_Y410:
-		return LIT("Wayland_Wl_Shm_Format_Y410");
-	case Wayland_Wl_Shm_Format_Y412:
-		return LIT("Wayland_Wl_Shm_Format_Y412");
-	case Wayland_Wl_Shm_Format_Y416:
-		return LIT("Wayland_Wl_Shm_Format_Y416");
-	case Wayland_Wl_Shm_Format_Xvyu2101010:
-		return LIT("Wayland_Wl_Shm_Format_Xvyu2101010");
-	case Wayland_Wl_Shm_Format_Xvyu12_16161616:
-		return LIT("Wayland_Wl_Shm_Format_Xvyu12_16161616");
-	case Wayland_Wl_Shm_Format_Xvyu16161616:
-		return LIT("Wayland_Wl_Shm_Format_Xvyu16161616");
-	case Wayland_Wl_Shm_Format_Y0l0:
-		return LIT("Wayland_Wl_Shm_Format_Y0l0");
-	case Wayland_Wl_Shm_Format_X0l0:
-		return LIT("Wayland_Wl_Shm_Format_X0l0");
-	case Wayland_Wl_Shm_Format_Y0l2:
-		return LIT("Wayland_Wl_Shm_Format_Y0l2");
-	case Wayland_Wl_Shm_Format_X0l2:
-		return LIT("Wayland_Wl_Shm_Format_X0l2");
-	case Wayland_Wl_Shm_Format_Yuv420_8bit:
-		return LIT("Wayland_Wl_Shm_Format_Yuv420_8bit");
-	case Wayland_Wl_Shm_Format_Yuv420_10bit:
-		return LIT("Wayland_Wl_Shm_Format_Yuv420_10bit");
-	case Wayland_Wl_Shm_Format_Xrgb8888_A8:
-		return LIT("Wayland_Wl_Shm_Format_Xrgb8888_A8");
-	case Wayland_Wl_Shm_Format_Xbgr8888_A8:
-		return LIT("Wayland_Wl_Shm_Format_Xbgr8888_A8");
-	case Wayland_Wl_Shm_Format_Rgbx8888_A8:
-		return LIT("Wayland_Wl_Shm_Format_Rgbx8888_A8");
-	case Wayland_Wl_Shm_Format_Bgrx8888_A8:
-		return LIT("Wayland_Wl_Shm_Format_Bgrx8888_A8");
-	case Wayland_Wl_Shm_Format_Rgb888_A8:
-		return LIT("Wayland_Wl_Shm_Format_Rgb888_A8");
-	case Wayland_Wl_Shm_Format_Bgr888_A8:
-		return LIT("Wayland_Wl_Shm_Format_Bgr888_A8");
-	case Wayland_Wl_Shm_Format_Rgb565_A8:
-		return LIT("Wayland_Wl_Shm_Format_Rgb565_A8");
-	case Wayland_Wl_Shm_Format_Bgr565_A8:
-		return LIT("Wayland_Wl_Shm_Format_Bgr565_A8");
-	case Wayland_Wl_Shm_Format_Nv24:
-		return LIT("Wayland_Wl_Shm_Format_Nv24");
-	case Wayland_Wl_Shm_Format_Nv42:
-		return LIT("Wayland_Wl_Shm_Format_Nv42");
-	case Wayland_Wl_Shm_Format_P210:
-		return LIT("Wayland_Wl_Shm_Format_P210");
-	case Wayland_Wl_Shm_Format_P010:
-		return LIT("Wayland_Wl_Shm_Format_P010");
-	case Wayland_Wl_Shm_Format_P012:
-		return LIT("Wayland_Wl_Shm_Format_P012");
-	case Wayland_Wl_Shm_Format_P016:
-		return LIT("Wayland_Wl_Shm_Format_P016");
-	case Wayland_Wl_Shm_Format_Axbxgxrx106106106106:
-		return LIT("Wayland_Wl_Shm_Format_Axbxgxrx106106106106");
-	case Wayland_Wl_Shm_Format_Nv15:
-		return LIT("Wayland_Wl_Shm_Format_Nv15");
-	case Wayland_Wl_Shm_Format_Q410:
-		return LIT("Wayland_Wl_Shm_Format_Q410");
-	case Wayland_Wl_Shm_Format_Q401:
-		return LIT("Wayland_Wl_Shm_Format_Q401");
-	case Wayland_Wl_Shm_Format_Xrgb16161616:
-		return LIT("Wayland_Wl_Shm_Format_Xrgb16161616");
-	case Wayland_Wl_Shm_Format_Xbgr16161616:
-		return LIT("Wayland_Wl_Shm_Format_Xbgr16161616");
-	case Wayland_Wl_Shm_Format_Argb16161616:
-		return LIT("Wayland_Wl_Shm_Format_Argb16161616");
-	case Wayland_Wl_Shm_Format_Abgr16161616:
-		return LIT("Wayland_Wl_Shm_Format_Abgr16161616");
-	case Wayland_Wl_Shm_Format_C1:
-		return LIT("Wayland_Wl_Shm_Format_C1");
-	case Wayland_Wl_Shm_Format_C2:
-		return LIT("Wayland_Wl_Shm_Format_C2");
-	case Wayland_Wl_Shm_Format_C4:
-		return LIT("Wayland_Wl_Shm_Format_C4");
-	case Wayland_Wl_Shm_Format_D1:
-		return LIT("Wayland_Wl_Shm_Format_D1");
-	case Wayland_Wl_Shm_Format_D2:
-		return LIT("Wayland_Wl_Shm_Format_D2");
-	case Wayland_Wl_Shm_Format_D4:
-		return LIT("Wayland_Wl_Shm_Format_D4");
-	case Wayland_Wl_Shm_Format_D8:
-		return LIT("Wayland_Wl_Shm_Format_D8");
-	case Wayland_Wl_Shm_Format_R1:
-		return LIT("Wayland_Wl_Shm_Format_R1");
-	case Wayland_Wl_Shm_Format_R2:
-		return LIT("Wayland_Wl_Shm_Format_R2");
-	case Wayland_Wl_Shm_Format_R4:
-		return LIT("Wayland_Wl_Shm_Format_R4");
-	case Wayland_Wl_Shm_Format_R10:
-		return LIT("Wayland_Wl_Shm_Format_R10");
-	case Wayland_Wl_Shm_Format_R12:
-		return LIT("Wayland_Wl_Shm_Format_R12");
-	case Wayland_Wl_Shm_Format_Avuy8888:
-		return LIT("Wayland_Wl_Shm_Format_Avuy8888");
-	case Wayland_Wl_Shm_Format_Xvuy8888:
-		return LIT("Wayland_Wl_Shm_Format_Xvuy8888");
-	case Wayland_Wl_Shm_Format_P030:
-		return LIT("Wayland_Wl_Shm_Format_P030");
-	}
-	return LIT("Wayland_Wl_Shm_Format_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Wl_Data_Offer_Error_Invalid_Finish = 0,
-	Wayland_Wl_Data_Offer_Error_Invalid_Action_Mask = 1,
-	Wayland_Wl_Data_Offer_Error_Invalid_Action = 2,
-	Wayland_Wl_Data_Offer_Error_Invalid_Offer = 3,
-} Wayland_Wl_Data_Offer_Error;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Shm_Format_Argb8888, 0)\
+	X(Wayland_Wl_Shm_Format_Xrgb8888, 1)\
+	X(Wayland_Wl_Shm_Format_C8, 0x20203843)\
+	X(Wayland_Wl_Shm_Format_Rgb332, 0x38424752)\
+	X(Wayland_Wl_Shm_Format_Bgr233, 0x38524742)\
+	X(Wayland_Wl_Shm_Format_Xrgb4444, 0x32315258)\
+	X(Wayland_Wl_Shm_Format_Xbgr4444, 0x32314258)\
+	X(Wayland_Wl_Shm_Format_Rgbx4444, 0x32315852)\
+	X(Wayland_Wl_Shm_Format_Bgrx4444, 0x32315842)\
+	X(Wayland_Wl_Shm_Format_Argb4444, 0x32315241)\
+	X(Wayland_Wl_Shm_Format_Abgr4444, 0x32314241)\
+	X(Wayland_Wl_Shm_Format_Rgba4444, 0x32314152)\
+	X(Wayland_Wl_Shm_Format_Bgra4444, 0x32314142)\
+	X(Wayland_Wl_Shm_Format_Xrgb1555, 0x35315258)\
+	X(Wayland_Wl_Shm_Format_Xbgr1555, 0x35314258)\
+	X(Wayland_Wl_Shm_Format_Rgbx5551, 0x35315852)\
+	X(Wayland_Wl_Shm_Format_Bgrx5551, 0x35315842)\
+	X(Wayland_Wl_Shm_Format_Argb1555, 0x35315241)\
+	X(Wayland_Wl_Shm_Format_Abgr1555, 0x35314241)\
+	X(Wayland_Wl_Shm_Format_Rgba5551, 0x35314152)\
+	X(Wayland_Wl_Shm_Format_Bgra5551, 0x35314142)\
+	X(Wayland_Wl_Shm_Format_Rgb565, 0x36314752)\
+	X(Wayland_Wl_Shm_Format_Bgr565, 0x36314742)\
+	X(Wayland_Wl_Shm_Format_Rgb888, 0x34324752)\
+	X(Wayland_Wl_Shm_Format_Bgr888, 0x34324742)\
+	X(Wayland_Wl_Shm_Format_Xbgr8888, 0x34324258)\
+	X(Wayland_Wl_Shm_Format_Rgbx8888, 0x34325852)\
+	X(Wayland_Wl_Shm_Format_Bgrx8888, 0x34325842)\
+	X(Wayland_Wl_Shm_Format_Abgr8888, 0x34324241)\
+	X(Wayland_Wl_Shm_Format_Rgba8888, 0x34324152)\
+	X(Wayland_Wl_Shm_Format_Bgra8888, 0x34324142)\
+	X(Wayland_Wl_Shm_Format_Xrgb2101010, 0x30335258)\
+	X(Wayland_Wl_Shm_Format_Xbgr2101010, 0x30334258)\
+	X(Wayland_Wl_Shm_Format_Rgbx1010102, 0x30335852)\
+	X(Wayland_Wl_Shm_Format_Bgrx1010102, 0x30335842)\
+	X(Wayland_Wl_Shm_Format_Argb2101010, 0x30335241)\
+	X(Wayland_Wl_Shm_Format_Abgr2101010, 0x30334241)\
+	X(Wayland_Wl_Shm_Format_Rgba1010102, 0x30334152)\
+	X(Wayland_Wl_Shm_Format_Bgra1010102, 0x30334142)\
+	X(Wayland_Wl_Shm_Format_Yuyv, 0x56595559)\
+	X(Wayland_Wl_Shm_Format_Yvyu, 0x55595659)\
+	X(Wayland_Wl_Shm_Format_Uyvy, 0x59565955)\
+	X(Wayland_Wl_Shm_Format_Vyuy, 0x59555956)\
+	X(Wayland_Wl_Shm_Format_Ayuv, 0x56555941)\
+	X(Wayland_Wl_Shm_Format_Nv12, 0x3231564e)\
+	X(Wayland_Wl_Shm_Format_Nv21, 0x3132564e)\
+	X(Wayland_Wl_Shm_Format_Nv16, 0x3631564e)\
+	X(Wayland_Wl_Shm_Format_Nv61, 0x3136564e)\
+	X(Wayland_Wl_Shm_Format_Yuv410, 0x39565559)\
+	X(Wayland_Wl_Shm_Format_Yvu410, 0x39555659)\
+	X(Wayland_Wl_Shm_Format_Yuv411, 0x31315559)\
+	X(Wayland_Wl_Shm_Format_Yvu411, 0x31315659)\
+	X(Wayland_Wl_Shm_Format_Yuv420, 0x32315559)\
+	X(Wayland_Wl_Shm_Format_Yvu420, 0x32315659)\
+	X(Wayland_Wl_Shm_Format_Yuv422, 0x36315559)\
+	X(Wayland_Wl_Shm_Format_Yvu422, 0x36315659)\
+	X(Wayland_Wl_Shm_Format_Yuv444, 0x34325559)\
+	X(Wayland_Wl_Shm_Format_Yvu444, 0x34325659)\
+	X(Wayland_Wl_Shm_Format_R8, 0x20203852)\
+	X(Wayland_Wl_Shm_Format_R16, 0x20363152)\
+	X(Wayland_Wl_Shm_Format_Rg88, 0x38384752)\
+	X(Wayland_Wl_Shm_Format_Gr88, 0x38385247)\
+	X(Wayland_Wl_Shm_Format_Rg1616, 0x32334752)\
+	X(Wayland_Wl_Shm_Format_Gr1616, 0x32335247)\
+	X(Wayland_Wl_Shm_Format_Xrgb16161616f, 0x48345258)\
+	X(Wayland_Wl_Shm_Format_Xbgr16161616f, 0x48344258)\
+	X(Wayland_Wl_Shm_Format_Argb16161616f, 0x48345241)\
+	X(Wayland_Wl_Shm_Format_Abgr16161616f, 0x48344241)\
+	X(Wayland_Wl_Shm_Format_Xyuv8888, 0x56555958)\
+	X(Wayland_Wl_Shm_Format_Vuy888, 0x34325556)\
+	X(Wayland_Wl_Shm_Format_Vuy101010, 0x30335556)\
+	X(Wayland_Wl_Shm_Format_Y210, 0x30313259)\
+	X(Wayland_Wl_Shm_Format_Y212, 0x32313259)\
+	X(Wayland_Wl_Shm_Format_Y216, 0x36313259)\
+	X(Wayland_Wl_Shm_Format_Y410, 0x30313459)\
+	X(Wayland_Wl_Shm_Format_Y412, 0x32313459)\
+	X(Wayland_Wl_Shm_Format_Y416, 0x36313459)\
+	X(Wayland_Wl_Shm_Format_Xvyu2101010, 0x30335658)\
+	X(Wayland_Wl_Shm_Format_Xvyu12_16161616, 0x36335658)\
+	X(Wayland_Wl_Shm_Format_Xvyu16161616, 0x38345658)\
+	X(Wayland_Wl_Shm_Format_Y0l0, 0x304c3059)\
+	X(Wayland_Wl_Shm_Format_X0l0, 0x304c3058)\
+	X(Wayland_Wl_Shm_Format_Y0l2, 0x324c3059)\
+	X(Wayland_Wl_Shm_Format_X0l2, 0x324c3058)\
+	X(Wayland_Wl_Shm_Format_Yuv420_8bit, 0x38305559)\
+	X(Wayland_Wl_Shm_Format_Yuv420_10bit, 0x30315559)\
+	X(Wayland_Wl_Shm_Format_Xrgb8888_A8, 0x38415258)\
+	X(Wayland_Wl_Shm_Format_Xbgr8888_A8, 0x38414258)\
+	X(Wayland_Wl_Shm_Format_Rgbx8888_A8, 0x38415852)\
+	X(Wayland_Wl_Shm_Format_Bgrx8888_A8, 0x38415842)\
+	X(Wayland_Wl_Shm_Format_Rgb888_A8, 0x38413852)\
+	X(Wayland_Wl_Shm_Format_Bgr888_A8, 0x38413842)\
+	X(Wayland_Wl_Shm_Format_Rgb565_A8, 0x38413552)\
+	X(Wayland_Wl_Shm_Format_Bgr565_A8, 0x38413542)\
+	X(Wayland_Wl_Shm_Format_Nv24, 0x3432564e)\
+	X(Wayland_Wl_Shm_Format_Nv42, 0x3234564e)\
+	X(Wayland_Wl_Shm_Format_P210, 0x30313250)\
+	X(Wayland_Wl_Shm_Format_P010, 0x30313050)\
+	X(Wayland_Wl_Shm_Format_P012, 0x32313050)\
+	X(Wayland_Wl_Shm_Format_P016, 0x36313050)\
+	X(Wayland_Wl_Shm_Format_Axbxgxrx106106106106, 0x30314241)\
+	X(Wayland_Wl_Shm_Format_Nv15, 0x3531564e)\
+	X(Wayland_Wl_Shm_Format_Q410, 0x30313451)\
+	X(Wayland_Wl_Shm_Format_Q401, 0x31303451)\
+	X(Wayland_Wl_Shm_Format_Xrgb16161616, 0x38345258)\
+	X(Wayland_Wl_Shm_Format_Xbgr16161616, 0x38344258)\
+	X(Wayland_Wl_Shm_Format_Argb16161616, 0x38345241)\
+	X(Wayland_Wl_Shm_Format_Abgr16161616, 0x38344241)\
+	X(Wayland_Wl_Shm_Format_C1, 0x20203143)\
+	X(Wayland_Wl_Shm_Format_C2, 0x20203243)\
+	X(Wayland_Wl_Shm_Format_C4, 0x20203443)\
+	X(Wayland_Wl_Shm_Format_D1, 0x20203144)\
+	X(Wayland_Wl_Shm_Format_D2, 0x20203244)\
+	X(Wayland_Wl_Shm_Format_D4, 0x20203444)\
+	X(Wayland_Wl_Shm_Format_D8, 0x20203844)\
+	X(Wayland_Wl_Shm_Format_R1, 0x20203152)\
+	X(Wayland_Wl_Shm_Format_R2, 0x20203252)\
+	X(Wayland_Wl_Shm_Format_R4, 0x20203452)\
+	X(Wayland_Wl_Shm_Format_R10, 0x20303152)\
+	X(Wayland_Wl_Shm_Format_R12, 0x20323152)\
+	X(Wayland_Wl_Shm_Format_Avuy8888, 0x59555641)\
+	X(Wayland_Wl_Shm_Format_Xvuy8888, 0x59555658)\
+	X(Wayland_Wl_Shm_Format_P030, 0x30333050)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Data_Offer_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Data_Offer_Error_Invalid_Finish:
-		return LIT("Wayland_Wl_Data_Offer_Error_Invalid_Finish");
-	case Wayland_Wl_Data_Offer_Error_Invalid_Action_Mask:
-		return LIT("Wayland_Wl_Data_Offer_Error_Invalid_Action_Mask");
-	case Wayland_Wl_Data_Offer_Error_Invalid_Action:
-		return LIT("Wayland_Wl_Data_Offer_Error_Invalid_Action");
-	case Wayland_Wl_Data_Offer_Error_Invalid_Offer:
-		return LIT("Wayland_Wl_Data_Offer_Error_Invalid_Offer");
-	}
-	return LIT("Wayland_Wl_Data_Offer_Error_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Wl_Shm_Format, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Wl_Data_Source_Error_Invalid_Action_Mask = 0,
-	Wayland_Wl_Data_Source_Error_Invalid_Source = 1,
-} Wayland_Wl_Data_Source_Error;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Data_Source_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Data_Source_Error_Invalid_Action_Mask:
-		return LIT("Wayland_Wl_Data_Source_Error_Invalid_Action_Mask");
-	case Wayland_Wl_Data_Source_Error_Invalid_Source:
-		return LIT("Wayland_Wl_Data_Source_Error_Invalid_Source");
-	}
-	return LIT("Wayland_Wl_Data_Source_Error_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Data_Offer_Error_Invalid_Finish, 0)\
+	X(Wayland_Wl_Data_Offer_Error_Invalid_Action_Mask, 1)\
+	X(Wayland_Wl_Data_Offer_Error_Invalid_Action, 2)\
+	X(Wayland_Wl_Data_Offer_Error_Invalid_Offer, 3)\
 
-typedef enum {
-	Wayland_Wl_Data_Device_Error_Role = 0,
-	Wayland_Wl_Data_Device_Error_Used_Source = 1,
-} Wayland_Wl_Data_Device_Error;
+X_ENUM_EXPLICIT(Wayland_Wl_Data_Offer_Error, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Data_Device_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Data_Device_Error_Role:
-		return LIT("Wayland_Wl_Data_Device_Error_Role");
-	case Wayland_Wl_Data_Device_Error_Used_Source:
-		return LIT("Wayland_Wl_Data_Device_Error_Used_Source");
-	}
-	return LIT("Wayland_Wl_Data_Device_Error_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Wl_Data_Device_Manager_Dnd_Action_None = 0,
-	Wayland_Wl_Data_Device_Manager_Dnd_Action_Copy = 1,
-	Wayland_Wl_Data_Device_Manager_Dnd_Action_Move = 2,
-	Wayland_Wl_Data_Device_Manager_Dnd_Action_Ask = 4,
-} Wayland_Wl_Data_Device_Manager_Dnd_Action;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Data_Source_Error_Invalid_Action_Mask, 0)\
+	X(Wayland_Wl_Data_Source_Error_Invalid_Source, 1)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Data_Device_Manager_Dnd_Action, v) {
-	switch (v) {
-	case Wayland_Wl_Data_Device_Manager_Dnd_Action_None:
-		return LIT("Wayland_Wl_Data_Device_Manager_Dnd_Action_None");
-	case Wayland_Wl_Data_Device_Manager_Dnd_Action_Copy:
-		return LIT("Wayland_Wl_Data_Device_Manager_Dnd_Action_Copy");
-	case Wayland_Wl_Data_Device_Manager_Dnd_Action_Move:
-		return LIT("Wayland_Wl_Data_Device_Manager_Dnd_Action_Move");
-	case Wayland_Wl_Data_Device_Manager_Dnd_Action_Ask:
-		return LIT("Wayland_Wl_Data_Device_Manager_Dnd_Action_Ask");
-	}
-	return LIT("Wayland_Wl_Data_Device_Manager_Dnd_Action_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Wl_Data_Source_Error, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Wl_Shell_Error_Role = 0,
-} Wayland_Wl_Shell_Error;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shell_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Shell_Error_Role:
-		return LIT("Wayland_Wl_Shell_Error_Role");
-	}
-	return LIT("Wayland_Wl_Shell_Error_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Data_Device_Error_Role, 0)\
+	X(Wayland_Wl_Data_Device_Error_Used_Source, 1)\
 
-typedef enum {
-	Wayland_Wl_Shell_Surface_Resize_None = 0,
-	Wayland_Wl_Shell_Surface_Resize_Top = 1,
-	Wayland_Wl_Shell_Surface_Resize_Bottom = 2,
-	Wayland_Wl_Shell_Surface_Resize_Left = 4,
-	Wayland_Wl_Shell_Surface_Resize_Top_Left = 5,
-	Wayland_Wl_Shell_Surface_Resize_Bottom_Left = 6,
-	Wayland_Wl_Shell_Surface_Resize_Right = 8,
-	Wayland_Wl_Shell_Surface_Resize_Top_Right = 9,
-	Wayland_Wl_Shell_Surface_Resize_Bottom_Right = 10,
-} Wayland_Wl_Shell_Surface_Resize;
+X_ENUM_EXPLICIT(Wayland_Wl_Data_Device_Error, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shell_Surface_Resize, v) {
-	switch (v) {
-	case Wayland_Wl_Shell_Surface_Resize_None:
-		return LIT("Wayland_Wl_Shell_Surface_Resize_None");
-	case Wayland_Wl_Shell_Surface_Resize_Top:
-		return LIT("Wayland_Wl_Shell_Surface_Resize_Top");
-	case Wayland_Wl_Shell_Surface_Resize_Bottom:
-		return LIT("Wayland_Wl_Shell_Surface_Resize_Bottom");
-	case Wayland_Wl_Shell_Surface_Resize_Left:
-		return LIT("Wayland_Wl_Shell_Surface_Resize_Left");
-	case Wayland_Wl_Shell_Surface_Resize_Top_Left:
-		return LIT("Wayland_Wl_Shell_Surface_Resize_Top_Left");
-	case Wayland_Wl_Shell_Surface_Resize_Bottom_Left:
-		return LIT("Wayland_Wl_Shell_Surface_Resize_Bottom_Left");
-	case Wayland_Wl_Shell_Surface_Resize_Right:
-		return LIT("Wayland_Wl_Shell_Surface_Resize_Right");
-	case Wayland_Wl_Shell_Surface_Resize_Top_Right:
-		return LIT("Wayland_Wl_Shell_Surface_Resize_Top_Right");
-	case Wayland_Wl_Shell_Surface_Resize_Bottom_Right:
-		return LIT("Wayland_Wl_Shell_Surface_Resize_Bottom_Right");
-	}
-	return LIT("Wayland_Wl_Shell_Surface_Resize_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Wl_Shell_Surface_Transient_Inactive = 0x1,
-} Wayland_Wl_Shell_Surface_Transient;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Data_Device_Manager_Dnd_Action_None, 0)\
+	X(Wayland_Wl_Data_Device_Manager_Dnd_Action_Copy, 1)\
+	X(Wayland_Wl_Data_Device_Manager_Dnd_Action_Move, 2)\
+	X(Wayland_Wl_Data_Device_Manager_Dnd_Action_Ask, 4)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shell_Surface_Transient, v) {
-	switch (v) {
-	case Wayland_Wl_Shell_Surface_Transient_Inactive:
-		return LIT("Wayland_Wl_Shell_Surface_Transient_Inactive");
-	}
-	return LIT("Wayland_Wl_Shell_Surface_Transient_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Wl_Data_Device_Manager_Dnd_Action, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Wl_Shell_Surface_Fullscreen_Method_Default = 0,
-	Wayland_Wl_Shell_Surface_Fullscreen_Method_Scale = 1,
-	Wayland_Wl_Shell_Surface_Fullscreen_Method_Driver = 2,
-	Wayland_Wl_Shell_Surface_Fullscreen_Method_Fill = 3,
-} Wayland_Wl_Shell_Surface_Fullscreen_Method;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Shell_Surface_Fullscreen_Method, v) {
-	switch (v) {
-	case Wayland_Wl_Shell_Surface_Fullscreen_Method_Default:
-		return LIT("Wayland_Wl_Shell_Surface_Fullscreen_Method_Default");
-	case Wayland_Wl_Shell_Surface_Fullscreen_Method_Scale:
-		return LIT("Wayland_Wl_Shell_Surface_Fullscreen_Method_Scale");
-	case Wayland_Wl_Shell_Surface_Fullscreen_Method_Driver:
-		return LIT("Wayland_Wl_Shell_Surface_Fullscreen_Method_Driver");
-	case Wayland_Wl_Shell_Surface_Fullscreen_Method_Fill:
-		return LIT("Wayland_Wl_Shell_Surface_Fullscreen_Method_Fill");
-	}
-	return LIT("Wayland_Wl_Shell_Surface_Fullscreen_Method_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Shell_Error_Role, 0)\
 
-typedef enum {
-	Wayland_Wl_Surface_Error_Invalid_Scale = 0,
-	Wayland_Wl_Surface_Error_Invalid_Transform = 1,
-	Wayland_Wl_Surface_Error_Invalid_Size = 2,
-	Wayland_Wl_Surface_Error_Invalid_Offset = 3,
-	Wayland_Wl_Surface_Error_Defunct_Role_Object = 4,
-} Wayland_Wl_Surface_Error;
+X_ENUM_EXPLICIT(Wayland_Wl_Shell_Error, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Surface_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Surface_Error_Invalid_Scale:
-		return LIT("Wayland_Wl_Surface_Error_Invalid_Scale");
-	case Wayland_Wl_Surface_Error_Invalid_Transform:
-		return LIT("Wayland_Wl_Surface_Error_Invalid_Transform");
-	case Wayland_Wl_Surface_Error_Invalid_Size:
-		return LIT("Wayland_Wl_Surface_Error_Invalid_Size");
-	case Wayland_Wl_Surface_Error_Invalid_Offset:
-		return LIT("Wayland_Wl_Surface_Error_Invalid_Offset");
-	case Wayland_Wl_Surface_Error_Defunct_Role_Object:
-		return LIT("Wayland_Wl_Surface_Error_Defunct_Role_Object");
-	}
-	return LIT("Wayland_Wl_Surface_Error_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Wl_Seat_Capability_Pointer = 1,
-	Wayland_Wl_Seat_Capability_Keyboard = 2,
-	Wayland_Wl_Seat_Capability_Touch = 4,
-} Wayland_Wl_Seat_Capability;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Shell_Surface_Resize_None, 0)\
+	X(Wayland_Wl_Shell_Surface_Resize_Top, 1)\
+	X(Wayland_Wl_Shell_Surface_Resize_Bottom, 2)\
+	X(Wayland_Wl_Shell_Surface_Resize_Left, 4)\
+	X(Wayland_Wl_Shell_Surface_Resize_Top_Left, 5)\
+	X(Wayland_Wl_Shell_Surface_Resize_Bottom_Left, 6)\
+	X(Wayland_Wl_Shell_Surface_Resize_Right, 8)\
+	X(Wayland_Wl_Shell_Surface_Resize_Top_Right, 9)\
+	X(Wayland_Wl_Shell_Surface_Resize_Bottom_Right, 10)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Seat_Capability, v) {
-	switch (v) {
-	case Wayland_Wl_Seat_Capability_Pointer:
-		return LIT("Wayland_Wl_Seat_Capability_Pointer");
-	case Wayland_Wl_Seat_Capability_Keyboard:
-		return LIT("Wayland_Wl_Seat_Capability_Keyboard");
-	case Wayland_Wl_Seat_Capability_Touch:
-		return LIT("Wayland_Wl_Seat_Capability_Touch");
-	}
-	return LIT("Wayland_Wl_Seat_Capability_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Wl_Shell_Surface_Resize, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Wl_Seat_Error_Missing_Capability = 0,
-} Wayland_Wl_Seat_Error;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Seat_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Seat_Error_Missing_Capability:
-		return LIT("Wayland_Wl_Seat_Error_Missing_Capability");
-	}
-	return LIT("Wayland_Wl_Seat_Error_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Shell_Surface_Transient_Inactive, 0x1)\
 
-typedef enum {
-	Wayland_Wl_Pointer_Error_Role = 0,
-} Wayland_Wl_Pointer_Error;
+X_ENUM_EXPLICIT(Wayland_Wl_Shell_Surface_Transient, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Pointer_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Pointer_Error_Role:
-		return LIT("Wayland_Wl_Pointer_Error_Role");
-	}
-	return LIT("Wayland_Wl_Pointer_Error_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Wl_Pointer_Button_State_Released = 0,
-	Wayland_Wl_Pointer_Button_State_Pressed = 1,
-} Wayland_Wl_Pointer_Button_State;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Shell_Surface_Fullscreen_Method_Default, 0)\
+	X(Wayland_Wl_Shell_Surface_Fullscreen_Method_Scale, 1)\
+	X(Wayland_Wl_Shell_Surface_Fullscreen_Method_Driver, 2)\
+	X(Wayland_Wl_Shell_Surface_Fullscreen_Method_Fill, 3)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Pointer_Button_State, v) {
-	switch (v) {
-	case Wayland_Wl_Pointer_Button_State_Released:
-		return LIT("Wayland_Wl_Pointer_Button_State_Released");
-	case Wayland_Wl_Pointer_Button_State_Pressed:
-		return LIT("Wayland_Wl_Pointer_Button_State_Pressed");
-	}
-	return LIT("Wayland_Wl_Pointer_Button_State_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Wl_Shell_Surface_Fullscreen_Method, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Wl_Pointer_Axis_Vertical_Scroll = 0,
-	Wayland_Wl_Pointer_Axis_Horizontal_Scroll = 1,
-} Wayland_Wl_Pointer_Axis;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Pointer_Axis, v) {
-	switch (v) {
-	case Wayland_Wl_Pointer_Axis_Vertical_Scroll:
-		return LIT("Wayland_Wl_Pointer_Axis_Vertical_Scroll");
-	case Wayland_Wl_Pointer_Axis_Horizontal_Scroll:
-		return LIT("Wayland_Wl_Pointer_Axis_Horizontal_Scroll");
-	}
-	return LIT("Wayland_Wl_Pointer_Axis_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Surface_Error_Invalid_Scale, 0)\
+	X(Wayland_Wl_Surface_Error_Invalid_Transform, 1)\
+	X(Wayland_Wl_Surface_Error_Invalid_Size, 2)\
+	X(Wayland_Wl_Surface_Error_Invalid_Offset, 3)\
+	X(Wayland_Wl_Surface_Error_Defunct_Role_Object, 4)\
 
-typedef enum {
-	Wayland_Wl_Pointer_Axis_Source_Wheel = 0,
-	Wayland_Wl_Pointer_Axis_Source_Finger = 1,
-	Wayland_Wl_Pointer_Axis_Source_Continuous = 2,
-	Wayland_Wl_Pointer_Axis_Source_Wheel_Tilt = 3,
-} Wayland_Wl_Pointer_Axis_Source;
+X_ENUM_EXPLICIT(Wayland_Wl_Surface_Error, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Pointer_Axis_Source, v) {
-	switch (v) {
-	case Wayland_Wl_Pointer_Axis_Source_Wheel:
-		return LIT("Wayland_Wl_Pointer_Axis_Source_Wheel");
-	case Wayland_Wl_Pointer_Axis_Source_Finger:
-		return LIT("Wayland_Wl_Pointer_Axis_Source_Finger");
-	case Wayland_Wl_Pointer_Axis_Source_Continuous:
-		return LIT("Wayland_Wl_Pointer_Axis_Source_Continuous");
-	case Wayland_Wl_Pointer_Axis_Source_Wheel_Tilt:
-		return LIT("Wayland_Wl_Pointer_Axis_Source_Wheel_Tilt");
-	}
-	return LIT("Wayland_Wl_Pointer_Axis_Source_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Wl_Pointer_Axis_Relative_Direction_Identical = 0,
-	Wayland_Wl_Pointer_Axis_Relative_Direction_Inverted = 1,
-} Wayland_Wl_Pointer_Axis_Relative_Direction;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Seat_Capability_Pointer, 1)\
+	X(Wayland_Wl_Seat_Capability_Keyboard, 2)\
+	X(Wayland_Wl_Seat_Capability_Touch, 4)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Pointer_Axis_Relative_Direction, v) {
-	switch (v) {
-	case Wayland_Wl_Pointer_Axis_Relative_Direction_Identical:
-		return LIT("Wayland_Wl_Pointer_Axis_Relative_Direction_Identical");
-	case Wayland_Wl_Pointer_Axis_Relative_Direction_Inverted:
-		return LIT("Wayland_Wl_Pointer_Axis_Relative_Direction_Inverted");
-	}
-	return LIT("Wayland_Wl_Pointer_Axis_Relative_Direction_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Wl_Seat_Capability, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Wl_Keyboard_Keymap_Format_No_Keymap = 0,
-	Wayland_Wl_Keyboard_Keymap_Format_Xkb_V1 = 1,
-} Wayland_Wl_Keyboard_Keymap_Format;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Keyboard_Keymap_Format, v) {
-	switch (v) {
-	case Wayland_Wl_Keyboard_Keymap_Format_No_Keymap:
-		return LIT("Wayland_Wl_Keyboard_Keymap_Format_No_Keymap");
-	case Wayland_Wl_Keyboard_Keymap_Format_Xkb_V1:
-		return LIT("Wayland_Wl_Keyboard_Keymap_Format_Xkb_V1");
-	}
-	return LIT("Wayland_Wl_Keyboard_Keymap_Format_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Seat_Error_Missing_Capability, 0)\
 
-typedef enum {
-	Wayland_Wl_Keyboard_Key_State_Released = 0,
-	Wayland_Wl_Keyboard_Key_State_Pressed = 1,
-	Wayland_Wl_Keyboard_Key_State_Repeated = 2,
-} Wayland_Wl_Keyboard_Key_State;
+X_ENUM_EXPLICIT(Wayland_Wl_Seat_Error, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Keyboard_Key_State, v) {
-	switch (v) {
-	case Wayland_Wl_Keyboard_Key_State_Released:
-		return LIT("Wayland_Wl_Keyboard_Key_State_Released");
-	case Wayland_Wl_Keyboard_Key_State_Pressed:
-		return LIT("Wayland_Wl_Keyboard_Key_State_Pressed");
-	case Wayland_Wl_Keyboard_Key_State_Repeated:
-		return LIT("Wayland_Wl_Keyboard_Key_State_Repeated");
-	}
-	return LIT("Wayland_Wl_Keyboard_Key_State_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Wl_Output_Subpixel_Unknown = 0,
-	Wayland_Wl_Output_Subpixel_None = 1,
-	Wayland_Wl_Output_Subpixel_Horizontal_Rgb = 2,
-	Wayland_Wl_Output_Subpixel_Horizontal_Bgr = 3,
-	Wayland_Wl_Output_Subpixel_Vertical_Rgb = 4,
-	Wayland_Wl_Output_Subpixel_Vertical_Bgr = 5,
-} Wayland_Wl_Output_Subpixel;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Pointer_Error_Role, 0)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Output_Subpixel, v) {
-	switch (v) {
-	case Wayland_Wl_Output_Subpixel_Unknown:
-		return LIT("Wayland_Wl_Output_Subpixel_Unknown");
-	case Wayland_Wl_Output_Subpixel_None:
-		return LIT("Wayland_Wl_Output_Subpixel_None");
-	case Wayland_Wl_Output_Subpixel_Horizontal_Rgb:
-		return LIT("Wayland_Wl_Output_Subpixel_Horizontal_Rgb");
-	case Wayland_Wl_Output_Subpixel_Horizontal_Bgr:
-		return LIT("Wayland_Wl_Output_Subpixel_Horizontal_Bgr");
-	case Wayland_Wl_Output_Subpixel_Vertical_Rgb:
-		return LIT("Wayland_Wl_Output_Subpixel_Vertical_Rgb");
-	case Wayland_Wl_Output_Subpixel_Vertical_Bgr:
-		return LIT("Wayland_Wl_Output_Subpixel_Vertical_Bgr");
-	}
-	return LIT("Wayland_Wl_Output_Subpixel_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Wl_Pointer_Error, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Wl_Output_Transform_Normal = 0,
-	Wayland_Wl_Output_Transform_90 = 1,
-	Wayland_Wl_Output_Transform_180 = 2,
-	Wayland_Wl_Output_Transform_270 = 3,
-	Wayland_Wl_Output_Transform_Flipped = 4,
-	Wayland_Wl_Output_Transform_Flipped_90 = 5,
-	Wayland_Wl_Output_Transform_Flipped_180 = 6,
-	Wayland_Wl_Output_Transform_Flipped_270 = 7,
-} Wayland_Wl_Output_Transform;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Output_Transform, v) {
-	switch (v) {
-	case Wayland_Wl_Output_Transform_Normal:
-		return LIT("Wayland_Wl_Output_Transform_Normal");
-	case Wayland_Wl_Output_Transform_90:
-		return LIT("Wayland_Wl_Output_Transform_90");
-	case Wayland_Wl_Output_Transform_180:
-		return LIT("Wayland_Wl_Output_Transform_180");
-	case Wayland_Wl_Output_Transform_270:
-		return LIT("Wayland_Wl_Output_Transform_270");
-	case Wayland_Wl_Output_Transform_Flipped:
-		return LIT("Wayland_Wl_Output_Transform_Flipped");
-	case Wayland_Wl_Output_Transform_Flipped_90:
-		return LIT("Wayland_Wl_Output_Transform_Flipped_90");
-	case Wayland_Wl_Output_Transform_Flipped_180:
-		return LIT("Wayland_Wl_Output_Transform_Flipped_180");
-	case Wayland_Wl_Output_Transform_Flipped_270:
-		return LIT("Wayland_Wl_Output_Transform_Flipped_270");
-	}
-	return LIT("Wayland_Wl_Output_Transform_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Pointer_Button_State_Released, 0)\
+	X(Wayland_Wl_Pointer_Button_State_Pressed, 1)\
 
-typedef enum {
-	Wayland_Wl_Output_Mode_Current = 0x1,
-	Wayland_Wl_Output_Mode_Preferred = 0x2,
-} Wayland_Wl_Output_Mode;
+X_ENUM_EXPLICIT(Wayland_Wl_Pointer_Button_State, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Output_Mode, v) {
-	switch (v) {
-	case Wayland_Wl_Output_Mode_Current:
-		return LIT("Wayland_Wl_Output_Mode_Current");
-	case Wayland_Wl_Output_Mode_Preferred:
-		return LIT("Wayland_Wl_Output_Mode_Preferred");
-	}
-	return LIT("Wayland_Wl_Output_Mode_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Wl_Subcompositor_Error_Bad_Surface = 0,
-	Wayland_Wl_Subcompositor_Error_Bad_Parent = 1,
-} Wayland_Wl_Subcompositor_Error;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Pointer_Axis_Vertical_Scroll, 0)\
+	X(Wayland_Wl_Pointer_Axis_Horizontal_Scroll, 1)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Subcompositor_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Subcompositor_Error_Bad_Surface:
-		return LIT("Wayland_Wl_Subcompositor_Error_Bad_Surface");
-	case Wayland_Wl_Subcompositor_Error_Bad_Parent:
-		return LIT("Wayland_Wl_Subcompositor_Error_Bad_Parent");
-	}
-	return LIT("Wayland_Wl_Subcompositor_Error_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Wl_Pointer_Axis, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Wl_Subsurface_Error_Bad_Surface = 0,
-} Wayland_Wl_Subsurface_Error;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wl_Subsurface_Error, v) {
-	switch (v) {
-	case Wayland_Wl_Subsurface_Error_Bad_Surface:
-		return LIT("Wayland_Wl_Subsurface_Error_Bad_Surface");
-	}
-	return LIT("Wayland_Wl_Subsurface_Error_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Pointer_Axis_Source_Wheel, 0)\
+	X(Wayland_Wl_Pointer_Axis_Source_Finger, 1)\
+	X(Wayland_Wl_Pointer_Axis_Source_Continuous, 2)\
+	X(Wayland_Wl_Pointer_Axis_Source_Wheel_Tilt, 3)\
+
+X_ENUM_EXPLICIT(Wayland_Wl_Pointer_Axis_Source, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Pointer_Axis_Relative_Direction_Identical, 0)\
+	X(Wayland_Wl_Pointer_Axis_Relative_Direction_Inverted, 1)\
+
+X_ENUM_EXPLICIT(Wayland_Wl_Pointer_Axis_Relative_Direction, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Keyboard_Keymap_Format_No_Keymap, 0)\
+	X(Wayland_Wl_Keyboard_Keymap_Format_Xkb_V1, 1)\
+
+X_ENUM_EXPLICIT(Wayland_Wl_Keyboard_Keymap_Format, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Keyboard_Key_State_Released, 0)\
+	X(Wayland_Wl_Keyboard_Key_State_Pressed, 1)\
+	X(Wayland_Wl_Keyboard_Key_State_Repeated, 2)\
+
+X_ENUM_EXPLICIT(Wayland_Wl_Keyboard_Key_State, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Output_Subpixel_Unknown, 0)\
+	X(Wayland_Wl_Output_Subpixel_None, 1)\
+	X(Wayland_Wl_Output_Subpixel_Horizontal_Rgb, 2)\
+	X(Wayland_Wl_Output_Subpixel_Horizontal_Bgr, 3)\
+	X(Wayland_Wl_Output_Subpixel_Vertical_Rgb, 4)\
+	X(Wayland_Wl_Output_Subpixel_Vertical_Bgr, 5)\
+
+X_ENUM_EXPLICIT(Wayland_Wl_Output_Subpixel, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Output_Transform_Normal, 0)\
+	X(Wayland_Wl_Output_Transform_90, 1)\
+	X(Wayland_Wl_Output_Transform_180, 2)\
+	X(Wayland_Wl_Output_Transform_270, 3)\
+	X(Wayland_Wl_Output_Transform_Flipped, 4)\
+	X(Wayland_Wl_Output_Transform_Flipped_90, 5)\
+	X(Wayland_Wl_Output_Transform_Flipped_180, 6)\
+	X(Wayland_Wl_Output_Transform_Flipped_270, 7)\
+
+X_ENUM_EXPLICIT(Wayland_Wl_Output_Transform, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Output_Mode_Current, 0x1)\
+	X(Wayland_Wl_Output_Mode_Preferred, 0x2)\
+
+X_ENUM_EXPLICIT(Wayland_Wl_Output_Mode, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Subcompositor_Error_Bad_Surface, 0)\
+	X(Wayland_Wl_Subcompositor_Error_Bad_Parent, 1)\
+
+X_ENUM_EXPLICIT(Wayland_Wl_Subcompositor_Error, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wl_Subsurface_Error_Bad_Surface, 0)\
+
+X_ENUM_EXPLICIT(Wayland_Wl_Subsurface_Error, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
 
 internal u32 wayland_wl_display_sync(Wayland_Connection *conn, u32 wl_display) {
 	Writer _w = writer_from_builder(&conn->builder);

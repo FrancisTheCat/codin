@@ -3,128 +3,52 @@
 #include "codin.h"
 #include "wayland_gen_common.h"
 
-typedef enum {
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Default = 1,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Context_Menu = 2,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Help = 3,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Pointer = 4,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Progress = 5,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Wait = 6,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Cell = 7,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Crosshair = 8,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Text = 9,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Vertical_Text = 10,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Alias = 11,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Copy = 12,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Move = 13,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_No_Drop = 14,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Not_Allowed = 15,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Grab = 16,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Grabbing = 17,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_E_Resize = 18,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_N_Resize = 19,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ne_Resize = 20,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nw_Resize = 21,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_S_Resize = 22,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Se_Resize = 23,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Sw_Resize = 24,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_W_Resize = 25,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ew_Resize = 26,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ns_Resize = 27,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nesw_Resize = 28,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nwse_Resize = 29,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Col_Resize = 30,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Row_Resize = 31,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_All_Scroll = 32,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_In = 33,
-	Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out = 34,
-} Wayland_Wp_Cursor_Shape_Device_V1_Shape;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Default, 1)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Context_Menu, 2)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Help, 3)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Pointer, 4)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Progress, 5)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Wait, 6)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Cell, 7)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Crosshair, 8)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Text, 9)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Vertical_Text, 10)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Alias, 11)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Copy, 12)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Move, 13)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_No_Drop, 14)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Not_Allowed, 15)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Grab, 16)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Grabbing, 17)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_E_Resize, 18)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_N_Resize, 19)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ne_Resize, 20)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nw_Resize, 21)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_S_Resize, 22)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Se_Resize, 23)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Sw_Resize, 24)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_W_Resize, 25)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ew_Resize, 26)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ns_Resize, 27)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nesw_Resize, 28)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nwse_Resize, 29)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Col_Resize, 30)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Row_Resize, 31)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_All_Scroll, 32)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_In, 33)\
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out, 34)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wp_Cursor_Shape_Device_V1_Shape, v) {
-	switch (v) {
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Default:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Default");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Context_Menu:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Context_Menu");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Help:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Help");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Pointer:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Pointer");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Progress:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Progress");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Wait:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Wait");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Cell:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Cell");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Crosshair:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Crosshair");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Text:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Text");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Vertical_Text:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Vertical_Text");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Alias:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Alias");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Copy:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Copy");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Move:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Move");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_No_Drop:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_No_Drop");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Not_Allowed:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Not_Allowed");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Grab:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Grab");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Grabbing:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Grabbing");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_E_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_E_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_N_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_N_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ne_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ne_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nw_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nw_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_S_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_S_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Se_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Se_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Sw_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Sw_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_W_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_W_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ew_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ew_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ns_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Ns_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nesw_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nesw_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nwse_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Nwse_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Col_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Col_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Row_Resize:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Row_Resize");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_All_Scroll:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_All_Scroll");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_In:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_In");
-	case Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_Zoom_Out");
-	}
-	return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Shape_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Wp_Cursor_Shape_Device_V1_Shape, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Wp_Cursor_Shape_Device_V1_Error_Invalid_Shape = 1,
-} Wayland_Wp_Cursor_Shape_Device_V1_Error;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Wp_Cursor_Shape_Device_V1_Error, v) {
-	switch (v) {
-	case Wayland_Wp_Cursor_Shape_Device_V1_Error_Invalid_Shape:
-		return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Error_Invalid_Shape");
-	}
-	return LIT("Wayland_Wp_Cursor_Shape_Device_V1_Error_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Wp_Cursor_Shape_Device_V1_Error_Invalid_Shape, 1)\
+
+X_ENUM_EXPLICIT(Wayland_Wp_Cursor_Shape_Device_V1_Error, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
 
 internal void wayland_wp_cursor_shape_manager_v1_destroy(Wayland_Connection *conn, u32 wp_cursor_shape_manager_v1) {
 	Writer _w = writer_from_builder(&conn->builder);

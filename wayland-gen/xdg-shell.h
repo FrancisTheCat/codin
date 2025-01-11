@@ -3,299 +3,136 @@
 #include "codin.h"
 #include "wayland_gen_common.h"
 
-typedef enum {
-	Wayland_Xdg_Wm_Base_Error_Role = 0,
-	Wayland_Xdg_Wm_Base_Error_Defunct_Surfaces = 1,
-	Wayland_Xdg_Wm_Base_Error_Not_The_Topmost_Popup = 2,
-	Wayland_Xdg_Wm_Base_Error_Invalid_Popup_Parent = 3,
-	Wayland_Xdg_Wm_Base_Error_Invalid_Surface_State = 4,
-	Wayland_Xdg_Wm_Base_Error_Invalid_Positioner = 5,
-	Wayland_Xdg_Wm_Base_Error_Unresponsive = 6,
-} Wayland_Xdg_Wm_Base_Error;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Wm_Base_Error_Role, 0)\
+	X(Wayland_Xdg_Wm_Base_Error_Defunct_Surfaces, 1)\
+	X(Wayland_Xdg_Wm_Base_Error_Not_The_Topmost_Popup, 2)\
+	X(Wayland_Xdg_Wm_Base_Error_Invalid_Popup_Parent, 3)\
+	X(Wayland_Xdg_Wm_Base_Error_Invalid_Surface_State, 4)\
+	X(Wayland_Xdg_Wm_Base_Error_Invalid_Positioner, 5)\
+	X(Wayland_Xdg_Wm_Base_Error_Unresponsive, 6)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Wm_Base_Error, v) {
-	switch (v) {
-	case Wayland_Xdg_Wm_Base_Error_Role:
-		return LIT("Wayland_Xdg_Wm_Base_Error_Role");
-	case Wayland_Xdg_Wm_Base_Error_Defunct_Surfaces:
-		return LIT("Wayland_Xdg_Wm_Base_Error_Defunct_Surfaces");
-	case Wayland_Xdg_Wm_Base_Error_Not_The_Topmost_Popup:
-		return LIT("Wayland_Xdg_Wm_Base_Error_Not_The_Topmost_Popup");
-	case Wayland_Xdg_Wm_Base_Error_Invalid_Popup_Parent:
-		return LIT("Wayland_Xdg_Wm_Base_Error_Invalid_Popup_Parent");
-	case Wayland_Xdg_Wm_Base_Error_Invalid_Surface_State:
-		return LIT("Wayland_Xdg_Wm_Base_Error_Invalid_Surface_State");
-	case Wayland_Xdg_Wm_Base_Error_Invalid_Positioner:
-		return LIT("Wayland_Xdg_Wm_Base_Error_Invalid_Positioner");
-	case Wayland_Xdg_Wm_Base_Error_Unresponsive:
-		return LIT("Wayland_Xdg_Wm_Base_Error_Unresponsive");
-	}
-	return LIT("Wayland_Xdg_Wm_Base_Error_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Xdg_Wm_Base_Error, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Xdg_Positioner_Error_Invalid_Input = 0,
-} Wayland_Xdg_Positioner_Error;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Positioner_Error, v) {
-	switch (v) {
-	case Wayland_Xdg_Positioner_Error_Invalid_Input:
-		return LIT("Wayland_Xdg_Positioner_Error_Invalid_Input");
-	}
-	return LIT("Wayland_Xdg_Positioner_Error_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Positioner_Error_Invalid_Input, 0)\
 
-typedef enum {
-	Wayland_Xdg_Positioner_Anchor_None = 0,
-	Wayland_Xdg_Positioner_Anchor_Top = 1,
-	Wayland_Xdg_Positioner_Anchor_Bottom = 2,
-	Wayland_Xdg_Positioner_Anchor_Left = 3,
-	Wayland_Xdg_Positioner_Anchor_Right = 4,
-	Wayland_Xdg_Positioner_Anchor_Top_Left = 5,
-	Wayland_Xdg_Positioner_Anchor_Bottom_Left = 6,
-	Wayland_Xdg_Positioner_Anchor_Top_Right = 7,
-	Wayland_Xdg_Positioner_Anchor_Bottom_Right = 8,
-} Wayland_Xdg_Positioner_Anchor;
+X_ENUM_EXPLICIT(Wayland_Xdg_Positioner_Error, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Positioner_Anchor, v) {
-	switch (v) {
-	case Wayland_Xdg_Positioner_Anchor_None:
-		return LIT("Wayland_Xdg_Positioner_Anchor_None");
-	case Wayland_Xdg_Positioner_Anchor_Top:
-		return LIT("Wayland_Xdg_Positioner_Anchor_Top");
-	case Wayland_Xdg_Positioner_Anchor_Bottom:
-		return LIT("Wayland_Xdg_Positioner_Anchor_Bottom");
-	case Wayland_Xdg_Positioner_Anchor_Left:
-		return LIT("Wayland_Xdg_Positioner_Anchor_Left");
-	case Wayland_Xdg_Positioner_Anchor_Right:
-		return LIT("Wayland_Xdg_Positioner_Anchor_Right");
-	case Wayland_Xdg_Positioner_Anchor_Top_Left:
-		return LIT("Wayland_Xdg_Positioner_Anchor_Top_Left");
-	case Wayland_Xdg_Positioner_Anchor_Bottom_Left:
-		return LIT("Wayland_Xdg_Positioner_Anchor_Bottom_Left");
-	case Wayland_Xdg_Positioner_Anchor_Top_Right:
-		return LIT("Wayland_Xdg_Positioner_Anchor_Top_Right");
-	case Wayland_Xdg_Positioner_Anchor_Bottom_Right:
-		return LIT("Wayland_Xdg_Positioner_Anchor_Bottom_Right");
-	}
-	return LIT("Wayland_Xdg_Positioner_Anchor_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Xdg_Positioner_Gravity_None = 0,
-	Wayland_Xdg_Positioner_Gravity_Top = 1,
-	Wayland_Xdg_Positioner_Gravity_Bottom = 2,
-	Wayland_Xdg_Positioner_Gravity_Left = 3,
-	Wayland_Xdg_Positioner_Gravity_Right = 4,
-	Wayland_Xdg_Positioner_Gravity_Top_Left = 5,
-	Wayland_Xdg_Positioner_Gravity_Bottom_Left = 6,
-	Wayland_Xdg_Positioner_Gravity_Top_Right = 7,
-	Wayland_Xdg_Positioner_Gravity_Bottom_Right = 8,
-} Wayland_Xdg_Positioner_Gravity;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Positioner_Anchor_None, 0)\
+	X(Wayland_Xdg_Positioner_Anchor_Top, 1)\
+	X(Wayland_Xdg_Positioner_Anchor_Bottom, 2)\
+	X(Wayland_Xdg_Positioner_Anchor_Left, 3)\
+	X(Wayland_Xdg_Positioner_Anchor_Right, 4)\
+	X(Wayland_Xdg_Positioner_Anchor_Top_Left, 5)\
+	X(Wayland_Xdg_Positioner_Anchor_Bottom_Left, 6)\
+	X(Wayland_Xdg_Positioner_Anchor_Top_Right, 7)\
+	X(Wayland_Xdg_Positioner_Anchor_Bottom_Right, 8)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Positioner_Gravity, v) {
-	switch (v) {
-	case Wayland_Xdg_Positioner_Gravity_None:
-		return LIT("Wayland_Xdg_Positioner_Gravity_None");
-	case Wayland_Xdg_Positioner_Gravity_Top:
-		return LIT("Wayland_Xdg_Positioner_Gravity_Top");
-	case Wayland_Xdg_Positioner_Gravity_Bottom:
-		return LIT("Wayland_Xdg_Positioner_Gravity_Bottom");
-	case Wayland_Xdg_Positioner_Gravity_Left:
-		return LIT("Wayland_Xdg_Positioner_Gravity_Left");
-	case Wayland_Xdg_Positioner_Gravity_Right:
-		return LIT("Wayland_Xdg_Positioner_Gravity_Right");
-	case Wayland_Xdg_Positioner_Gravity_Top_Left:
-		return LIT("Wayland_Xdg_Positioner_Gravity_Top_Left");
-	case Wayland_Xdg_Positioner_Gravity_Bottom_Left:
-		return LIT("Wayland_Xdg_Positioner_Gravity_Bottom_Left");
-	case Wayland_Xdg_Positioner_Gravity_Top_Right:
-		return LIT("Wayland_Xdg_Positioner_Gravity_Top_Right");
-	case Wayland_Xdg_Positioner_Gravity_Bottom_Right:
-		return LIT("Wayland_Xdg_Positioner_Gravity_Bottom_Right");
-	}
-	return LIT("Wayland_Xdg_Positioner_Gravity_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Xdg_Positioner_Anchor, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Xdg_Positioner_Constraint_Adjustment_None = 0,
-	Wayland_Xdg_Positioner_Constraint_Adjustment_Slide_X = 1,
-	Wayland_Xdg_Positioner_Constraint_Adjustment_Slide_Y = 2,
-	Wayland_Xdg_Positioner_Constraint_Adjustment_Flip_X = 4,
-	Wayland_Xdg_Positioner_Constraint_Adjustment_Flip_Y = 8,
-	Wayland_Xdg_Positioner_Constraint_Adjustment_Resize_X = 16,
-	Wayland_Xdg_Positioner_Constraint_Adjustment_Resize_Y = 32,
-} Wayland_Xdg_Positioner_Constraint_Adjustment;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Positioner_Constraint_Adjustment, v) {
-	switch (v) {
-	case Wayland_Xdg_Positioner_Constraint_Adjustment_None:
-		return LIT("Wayland_Xdg_Positioner_Constraint_Adjustment_None");
-	case Wayland_Xdg_Positioner_Constraint_Adjustment_Slide_X:
-		return LIT("Wayland_Xdg_Positioner_Constraint_Adjustment_Slide_X");
-	case Wayland_Xdg_Positioner_Constraint_Adjustment_Slide_Y:
-		return LIT("Wayland_Xdg_Positioner_Constraint_Adjustment_Slide_Y");
-	case Wayland_Xdg_Positioner_Constraint_Adjustment_Flip_X:
-		return LIT("Wayland_Xdg_Positioner_Constraint_Adjustment_Flip_X");
-	case Wayland_Xdg_Positioner_Constraint_Adjustment_Flip_Y:
-		return LIT("Wayland_Xdg_Positioner_Constraint_Adjustment_Flip_Y");
-	case Wayland_Xdg_Positioner_Constraint_Adjustment_Resize_X:
-		return LIT("Wayland_Xdg_Positioner_Constraint_Adjustment_Resize_X");
-	case Wayland_Xdg_Positioner_Constraint_Adjustment_Resize_Y:
-		return LIT("Wayland_Xdg_Positioner_Constraint_Adjustment_Resize_Y");
-	}
-	return LIT("Wayland_Xdg_Positioner_Constraint_Adjustment_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Positioner_Gravity_None, 0)\
+	X(Wayland_Xdg_Positioner_Gravity_Top, 1)\
+	X(Wayland_Xdg_Positioner_Gravity_Bottom, 2)\
+	X(Wayland_Xdg_Positioner_Gravity_Left, 3)\
+	X(Wayland_Xdg_Positioner_Gravity_Right, 4)\
+	X(Wayland_Xdg_Positioner_Gravity_Top_Left, 5)\
+	X(Wayland_Xdg_Positioner_Gravity_Bottom_Left, 6)\
+	X(Wayland_Xdg_Positioner_Gravity_Top_Right, 7)\
+	X(Wayland_Xdg_Positioner_Gravity_Bottom_Right, 8)\
 
-typedef enum {
-	Wayland_Xdg_Surface_Error_Not_Constructed = 1,
-	Wayland_Xdg_Surface_Error_Already_Constructed = 2,
-	Wayland_Xdg_Surface_Error_Unconfigured_Buffer = 3,
-	Wayland_Xdg_Surface_Error_Invalid_Serial = 4,
-	Wayland_Xdg_Surface_Error_Invalid_Size = 5,
-	Wayland_Xdg_Surface_Error_Defunct_Role_Object = 6,
-} Wayland_Xdg_Surface_Error;
+X_ENUM_EXPLICIT(Wayland_Xdg_Positioner_Gravity, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Surface_Error, v) {
-	switch (v) {
-	case Wayland_Xdg_Surface_Error_Not_Constructed:
-		return LIT("Wayland_Xdg_Surface_Error_Not_Constructed");
-	case Wayland_Xdg_Surface_Error_Already_Constructed:
-		return LIT("Wayland_Xdg_Surface_Error_Already_Constructed");
-	case Wayland_Xdg_Surface_Error_Unconfigured_Buffer:
-		return LIT("Wayland_Xdg_Surface_Error_Unconfigured_Buffer");
-	case Wayland_Xdg_Surface_Error_Invalid_Serial:
-		return LIT("Wayland_Xdg_Surface_Error_Invalid_Serial");
-	case Wayland_Xdg_Surface_Error_Invalid_Size:
-		return LIT("Wayland_Xdg_Surface_Error_Invalid_Size");
-	case Wayland_Xdg_Surface_Error_Defunct_Role_Object:
-		return LIT("Wayland_Xdg_Surface_Error_Defunct_Role_Object");
-	}
-	return LIT("Wayland_Xdg_Surface_Error_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Xdg_Toplevel_Error_Invalid_Resize_Edge = 0,
-	Wayland_Xdg_Toplevel_Error_Invalid_Parent = 1,
-	Wayland_Xdg_Toplevel_Error_Invalid_Size = 2,
-} Wayland_Xdg_Toplevel_Error;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Positioner_Constraint_Adjustment_None, 0)\
+	X(Wayland_Xdg_Positioner_Constraint_Adjustment_Slide_X, 1)\
+	X(Wayland_Xdg_Positioner_Constraint_Adjustment_Slide_Y, 2)\
+	X(Wayland_Xdg_Positioner_Constraint_Adjustment_Flip_X, 4)\
+	X(Wayland_Xdg_Positioner_Constraint_Adjustment_Flip_Y, 8)\
+	X(Wayland_Xdg_Positioner_Constraint_Adjustment_Resize_X, 16)\
+	X(Wayland_Xdg_Positioner_Constraint_Adjustment_Resize_Y, 32)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Toplevel_Error, v) {
-	switch (v) {
-	case Wayland_Xdg_Toplevel_Error_Invalid_Resize_Edge:
-		return LIT("Wayland_Xdg_Toplevel_Error_Invalid_Resize_Edge");
-	case Wayland_Xdg_Toplevel_Error_Invalid_Parent:
-		return LIT("Wayland_Xdg_Toplevel_Error_Invalid_Parent");
-	case Wayland_Xdg_Toplevel_Error_Invalid_Size:
-		return LIT("Wayland_Xdg_Toplevel_Error_Invalid_Size");
-	}
-	return LIT("Wayland_Xdg_Toplevel_Error_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Xdg_Positioner_Constraint_Adjustment, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Xdg_Toplevel_Resize_Edge_None = 0,
-	Wayland_Xdg_Toplevel_Resize_Edge_Top = 1,
-	Wayland_Xdg_Toplevel_Resize_Edge_Bottom = 2,
-	Wayland_Xdg_Toplevel_Resize_Edge_Left = 4,
-	Wayland_Xdg_Toplevel_Resize_Edge_Top_Left = 5,
-	Wayland_Xdg_Toplevel_Resize_Edge_Bottom_Left = 6,
-	Wayland_Xdg_Toplevel_Resize_Edge_Right = 8,
-	Wayland_Xdg_Toplevel_Resize_Edge_Top_Right = 9,
-	Wayland_Xdg_Toplevel_Resize_Edge_Bottom_Right = 10,
-} Wayland_Xdg_Toplevel_Resize_Edge;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Toplevel_Resize_Edge, v) {
-	switch (v) {
-	case Wayland_Xdg_Toplevel_Resize_Edge_None:
-		return LIT("Wayland_Xdg_Toplevel_Resize_Edge_None");
-	case Wayland_Xdg_Toplevel_Resize_Edge_Top:
-		return LIT("Wayland_Xdg_Toplevel_Resize_Edge_Top");
-	case Wayland_Xdg_Toplevel_Resize_Edge_Bottom:
-		return LIT("Wayland_Xdg_Toplevel_Resize_Edge_Bottom");
-	case Wayland_Xdg_Toplevel_Resize_Edge_Left:
-		return LIT("Wayland_Xdg_Toplevel_Resize_Edge_Left");
-	case Wayland_Xdg_Toplevel_Resize_Edge_Top_Left:
-		return LIT("Wayland_Xdg_Toplevel_Resize_Edge_Top_Left");
-	case Wayland_Xdg_Toplevel_Resize_Edge_Bottom_Left:
-		return LIT("Wayland_Xdg_Toplevel_Resize_Edge_Bottom_Left");
-	case Wayland_Xdg_Toplevel_Resize_Edge_Right:
-		return LIT("Wayland_Xdg_Toplevel_Resize_Edge_Right");
-	case Wayland_Xdg_Toplevel_Resize_Edge_Top_Right:
-		return LIT("Wayland_Xdg_Toplevel_Resize_Edge_Top_Right");
-	case Wayland_Xdg_Toplevel_Resize_Edge_Bottom_Right:
-		return LIT("Wayland_Xdg_Toplevel_Resize_Edge_Bottom_Right");
-	}
-	return LIT("Wayland_Xdg_Toplevel_Resize_Edge_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Surface_Error_Not_Constructed, 1)\
+	X(Wayland_Xdg_Surface_Error_Already_Constructed, 2)\
+	X(Wayland_Xdg_Surface_Error_Unconfigured_Buffer, 3)\
+	X(Wayland_Xdg_Surface_Error_Invalid_Serial, 4)\
+	X(Wayland_Xdg_Surface_Error_Invalid_Size, 5)\
+	X(Wayland_Xdg_Surface_Error_Defunct_Role_Object, 6)\
 
-typedef enum {
-	Wayland_Xdg_Toplevel_State_Maximized = 1,
-	Wayland_Xdg_Toplevel_State_Fullscreen = 2,
-	Wayland_Xdg_Toplevel_State_Resizing = 3,
-	Wayland_Xdg_Toplevel_State_Activated = 4,
-	Wayland_Xdg_Toplevel_State_Tiled_Left = 5,
-	Wayland_Xdg_Toplevel_State_Tiled_Right = 6,
-	Wayland_Xdg_Toplevel_State_Tiled_Top = 7,
-	Wayland_Xdg_Toplevel_State_Tiled_Bottom = 8,
-	Wayland_Xdg_Toplevel_State_Suspended = 9,
-} Wayland_Xdg_Toplevel_State;
+X_ENUM_EXPLICIT(Wayland_Xdg_Surface_Error, WAYLAND_X_ENUM_VARIANTS);
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Toplevel_State, v) {
-	switch (v) {
-	case Wayland_Xdg_Toplevel_State_Maximized:
-		return LIT("Wayland_Xdg_Toplevel_State_Maximized");
-	case Wayland_Xdg_Toplevel_State_Fullscreen:
-		return LIT("Wayland_Xdg_Toplevel_State_Fullscreen");
-	case Wayland_Xdg_Toplevel_State_Resizing:
-		return LIT("Wayland_Xdg_Toplevel_State_Resizing");
-	case Wayland_Xdg_Toplevel_State_Activated:
-		return LIT("Wayland_Xdg_Toplevel_State_Activated");
-	case Wayland_Xdg_Toplevel_State_Tiled_Left:
-		return LIT("Wayland_Xdg_Toplevel_State_Tiled_Left");
-	case Wayland_Xdg_Toplevel_State_Tiled_Right:
-		return LIT("Wayland_Xdg_Toplevel_State_Tiled_Right");
-	case Wayland_Xdg_Toplevel_State_Tiled_Top:
-		return LIT("Wayland_Xdg_Toplevel_State_Tiled_Top");
-	case Wayland_Xdg_Toplevel_State_Tiled_Bottom:
-		return LIT("Wayland_Xdg_Toplevel_State_Tiled_Bottom");
-	case Wayland_Xdg_Toplevel_State_Suspended:
-		return LIT("Wayland_Xdg_Toplevel_State_Suspended");
-	}
-	return LIT("Wayland_Xdg_Toplevel_State_INVALID");
-}
+#undef WAYLAND_X_ENUM_VARIANTS
 
-typedef enum {
-	Wayland_Xdg_Toplevel_Wm_Capabilities_Window_Menu = 1,
-	Wayland_Xdg_Toplevel_Wm_Capabilities_Maximize = 2,
-	Wayland_Xdg_Toplevel_Wm_Capabilities_Fullscreen = 3,
-	Wayland_Xdg_Toplevel_Wm_Capabilities_Minimize = 4,
-} Wayland_Xdg_Toplevel_Wm_Capabilities;
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Toplevel_Error_Invalid_Resize_Edge, 0)\
+	X(Wayland_Xdg_Toplevel_Error_Invalid_Parent, 1)\
+	X(Wayland_Xdg_Toplevel_Error_Invalid_Size, 2)\
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Toplevel_Wm_Capabilities, v) {
-	switch (v) {
-	case Wayland_Xdg_Toplevel_Wm_Capabilities_Window_Menu:
-		return LIT("Wayland_Xdg_Toplevel_Wm_Capabilities_Window_Menu");
-	case Wayland_Xdg_Toplevel_Wm_Capabilities_Maximize:
-		return LIT("Wayland_Xdg_Toplevel_Wm_Capabilities_Maximize");
-	case Wayland_Xdg_Toplevel_Wm_Capabilities_Fullscreen:
-		return LIT("Wayland_Xdg_Toplevel_Wm_Capabilities_Fullscreen");
-	case Wayland_Xdg_Toplevel_Wm_Capabilities_Minimize:
-		return LIT("Wayland_Xdg_Toplevel_Wm_Capabilities_Minimize");
-	}
-	return LIT("Wayland_Xdg_Toplevel_Wm_Capabilities_INVALID");
-}
+X_ENUM_EXPLICIT(Wayland_Xdg_Toplevel_Error, WAYLAND_X_ENUM_VARIANTS);
 
-typedef enum {
-	Wayland_Xdg_Popup_Error_Invalid_Grab = 0,
-} Wayland_Xdg_Popup_Error;
+#undef WAYLAND_X_ENUM_VARIANTS
 
-ENUM_TO_STRING_PROC_DECL(Wayland_Xdg_Popup_Error, v) {
-	switch (v) {
-	case Wayland_Xdg_Popup_Error_Invalid_Grab:
-		return LIT("Wayland_Xdg_Popup_Error_Invalid_Grab");
-	}
-	return LIT("Wayland_Xdg_Popup_Error_INVALID");
-}
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Toplevel_Resize_Edge_None, 0)\
+	X(Wayland_Xdg_Toplevel_Resize_Edge_Top, 1)\
+	X(Wayland_Xdg_Toplevel_Resize_Edge_Bottom, 2)\
+	X(Wayland_Xdg_Toplevel_Resize_Edge_Left, 4)\
+	X(Wayland_Xdg_Toplevel_Resize_Edge_Top_Left, 5)\
+	X(Wayland_Xdg_Toplevel_Resize_Edge_Bottom_Left, 6)\
+	X(Wayland_Xdg_Toplevel_Resize_Edge_Right, 8)\
+	X(Wayland_Xdg_Toplevel_Resize_Edge_Top_Right, 9)\
+	X(Wayland_Xdg_Toplevel_Resize_Edge_Bottom_Right, 10)\
+
+X_ENUM_EXPLICIT(Wayland_Xdg_Toplevel_Resize_Edge, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Toplevel_State_Maximized, 1)\
+	X(Wayland_Xdg_Toplevel_State_Fullscreen, 2)\
+	X(Wayland_Xdg_Toplevel_State_Resizing, 3)\
+	X(Wayland_Xdg_Toplevel_State_Activated, 4)\
+	X(Wayland_Xdg_Toplevel_State_Tiled_Left, 5)\
+	X(Wayland_Xdg_Toplevel_State_Tiled_Right, 6)\
+	X(Wayland_Xdg_Toplevel_State_Tiled_Top, 7)\
+	X(Wayland_Xdg_Toplevel_State_Tiled_Bottom, 8)\
+	X(Wayland_Xdg_Toplevel_State_Suspended, 9)\
+
+X_ENUM_EXPLICIT(Wayland_Xdg_Toplevel_State, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Toplevel_Wm_Capabilities_Window_Menu, 1)\
+	X(Wayland_Xdg_Toplevel_Wm_Capabilities_Maximize, 2)\
+	X(Wayland_Xdg_Toplevel_Wm_Capabilities_Fullscreen, 3)\
+	X(Wayland_Xdg_Toplevel_Wm_Capabilities_Minimize, 4)\
+
+X_ENUM_EXPLICIT(Wayland_Xdg_Toplevel_Wm_Capabilities, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
+
+#define WAYLAND_X_ENUM_VARIANTS(X) \
+	X(Wayland_Xdg_Popup_Error_Invalid_Grab, 0)\
+
+X_ENUM_EXPLICIT(Wayland_Xdg_Popup_Error, WAYLAND_X_ENUM_VARIANTS);
+
+#undef WAYLAND_X_ENUM_VARIANTS
 
 internal void wayland_xdg_wm_base_destroy(Wayland_Connection *conn, u32 xdg_wm_base) {
 	Writer _w = writer_from_builder(&conn->builder);

@@ -10,30 +10,36 @@
 
 typedef i64 Duration;
 
-typedef enum {
-  MONTH_January,
-  MONTH_February,
-  MONTH_March,
-  MONTH_April,
-  MONTH_May,
-  MONTH_June,
-  MONTH_July,
-  MONTH_August,
-  MONTH_September,
-  MONTH_October,
-  MONTH_November,
-  MONTH_December,
-} Month;
+#define MONTHS(X)                                                              \
+  X(Month_January)                                                             \
+  X(Month_February)                                                            \
+  X(Month_March)                                                               \
+  X(Month_April)                                                               \
+  X(Month_May)                                                                 \
+  X(Month_June)                                                                \
+  X(Month_July)                                                                \
+  X(Month_August)                                                              \
+  X(Month_September)                                                           \
+  X(Month_October)                                                             \
+  X(Month_November)                                                            \
+  X(Month_December)                                                            \
 
-typedef enum {
-  WDAY_Monday,
-  WDAY_Tuesday,
-  WDAY_Wednesday,
-  WDAY_Thursday,
-  WDAY_Friday,
-  WDAY_Saturday,
-  WDAY_Sunday,
-} Weekday;
+X_ENUM(Month, MONTHS)
+
+#undef MONTHS
+
+#define WEEKDAYS(X)                                                            \
+  X(WDay_Monday)                                                               \
+  X(WDay_Tuesday)                                                              \
+  X(WDay_Wednesday)                                                            \
+  X(WDay_Thursday)                                                             \
+  X(WDay_Friday)                                                               \
+  X(WDay_Saturday)                                                             \
+  X(WDay_Sunday)                                                               \
+
+X_ENUM(Weekday, WEEKDAYS)
+
+#undef WEEKDAYS
 
 struct Time {
   i64 nsec;
@@ -209,7 +215,7 @@ internal void _abs_date (u64 abs, b8 full, isize *year, isize *month, isize *day
 		if (*day > 31+29-1) {
 			*day -= 1;
 		} else if (*day == 31+29-1) {
-			*month = MONTH_February;
+			*month = Month_February;
 			*day = 29;
 			return;
 		}
