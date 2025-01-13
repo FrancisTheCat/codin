@@ -158,9 +158,7 @@ b8 _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
 
     switch (shdr->sh_type) {
     case SHT_NULL:
-      break;
     case SHT_PROGBITS:
-      break;
     case SHT_SYMTAB:
       break;
     case SHT_STRTAB:
@@ -187,11 +185,8 @@ b8 _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
       }
       break;
     case SHT_HASH:
-      break;
     case SHT_DYNAMIC:
-      break;
     case SHT_NOTE:
-      break;
     case SHT_NOBITS:
       break;
     case SHT_REL:
@@ -209,47 +204,26 @@ b8 _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
       }
       break;
     case SHT_INIT_ARRAY:
-      break;
     case SHT_FINI_ARRAY:
-      break;
     case SHT_PREINIT_ARRAY:
-      break;
     case SHT_GROUP:
-      break;
     case SHT_SYMTAB_SHNDX:
-      break;
     case SHT_RELR:
-      break;
     case SHT_NUM:
-      break;
     case SHT_LOOS:
-      break;
     case SHT_GNU_ATTRIBUTES:
-      break;
     case SHT_GNU_HASH:
-      break;
     case SHT_GNU_LIBLIST:
-      break;
     case SHT_CHECKSUM:
-      break;
     case SHT_LOSUNW:
-      break;
     case SHT_SUNW_COMDAT:
-      break;
     case SHT_SUNW_syminfo:
-      break;
     case SHT_GNU_verdef:
-      break;
     case SHT_GNU_verneed:
-      break;
     case SHT_GNU_versym:
-      break;
     case SHT_LOPROC:
-      break;
     case SHT_HIPROC:
-      break;
     case SHT_LOUSER:
-      break;
     case SHT_HIUSER:
       break;
     }

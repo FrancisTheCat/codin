@@ -16,6 +16,12 @@ typedef struct {
 } UI_Command_Box;
 
 typedef struct {
+  i32       x, y, length;
+  b32       vertical;
+  u32       color;
+} UI_Command_Line;
+
+typedef struct {
   String    text;
   Rectangle bounds;
   i32       size;
@@ -43,6 +49,7 @@ typedef struct {
   X(UI_Command_Type_None)                                                      \
   X(UI_Command_Type_Box)                                                       \
   X(UI_Command_Type_Gradient)                                                  \
+  X(UI_Command_Type_Line)                                                       \
   X(UI_Command_Type_Text)                                                      \
   X(UI_Command_Type_Image)
 
@@ -53,6 +60,7 @@ typedef struct {
     UI_Command_Box   box;
     UI_Command_Text  text;
     UI_Command_Image image;
+    UI_Command_Line  line;
   } variant;
   UI_Command_Type type;
 } UI_Command;
@@ -70,6 +78,16 @@ internal void ui_command_bounds(UI_Command const *command, Rectangle *rect) {
   switch (command->type) {
   case UI_Command_Type_None:
     *rect = (Rectangle) {0};
+    break;
+  case UI_Command_Type_Line:
+    *rect = (Rectangle) {.x0 = command->variant.line.x, .y0 = command->variant.line.y};
+    if (command->variant.line.vertical) {
+      rect->x1 = rect->x0;
+      rect->y1 = rect->y0 + command->variant.line.length;
+    } else {
+      rect->y1 = rect->y0;
+      rect->x1 = rect->x0 + command->variant.line.length;
+    }
     break;
   case UI_Command_Type_Box:
   case UI_Command_Type_Gradient:
@@ -92,6 +110,7 @@ internal u32 ui_command_hash(u32 in, UI_Command const *command) {
     break;
   case UI_Command_Type_Box:
   case UI_Command_Type_Gradient:
+  case UI_Command_Type_Line:
     in = ui_hash_bytes(in, any_to_bytes(&command->variant.box));
     break;
   case UI_Command_Type_Text:
@@ -105,69 +124,152 @@ internal u32 ui_command_hash(u32 in, UI_Command const *command) {
   return in;
 }
 
-typedef enum {
-  UI_Color_Background,
-  UI_Color_Text,
-  UI_Color_Image_Border,
+#define RECT_CUT_SIDES(X)                                                      \
+  X(Rect_Cut_Side_Left)                                                        \
+  X(Rect_Cut_Side_Right)                                                       \
+  X(Rect_Cut_Side_Top)                                                         \
+  X(Rect_Cut_Side_Bottom)                                                      \
 
-  UI_Color_Label,
-  UI_Color_Label_Text,
-  UI_Color_Label_Outline,
+X_ENUM(Rect_Cut_Side, RECT_CUT_SIDES)
 
-  UI_Color_Button,
-  UI_Color_Button_2,
-  UI_Color_Button_Text,
-  UI_Color_Button_Outline,
+internal Rectangle cut_left(Rectangle* rect, i32 a) {
+  i32 x0 = rect->x0;
+  rect->x0 = min(rect->x1, rect->x0 + a);
+  Rectangle ret = { x0, rect->y0, rect->x0, rect->y1 };
+  rect->x0 += 10;
+  return ret;
+}
 
-  UI_Color_Button_Hovered,
-  UI_Color_Button_Hovered_2,
-  UI_Color_Button_Hovered_Text,
-  UI_Color_Button_Hovered_Outline,
+internal Rectangle cut_right(Rectangle* rect, i32 a) {
+  i32 x1 = rect->x1;
+  rect->x1 = max(rect->x0, rect->x1 - a);
+  Rectangle ret = { rect->x1, rect->y0, x1, rect->y1 };
+  rect->x1 -= 10;
+  return ret;
+}
 
-  UI_Color_Button_Clicked,
-  UI_Color_Button_Clicked_2,
-  UI_Color_Button_Clicked_Text,
-  UI_Color_Button_Clicked_Outline,
-  
-  UI_Color_MAX,
-} UI_Color;
+internal Rectangle cut_top(Rectangle* rect, i32 a) {
+  i32 y0 = rect->y0;
+  rect->y0 = min(rect->y1, rect->y0 + a);
+  Rectangle ret = { rect->x0, y0, rect->x1, rect->y0 };
+  rect->y0 += 10;
+  return ret;
+}
+
+internal Rectangle cut_bottom(Rectangle* rect, i32 a) {
+  i32 y1 = rect->y1;
+  rect->y1 = max(rect->y0, rect->y1 - a);
+  Rectangle ret = { rect->x0, rect->y1, rect->x1, y1 };
+  rect->y1 -= 10;
+  return ret;
+}
+
+typedef struct {
+  Rectangle*    rect;
+  Rect_Cut_Side side;
+} Rect_Cut;
+
+internal Rect_Cut rectcut(Rectangle* rect, Rect_Cut_Side side) {
+    return (Rect_Cut) {
+        .rect = rect,
+        .side = side
+    };
+}
+
+internal Rectangle rectcut_cut(Rect_Cut rectcut, i32 x, i32 y) {
+  Rectangle ret;
+  switch (rectcut.side) {
+    case Rect_Cut_Side_Left:   
+      ret = cut_left(rectcut.rect,   x);
+      break;
+    case Rect_Cut_Side_Right:  
+      ret = cut_right(rectcut.rect,  x);
+      break;
+    case Rect_Cut_Side_Top:    
+      ret = cut_top(rectcut.rect,    y);
+      break;
+    case Rect_Cut_Side_Bottom: 
+      ret = cut_bottom(rectcut.rect, y);
+      break;
+    default:
+      unreachable();
+  }
+  return ret;
+}
+
+typedef struct {
+  Rectangle     rect;
+  Rect_Cut_Side side;
+} UI_Layout;
+
+#define UI_COLORS(X)                                                           \
+  X(UI_Color_Background)                                                       \
+  X(UI_Color_Separator)                                                        \
+                                                                               \
+  X(UI_Color_Image_Border)                                                     \
+                                                                               \
+  X(UI_Color_Label)                                                            \
+  X(UI_Color_Label_Text)                                                       \
+  X(UI_Color_Label_Outline)                                                    \
+                                                                               \
+  X(UI_Color_Button)                                                           \
+  X(UI_Color_Button_2)                                                         \
+  X(UI_Color_Button_Text)                                                      \
+  X(UI_Color_Button_Outline)                                                   \
+                                                                               \
+  X(UI_Color_Button_Hovered)                                                   \
+  X(UI_Color_Button_Hovered_2)                                                 \
+  X(UI_Color_Button_Hovered_Text)                                              \
+  X(UI_Color_Button_Hovered_Outline)                                           \
+                                                                               \
+  X(UI_Color_Button_Clicked)                                                   \
+  X(UI_Color_Button_Clicked_2)                                                 \
+  X(UI_Color_Button_Clicked_Text)                                              \
+  X(UI_Color_Button_Clicked_Outline)                                           \
+
+X_ENUM(UI_Color, UI_COLORS)
 
 typedef isize (*ui_measure_text_proc)(String str);
 
 typedef struct {
   Vector(UI_Command)    commands;
-  i32                   width, height;
-  i32                   x, y;
+  Vector(UI_Layout)     layouts;
   i32                   spacing;
-  b8                    horizontal;
+  Rectangle             rect;
+  Rect_Cut_Side         side;
   struct {
     i32 x, y;
-    b8  hovering;
     b8  buttons[2];
   } mouse;
   ui_measure_text_proc  measure_text_proc;
   i32                   text_height;
   Vector(Image)         images;
   UI_Cursor             cursor;
-  u32                   colors[UI_Color_MAX];
+  u32                   colors[enum_len(UI_Color)];
 } UI_Context;
 
-internal Rectangle ui_insert_rect(UI_Context *ctx, isize width, isize height) {
-  Rectangle rect;
-  rect.x0 = ctx->x;
-  rect.y0 = ctx->y;
+internal Rectangle ui_spacing(UI_Context *ctx, isize a) {
+  return rectcut_cut((Rect_Cut) {.rect = &ctx->rect, .side = ctx->side}, a, a);
+}
 
-  if (ctx->horizontal) {
-    rect.x1 = ctx->x + width;
-    rect.y1 = ctx->y + height;
-    ctx->x += width + ctx->spacing;
-    return rect;
-  } else {
-    rect.x1 = ctx->x + width;
-    rect.y1 = ctx->y + height;
-    ctx->y += height + ctx->spacing;
-    return rect;
-  }
+internal Rectangle ui_insert_rect(UI_Context *ctx, isize width, isize height) {
+  // Rectangle rect;
+  // rect.x0 = ctx->x;
+  // rect.y0 = ctx->y;
+
+  return rectcut_cut((Rect_Cut) {.rect = &ctx->rect, .side = ctx->side}, width, height);
+
+  // if (ctx->horizontal) {
+  //   rect.x1 = ctx->x + width;
+  //   rect.y1 = ctx->y + height;
+  //   ctx->x += width + ctx->spacing;
+  //   return rect;
+  // } else {
+  //   rect.x1 = ctx->x + width;
+  //   rect.y1 = ctx->y + height;
+  //   ctx->y += height + ctx->spacing;
+  //   return rect;
+  // }
 }
 
 internal void ui_context_init(UI_Context *ctx, ui_measure_text_proc measure_text_proc, isize width, isize height, isize text_height, Allocator allocator) {
@@ -175,12 +277,11 @@ internal void ui_context_init(UI_Context *ctx, ui_measure_text_proc measure_text
   vector_init(&ctx->images,   0, 8, allocator);
 
   ctx->measure_text_proc = measure_text_proc;
-  ctx->width             = width;
-  ctx->height            = height;
   ctx->text_height       = text_height;
   ctx->spacing           = 2 * text_height / 3;
 
   ctx->colors[UI_Color_Background            ] = 0xFF1E2128;
+  ctx->colors[UI_Color_Separator             ] = 0x22FFFFFF;
 
   ctx->colors[UI_Color_Image_Border          ] = 0xFF62AEEF;
 
@@ -206,6 +307,7 @@ internal void ui_context_init(UI_Context *ctx, ui_measure_text_proc measure_text
 
 internal void ui_context_destroy(UI_Context *ctx, Allocator allocator) {
   vector_delete(ctx->commands);
+  vector_delete(ctx->layouts);
   vector_delete(ctx->images);
 }
 
@@ -218,11 +320,75 @@ internal b8 ui_mouse_in_rect(UI_Context *ctx, Rectangle const *rect) {
   return false;
 }
 
+internal void ui_layout_begin(UI_Context *ctx, isize a, Rect_Cut_Side side) {
+  UI_Layout layout;
+
+  Rectangle tmp = ui_insert_rect(ctx, a, a);
+
+  layout.side = ctx->side;
+  layout.rect = ctx->rect;
+
+  UI_Command cmd;
+  cmd.type = UI_Command_Type_Line;
+  UI_Command_Line line;
+  line.color = ctx->colors[UI_Color_Separator];
+
+  switch (ctx->side) {
+  case Rect_Cut_Side_Left:
+    line.x = tmp.x1 + ctx->spacing;
+    line.y = tmp.y0;
+    layout.rect.x0 += ctx->spacing;
+    break;
+  case Rect_Cut_Side_Right:
+    line.x = tmp.x0 - ctx->spacing;
+    line.y = tmp.y0;
+    layout.rect.x1 -= ctx->spacing;
+    break;
+  case Rect_Cut_Side_Top:
+    line.x = tmp.x0;
+    line.y = tmp.y1 + ctx->spacing;
+    layout.rect.y0 += ctx->spacing;
+    break;
+  case Rect_Cut_Side_Bottom:
+    line.y = tmp.y0 - ctx->spacing;
+    line.x = tmp.x0;
+    layout.rect.y1 -= ctx->spacing;
+    break;
+  }
+
+  switch (ctx->side) {
+  case Rect_Cut_Side_Left:
+  case Rect_Cut_Side_Right:
+    line.vertical = true;
+    line.length   = tmp.y1 - tmp.y0;
+    break;
+  case Rect_Cut_Side_Top:
+  case Rect_Cut_Side_Bottom:
+    line.vertical = false;
+    line.vertical = false;
+    line.length   = tmp.x1 - tmp.x0;
+    break;
+  }
+  cmd.variant.line = line;
+  vector_append(&ctx->commands, cmd);
+
+  ctx->rect = tmp;
+  ctx->side = side;
+
+  vector_append(&ctx->layouts, layout);
+}
+
+internal void ui_layout_end(UI_Context *ctx) {
+  UI_Layout layout = vector_pop(&ctx->layouts);
+  ctx->rect = layout.rect;
+  ctx->side = layout.side;
+}
+
 internal void ui_reset(UI_Context *ctx) {
   vector_clear(&ctx->commands);
+  vector_clear(&ctx->layouts);
 
-  ctx->x      = 25;
-  ctx->y      = 25;
+  ctx->side   = Rect_Cut_Side_Top;
   ctx->cursor = UI_Cursor_Default;
 }
 
@@ -245,6 +411,7 @@ internal b8 ui_button(UI_Context *ctx, String text) {
 
     if (ctx->mouse.buttons[0]) {
       GB_STATIC_ASSERT(size_of(i32) == size_of(UI_Color));
+
       *(i32 *)&color         += 8;
       *(i32 *)&color_2       += 8;
       *(i32 *)&text_color    += 8;
@@ -341,26 +508,37 @@ internal void ui_image(UI_Context *ctx, UI_Image img) {
   vector_append(&ctx->commands, cmd);
 }
 
-// Rectangle cut_left(Rectangle* rect, i32 a) {
-//     i32 x0 = rect->x0;
-//     rect->x0 = min(rect->x1, rect->x0 + a);
-//     return (Rectangle){ x0, rect->y0, rect->x0, rect->y1 };
+// internal b8 button(UI_Context *ctx, Rect_Cut layout, String text) {
+//     i32 size = ctx->measure_text_proc(text);
+//     Rectangle rect = rectcut_cut(layout, size + ctx->spacing * 2, ctx->text_height + ctx->spacing * 2);
+//     UI_Command cmd;
+//     cmd.type        = UI_Command_Type_Gradient;
+//     cmd.variant.box = (UI_Command_Box) {
+//       .rect    = rect,
+//       .color   = ctx->colors[UI_Color_Button],
+//       .color2  = ctx->colors[UI_Color_Button],
+//       .outline = ctx->colors[UI_Color_Button_Outline],
+//     };
+//     vector_append(&ctx->commands, cmd);
+
+//     cmd.type        = UI_Command_Type_Text;
+//     cmd.variant.text = (UI_Command_Text) {
+//       .text   = text,
+//       .bounds = rect,
+//       .color  = ctx->colors[UI_Color_Button_Text],
+//     };
+//     vector_append(&ctx->commands, cmd);
+
+//     return ui_mouse_in_rect(ctx, &rect) && ctx->mouse.buttons[0];
+//     // interactions
+//     // draw
 // }
 
-// Rectangle cut_right(Rectangle* rect, i32 a) {
-//     i32 x1 = rect->x1;
-//     rect->x1 = max(rect->x0, rect->x1 - a);
-//     return (Rectangle){ rect->x1, rect->y0, x1, rect->y1 };
-// }
-
-// Rectangle cut_top(Rectangle* rect, i32 a) {
-//     i32 y0 = rect->y0;
-//     rect->y0 = min(rect->y1, rect->y0 + a);
-//     return (Rectangle){ rect->x0, y0, rect->x1, rect->y0 };
-// }
-
-// Rectangle cut_bottom(Rectangle* rect, i32 a) {
-//     i32 y1 = rect->y1;
-//     rect->y1 = max(rect->y0, rect->y1 - a);
-//     return (Rectangle){ rect->x0, rect->y1, rect->x1, y1 };
-// }
+internal Rectangle rect_intersection(Rectangle a, Rectangle b) {
+  return (Rectangle) {
+    .x0 = max(a.x0, b.x0),
+    .y0 = max(a.y0, b.y0),
+    .x1 = min(a.x1, b.x1),
+    .y1 = min(a.y1, b.y1),
+  };
+}
