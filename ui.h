@@ -272,7 +272,14 @@ internal Rectangle ui_insert_rect(UI_Context *ctx, isize width, isize height) {
   // }
 }
 
-internal void ui_context_init(UI_Context *ctx, ui_measure_text_proc measure_text_proc, isize width, isize height, isize text_height, Allocator allocator) {
+internal void ui_context_init(
+  UI_Context          *ctx,
+  ui_measure_text_proc measure_text_proc,
+  isize                width,
+  isize                height,
+  isize                text_height,
+  Allocator            allocator
+) {
   vector_init(&ctx->commands, 0, 8, allocator);
   vector_init(&ctx->images,   0, 8, allocator);
 
