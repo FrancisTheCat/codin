@@ -1222,6 +1222,7 @@ internal void wayland_draw_ring_filled(
   u32 color,
   u32 inner_color
 ) {
+  f32 inner_alpha = (inner_color >> 24) / 255.0;
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   for_range(_y, max(ctx->rect.y0, y - r), min(ctx->rect.y1, y + r)) {
     for_range(_x, max(ctx->rect.x0, x - r), min(ctx->rect.x1, x + r)) {
@@ -1230,12 +1231,13 @@ internal void wayland_draw_ring_filled(
       f32 d2 = dy * dy + dx * dx;
       f32 d  = sqrt(d2);
       if (d < r - w - 1) {
-        ctx->pixels[_x + _y * ctx->w] = inner_color;
+        alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], inner_color);
       } else if (d < r - w) {
         f32 aa    = d - (r - w);
-        u8  alpha = aa * 255;
-        ctx->pixels[_x + _y * ctx->w] = inner_color;
-        alpha_blend_rgb8(&ctx->pixels[_x + _y * ctx->w], color, alpha);
+        u8  blend = aa * 255;
+        u32 col   = inner_color;
+        alpha_blend_rgb8(&col, color, blend);
+        alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], col);
       } else if (d < r - 1) {
         ctx->pixels[_x + _y * ctx->w] = color;
       } else if (d < r) {
@@ -1246,6 +1248,128 @@ internal void wayland_draw_ring_filled(
     }
   }
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+}
+
+internal void wayland_draw_ring_filled_outer(
+  Draw_Context *ctx,
+  f32 x,
+  f32 y,
+  f32 r,
+  f32 w,
+  u32 color,
+  u32 inner,
+  u32 outer
+) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  for_range(_y, max(ctx->rect.y0, y - r), min(ctx->rect.y1, y + r)) {
+    for_range(_x, max(ctx->rect.x0, x - r), min(ctx->rect.x1, x + r)) {
+      f32 dy = _y - y;
+      f32 dx = _x - x;
+      f32 d2 = dy * dy + dx * dx;
+      f32 d  = sqrt(d2);
+      if (d < r - w - 1) {
+        alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], inner);
+      } else if (d < r - w) {
+        f32 aa    = d - (r - w);
+        u8  blend = aa * 255;
+        u32 col   = inner;
+        alpha_blend_rgb8(&col, color, blend);
+        alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], col);
+      } else if (d < r - 1) {
+        ctx->pixels[_x + _y * ctx->w] = color;
+      } else if (d < r) {
+        f32 aa    = r - d;
+        u8  blend = aa * 255;
+        u32 col   = outer;
+        alpha_blend_rgb8(&col, color, blend);
+        alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], col);
+      } else {
+        alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], outer);
+      }
+    }
+  }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+}
+
+internal void wayland_draw_rounded_rect(
+  Draw_Context *ctx,
+  i32           x,
+  i32           y,
+  i32           w,
+  i32           h,
+  i32           radius,
+  u32           color,
+  u32           outline
+) {
+  wayland_draw_rect_alpha(ctx, x + radius, y, w - radius * 2, radius, color);
+  wayland_draw_rect_alpha(ctx, x, y + radius, w, h - radius * 2, color);
+  wayland_draw_rect_alpha(ctx, x + radius, y + h - radius, w - radius * 2, radius, color);
+
+  wayland_draw_rect_outlines_alpha(ctx, x, y, w, h, radius, outline);
+
+  Draw_Context dc2;
+  dc2 = *ctx;
+
+  dc2.rect.x1 = min(dc2.rect.x1, x + radius);
+  dc2.rect.y1 = min(dc2.rect.y1, y + radius);
+
+  wayland_draw_ring_filled(
+    &dc2,
+    x + radius - 1,
+    y + radius - 1,
+    radius,
+    1,
+    outline,
+    color
+  );
+
+  dc2 = *ctx;
+
+  dc2.rect.x0 = max(dc2.rect.x0, x + w - radius);
+  dc2.rect.y1 = min(dc2.rect.y1, y + radius);
+
+  wayland_draw_ring_filled(
+    &dc2,
+    x + w - radius,
+    y + radius - 1,
+    radius,
+    1,
+    outline,
+    color
+  );
+
+  dc2 = *ctx;
+
+  dc2.rect.x1 = min(dc2.rect.x1, x + radius);
+  dc2.rect.y0 = max(dc2.rect.y0, y + h - radius);
+
+  wayland_draw_ring_filled(
+    &dc2,
+    x + radius - 1,
+    y + h - radius,
+    radius,
+    1,
+    outline,
+    color
+  );
+
+  dc2 = *ctx;
+
+  dc2.rect.x0 = max(dc2.rect.x0, x + w - radius);
+  dc2.rect.y0 = max(dc2.rect.y0, y + h - radius);
+
+  wayland_draw_ring_filled_outer(
+    &dc2,
+    x + w - radius,
+    y + h - radius,
+    radius,
+    1,
+    outline,
+    color,
+    UI_SHADOW_COLOR | 0xFF000000
+  );
+
+  wayland_draw_box_shadow(ctx, (Rectangle) {x, y, x + w, y + h});
 }
 
 internal void wayland_ui_redraw_region(
@@ -1275,16 +1399,6 @@ internal void wayland_ui_redraw_region(
     region.y1 - region.y0,
     ctx->colors[UI_Color_Background]
   );
-
-  // wayland_draw_ring_filled(
-  //   &draw_ctx,
-  //   region.x0 + 32,
-  //   region.y0 + 32,
-  //   32,
-  //   2,
-  //   0xFFFFFF,
-  //   0000
-  // );
 
   UI_Command_Line line;
   Rectangle rect;
@@ -1318,83 +1432,36 @@ internal void wayland_ui_redraw_region(
       wayland_draw_line_shadow(&draw_ctx, line.x, line.y, line.length, line.vertical);
       break;
     case UI_Command_Type_Gradient:
-      rect = cmd->variant.box.rect;
-      if (rect.x0 > rect.x1 || rect.y0 > rect.y1) {
-        break;
-      }
+      // rect = cmd->variant.box.rect;
+      // if (rect.x0 > rect.x1 || rect.y0 > rect.y1) {
+      //   break;
+      // }
 
-      draw_ctx.rect.x1 = min(draw_ctx.rect.x1, cmd->variant.box.rect.x0 + 7);
-      draw_ctx.rect.y1 = min(draw_ctx.rect.y1, cmd->variant.box.rect.y0 + 7);
-
-      wayland_draw_ring(
-        &draw_ctx,
-        cmd->variant.box.rect.x0 + 7,
-        cmd->variant.box.rect.y0 + 7,
-        8,
-        1,
-        cmd->variant.box.outline
-      );
-
-      draw_ctx = dc2;
-        
-      wayland_draw_rect_gradient_v(
-        &draw_ctx,
-        rect.x0 + 1,
-        rect.y0 + 1,
-        rect.x1 - rect.x0 - 2,
-        rect.y1 - rect.y0 - 2,
-        cmd->variant.box.color,
-        cmd->variant.box.color2
-      );
-      wayland_draw_rect_outlines_alpha(
-        &draw_ctx,
-        rect.x0,
-        rect.y0,
-        rect.x1 - rect.x0,
-        rect.y1 - rect.y0,
-        7,
-        cmd->variant.box.outline
-      );
-      wayland_draw_box_shadow(&draw_ctx, rect);
-      break;
+      // wayland_draw_rounded_rect(&draw_ctx,
+      //     rect.x0,
+      //     rect.y0,
+      //     rect.x1 - rect.x0,
+      //     rect.y1 - rect.y0,
+      //     4,
+      //     cmd->variant.box.color,
+      //     cmd->variant.box.outline
+      // );
+      // break;
     case UI_Command_Type_Box:
       rect = cmd->variant.box.rect;
       if (rect.x0 > rect.x1 || rect.y0 > rect.y1) {
         break;
       }
 
-      draw_ctx.rect.x1 = min(draw_ctx.rect.x1, cmd->variant.box.rect.x0 + 7);
-      draw_ctx.rect.y1 = min(draw_ctx.rect.y1, cmd->variant.box.rect.y0 + 7);
-
-      wayland_draw_ring(
-        &draw_ctx,
-        cmd->variant.box.rect.x0 + 7,
-        cmd->variant.box.rect.y0 + 7,
-        8,
-        1,
-        cmd->variant.box.outline
+      wayland_draw_rounded_rect(&draw_ctx,
+          rect.x0,
+          rect.y0,
+          rect.x1 - rect.x0,
+          rect.y1 - rect.y0,
+          6,
+          cmd->variant.box.color,
+          cmd->variant.box.outline
       );
-
-      draw_ctx = dc2;
-
-      wayland_draw_rect_alpha(
-        &draw_ctx,
-        rect.x0 + 1,
-        rect.y0 + 1,
-        rect.x1 - rect.x0 - 2,
-        rect.y1 - rect.y0 - 2,
-        cmd->variant.box.color
-      );
-      wayland_draw_rect_outlines_alpha(
-        &draw_ctx,
-        rect.x0,
-        rect.y0,
-        rect.x1 - rect.x0,
-        rect.y1 - rect.y0,
-        7,
-        cmd->variant.box.outline
-      );
-      wayland_draw_box_shadow(&draw_ctx, rect);
       break;
     case UI_Command_Type_Text:
       x = cmd->variant.text.bounds.x0 + ctx->spacing;
