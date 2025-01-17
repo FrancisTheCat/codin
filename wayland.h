@@ -1168,6 +1168,86 @@ internal void ui_update_overlapping_cells(Rectangle const *r, u32 hash) {
   }
 }
 
+internal void wayland_draw_circle(Draw_Context *ctx, f32 x, f32 y, f32 r, u32 color) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  for_range(_y, max(ctx->rect.y0, y - r), min(ctx->rect.y1, y + r)) {
+    for_range(_x, max(ctx->rect.x0, x - r), min(ctx->rect.x1, x + r)) {
+      f32 dy = _y - y;
+      f32 dx = _x - x;
+      f32 d2 = dy * dy + dx * dx;
+      f32 d  = sqrt(d2);
+      if (d < r - 1) {
+        ctx->pixels[_x + _y * ctx->w] = color;
+      } else if (d < r) {
+        f32 aa    = r - d;
+        u8  alpha = aa * 255;
+        alpha_blend_rgb8(&ctx->pixels[_x + _y * ctx->w], color, alpha);
+      }
+    }
+  }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+}
+
+internal void wayland_draw_ring(Draw_Context *ctx, f32 x, f32 y, f32 r, f32 w, u32 color) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  for_range(_y, max(ctx->rect.y0, y - r), min(ctx->rect.y1, y + r)) {
+    for_range(_x, max(ctx->rect.x0, x - r), min(ctx->rect.x1, x + r)) {
+      f32 dy = _y - y;
+      f32 dx = _x - x;
+      f32 d2 = dy * dy + dx * dx;
+      f32 d  = sqrt(d2);
+      if (d < r - w - 1) {
+      } else if (d < r - w) {
+        f32 aa    = d - (r - w);
+        u8  alpha = aa * 255;
+        alpha_blend_rgb8(&ctx->pixels[_x + _y * ctx->w], color, alpha);
+      } else if (d < r - 1) {
+        ctx->pixels[_x + _y * ctx->w] = color;
+      } else if (d < r) {
+        f32 aa    = r - d;
+        u8  alpha = aa * 255;
+        alpha_blend_rgb8(&ctx->pixels[_x + _y * ctx->w], color, alpha);
+      }
+    }
+  }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+}
+
+internal void wayland_draw_ring_filled(
+  Draw_Context *ctx,
+  f32 x,
+  f32 y,
+  f32 r,
+  f32 w,
+  u32 color,
+  u32 inner_color
+) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  for_range(_y, max(ctx->rect.y0, y - r), min(ctx->rect.y1, y + r)) {
+    for_range(_x, max(ctx->rect.x0, x - r), min(ctx->rect.x1, x + r)) {
+      f32 dy = _y - y;
+      f32 dx = _x - x;
+      f32 d2 = dy * dy + dx * dx;
+      f32 d  = sqrt(d2);
+      if (d < r - w - 1) {
+        ctx->pixels[_x + _y * ctx->w] = inner_color;
+      } else if (d < r - w) {
+        f32 aa    = d - (r - w);
+        u8  alpha = aa * 255;
+        ctx->pixels[_x + _y * ctx->w] = inner_color;
+        alpha_blend_rgb8(&ctx->pixels[_x + _y * ctx->w], color, alpha);
+      } else if (d < r - 1) {
+        ctx->pixels[_x + _y * ctx->w] = color;
+      } else if (d < r) {
+        f32 aa    = r - d;
+        u8  alpha = aa * 255;
+        alpha_blend_rgb8(&ctx->pixels[_x + _y * ctx->w], color, alpha);
+      }
+    }
+  }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+}
+
 internal void wayland_ui_redraw_region(
   UI_Context    *ctx,
   Wayland_State *wl_state,
@@ -1192,6 +1272,16 @@ internal void wayland_ui_redraw_region(
     region.x1 - region.x0,
     region.y1 - region.y0,
     ctx->colors[UI_Color_Background]
+  );
+
+  wayland_draw_ring_filled(
+    &draw_ctx,
+    region.x0 + 32,
+    region.y0 + 32,
+    32,
+    2,
+    0000,
+    0xFFFFFF
   );
 
   UI_Command_Line line;
@@ -1539,5 +1629,6 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
   }
 
   ui_state_render(&ui_context, state, conn);
+
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }

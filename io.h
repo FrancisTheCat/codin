@@ -3,7 +3,7 @@
 typedef Maybe_Int (*Writer_Proc)(rawptr, Byte_Slice);
 
 typedef struct {
-  rawptr data;
+  rawptr      data;
   Writer_Proc proc;
 } Writer;
 
