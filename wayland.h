@@ -610,29 +610,29 @@ typedef struct {
   u32      *pixels;
 } Draw_Context;
 
-internal void wayland_draw_rect_outlines(Draw_Context *ctx, i32 x, i32 y, i32 w, i32 h, u32 color) {
+internal void wayland_draw_rect_outlines(Draw_Context *ctx, i32 x, i32 y, i32 w, i32 h, i32 offset, u32 color) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
 
   if (in_range(x, ctx->rect.x0, ctx->rect.x1)) {
-    for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+    for_range(_y, max(y + offset, ctx->rect.y0), min(y + h - offset, ctx->rect.y1)) {
       ctx->pixels[x + _y * ctx->w] = color;
     }
   }
 
   if (in_range(x + w - 1, ctx->rect.x0, ctx->rect.x1) && w) {
-    for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+    for_range(_y, max(y + offset, ctx->rect.y0), min(y + h - offset, ctx->rect.y1)) {
       ctx->pixels[x + w - 1 + _y * ctx->w] = color;
     }
   }
 
   if (in_range(y, ctx->rect.y0, ctx->rect.y1)) {
-    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+    for_range(_x, max(x + offset, ctx->rect.x0), min(x + w - offset, ctx->rect.x1)) {
       ctx->pixels[_x + y * ctx->w] = color;
     }
   }
 
   if (in_range(y + h - 1, ctx->rect.y0, ctx->rect.y1) && h) {
-    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+    for_range(_x, max(x + offset, ctx->rect.x0), min(x + w - offset, ctx->rect.x1)) {
       ctx->pixels[_x + (y + h - 1) * ctx->w] = color;
     }
   }
@@ -660,33 +660,33 @@ internal void alpha_blend_rgba8(u32 *dst, u32 src) {
   alpha_blend_rgb8(dst, src, src >> 24);
 }
 
-internal void wayland_draw_rect_outlines_alpha(Draw_Context *ctx, i32 x, i32 y, i32 w, i32 h, u32 color) {
+internal void wayland_draw_rect_outlines_alpha(Draw_Context *ctx, i32 x, i32 y, i32 w, i32 h, i32 offset, u32 color) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   if ((color & 0xFF) == 0xFF) {
-    wayland_draw_rect_outlines(ctx, x, y, w, h, color);
+    wayland_draw_rect_outlines(ctx, x, y, w, h, offset, color);
     return;
   }
 
   if (in_range(x, ctx->rect.x0, ctx->rect.x1)) {
-    for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+    for_range(_y, max(y + offset, ctx->rect.y0), min(y + h - offset, ctx->rect.y1)) {
       alpha_blend_rgba8(&ctx->pixels[x + _y * ctx->w], color);
     }
   }
 
   if (in_range(x + w - 1, ctx->rect.x0, ctx->rect.x1) && w) {
-    for_range(_y, max(y, ctx->rect.y0), min(y + h, ctx->rect.y1)) {
+    for_range(_y, max(y + offset, ctx->rect.y0), min(y + h - offset, ctx->rect.y1)) {
       alpha_blend_rgba8(&ctx->pixels[x + w - 1 + _y * ctx->w], color);
     }
   }
 
   if (in_range(y, ctx->rect.y0, ctx->rect.y1)) {
-    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+    for_range(_x, max(x + offset, ctx->rect.x0), min(x + w - offset, ctx->rect.x1)) {
       alpha_blend_rgba8(&ctx->pixels[_x + y * ctx->w], color);
     }
   }
 
   if (in_range(y + h - 1, ctx->rect.y0, ctx->rect.y1) && h) {
-    for_range(_x, max(x, ctx->rect.x0), min(x + w, ctx->rect.x1)) {
+    for_range(_x, max(x + offset, ctx->rect.x0), min(x + w - offset, ctx->rect.x1)) {
       alpha_blend_rgba8(&ctx->pixels[_x + (y + h - 1) * ctx->w], color);
     }
   }
@@ -1265,6 +1265,8 @@ internal void wayland_ui_redraw_region(
   draw_ctx.h       = wl_state->h;
   draw_ctx.pixels  = (u32 *)wl_state->shm_pool_data;
 
+  Draw_Context dc2 = draw_ctx;
+
   wayland_draw_rect(
     &draw_ctx,
     region.x0,
@@ -1274,15 +1276,15 @@ internal void wayland_ui_redraw_region(
     ctx->colors[UI_Color_Background]
   );
 
-  wayland_draw_ring_filled(
-    &draw_ctx,
-    region.x0 + 32,
-    region.y0 + 32,
-    32,
-    2,
-    0000,
-    0xFFFFFF
-  );
+  // wayland_draw_ring_filled(
+  //   &draw_ctx,
+  //   region.x0 + 32,
+  //   region.y0 + 32,
+  //   32,
+  //   2,
+  //   0xFFFFFF,
+  //   0000
+  // );
 
   UI_Command_Line line;
   Rectangle rect;
@@ -1320,6 +1322,21 @@ internal void wayland_ui_redraw_region(
       if (rect.x0 > rect.x1 || rect.y0 > rect.y1) {
         break;
       }
+
+      draw_ctx.rect.x1 = min(draw_ctx.rect.x1, cmd->variant.box.rect.x0 + 7);
+      draw_ctx.rect.y1 = min(draw_ctx.rect.y1, cmd->variant.box.rect.y0 + 7);
+
+      wayland_draw_ring(
+        &draw_ctx,
+        cmd->variant.box.rect.x0 + 7,
+        cmd->variant.box.rect.y0 + 7,
+        8,
+        1,
+        cmd->variant.box.outline
+      );
+
+      draw_ctx = dc2;
+        
       wayland_draw_rect_gradient_v(
         &draw_ctx,
         rect.x0 + 1,
@@ -1335,6 +1352,7 @@ internal void wayland_ui_redraw_region(
         rect.y0,
         rect.x1 - rect.x0,
         rect.y1 - rect.y0,
+        7,
         cmd->variant.box.outline
       );
       wayland_draw_box_shadow(&draw_ctx, rect);
@@ -1344,6 +1362,21 @@ internal void wayland_ui_redraw_region(
       if (rect.x0 > rect.x1 || rect.y0 > rect.y1) {
         break;
       }
+
+      draw_ctx.rect.x1 = min(draw_ctx.rect.x1, cmd->variant.box.rect.x0 + 7);
+      draw_ctx.rect.y1 = min(draw_ctx.rect.y1, cmd->variant.box.rect.y0 + 7);
+
+      wayland_draw_ring(
+        &draw_ctx,
+        cmd->variant.box.rect.x0 + 7,
+        cmd->variant.box.rect.y0 + 7,
+        8,
+        1,
+        cmd->variant.box.outline
+      );
+
+      draw_ctx = dc2;
+
       wayland_draw_rect_alpha(
         &draw_ctx,
         rect.x0 + 1,
@@ -1358,6 +1391,7 @@ internal void wayland_ui_redraw_region(
         rect.y0,
         rect.x1 - rect.x0,
         rect.y1 - rect.y0,
+        7,
         cmd->variant.box.outline
       );
       wayland_draw_box_shadow(&draw_ctx, rect);
@@ -1389,6 +1423,7 @@ internal void wayland_ui_redraw_region(
         rect.y0,
         rect.x1 - rect.x0,
         rect.y1 - rect.y0,
+        7,
         cmd->variant.image.outline
       );
       wayland_draw_box_shadow(&draw_ctx, rect);
