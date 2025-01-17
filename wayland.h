@@ -1399,7 +1399,7 @@ internal void wayland_draw_rounded_rect(
     1,
     outline,
     color,
-    UI_SHADOW_COLOR | 0xFF000000
+    UI_SHADOW_COLOR | 0x7F000000
   );
 
   wayland_draw_box_shadow(ctx, (Rectangle) {x, y, x + w, y + h});
