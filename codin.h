@@ -319,15 +319,15 @@ internal void __runtime_cleanup();
 
 #include "slice.h"
 
+#include "context.h"
+
+#include "vector.h"
+
 #include "unicode.h"
 
 #include "strings.h"
 
 #include "path.h"
-
-#include "context.h"
-
-#include "vector.h"
 
 #include "ring_buffer.h"
 

@@ -1,5 +1,7 @@
 #include "codin.h"
 
+typedef Slice(String) String_Slice;
+
 [[nodiscard]]
 internal Byte_Slice string_to_bytes(String str) {
   return (Byte_Slice) {
@@ -233,3 +235,21 @@ internal String string_to_lower(String str, Allocator allocator) {
       { BLOCK }                                                                \
     }                                                                          \
   }
+
+[[nodiscard]]
+internal String_Slice string_split(String str, String split, Allocator allocator) {
+  Vector(String) splits;
+  vector_init(&splits, 0, 8, allocator);
+
+  loop {
+    isize i = string_index(str, split);
+    if (i >= 0) {
+      vector_append(&splits, slice_end(str, i));
+      str = slice_start(str, i + split.len);
+    } else {
+      break;
+    }
+  }
+  
+  return vector_to_slice(String_Slice, splits);
+}

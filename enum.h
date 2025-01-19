@@ -1,10 +1,10 @@
 #include "codin.h"
 
 #define enum_to_string(T, value)                                               \
-  __##T##_to_string(value)                                                     \
+  enum_to_string_proc(T)(value)                                                \
 
 #define enum_len(T)                                                            \
-  __##T##_Max_Value                                                            \
+  T##__Max_Value                                                               \
 
 #define enum_is_valid(T, v) enum_is_valid_proc(T)(v)
 
@@ -29,8 +29,8 @@
   )
 
 
-#define enum_to_string_proc(T) __##T##_to_string
-#define enum_is_valid_proc(T) __##T##_is_valid
+#define enum_to_string_proc(T) T##__to_string
+#define enum_is_valid_proc(T) T##__is_valid
 
 #define ENUM_IS_VALID_PROC_DECL(T, v)                                          \
   [[nodiscard]]                                                                \
@@ -63,7 +63,7 @@
 #define X_ENUM(Enum, Variants)                                                 \
 typedef enum {                                                                 \
   Variants(X_ENUM_VARIANTS)                                                    \
-  __##Enum##_Max_Value,                                                        \
+  Enum##__Max_Value,                                                           \
 } Enum;                                                                        \
                                                                                \
 X_ENUM_TO_STRING(Enum, Variants)                                               \

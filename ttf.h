@@ -721,13 +721,13 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *a
       ttf_memcpy(&os2, &data[table.offset], ttf_min(sizeof(os2), n - table.offset));
       switch (ttf_be16toh(os2.version)) {
       case 0:
-        return false;
+        continue;
         break;
 
       case 1:
       case 2:
       case 3:
-        return false;
+        continue;
         break;
 
       case 4:
@@ -823,7 +823,8 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *a
 
           for (ttf_i32 i = 0; i < segment_count; i += 1) {
             if (*p) {
-              return ttf_false;
+              segments[i] = (_TTF_Sequential_Map_Group) {0};
+              // return ttf_false;
             }
             p += 1;
           }
@@ -1356,9 +1357,6 @@ TTF_INTERNAL ttf_i32 _ttf_shape_get_intersections(
 
   for (ttf_i32 i = 0; i < shape->n_linears; i += 1) {
     TTF_Segment_Linear linear = shape->linears[i];
-    if (ttf_absf(linear.a.y - linear.b.y) < 0.0001) {
-      continue;
-    }
     if (
       linear.b.y >  y &&
       linear.a.y <= y
@@ -1378,7 +1376,7 @@ TTF_INTERNAL ttf_i32 _ttf_shape_get_intersections(
     ttf_f32 c = bezier.p0.y - y;
 
     ttf_f32 t, vx, dy;
-    if (ttf_absf(a) < 0.0001) {
+    if (a == 0) {
       if (bezier.p0.y == bezier.p2.y) {
         continue;
       }

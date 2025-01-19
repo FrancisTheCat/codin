@@ -1433,102 +1433,81 @@ internal void wayland_ui_redraw_region(
     ctx->colors[UI_Color_Background]
   );
 
-  UI_Command_Line line;
-  Rectangle rect;
-  isize x, y;
+  // UI_Command_Line line;
+  // Rectangle rect;
+  // isize x, y;
   slice_iter(ctx->commands, cmd, _i, {
-    spall_buffer_begin(&spall_ctx, &spall_buffer, enum_to_string(UI_Command_Type, cmd->type), get_time_in_micros());
-    switch(cmd->type) {
-    case UI_Command_Type_None:
-      break;
-    case UI_Command_Type_Line:
-      line = cmd->variant.line;
-      if (line.vertical) {
-        wayland_draw_rect_alpha(
-          &draw_ctx,
-          line.x,
-          line.y,
-          1,
-          line.length,
-          line.color
-        );
-      } else {
-        wayland_draw_rect_alpha(
-          &draw_ctx,
-          line.x,
-          line.y,
-          line.length,
-          1,
-          line.color
-        );
-      }
-      wayland_draw_line_shadow(&draw_ctx, line.x, line.y, line.length, line.vertical);
-      break;
-    case UI_Command_Type_Gradient:
-      // rect = cmd->variant.box.rect;
-      // if (rect.x0 > rect.x1 || rect.y0 > rect.y1) {
-      //   break;
-      // }
+    spall_buffer_begin(&spall_ctx, &spall_buffer, union_to_string(UI_Command, *cmd), get_time_in_micros());
+    UNION_SWITCH(*cmd, {
+      UNION_CASE(UI_Command_Line, line, {
+        if (line->vertical) {
+          wayland_draw_rect_alpha(
+            &draw_ctx,
+            line->x,
+            line->y,
+            1,
+            line->length,
+            line->color
+          );
+        } else {
+          wayland_draw_rect_alpha(
+            &draw_ctx,
+            line->x,
+            line->y,
+            line->length,
+            1,
+            line->color
+          );
+        }
+        wayland_draw_line_shadow(&draw_ctx, line->x, line->y, line->length, line->vertical);
+      });
+      UNION_CASE(UI_Command_Box, box, {
+        if (box->rect.x0 > box->rect.x1 || box->rect.y0 > box->rect.y1) {
+          break;
+        }
 
-      // wayland_draw_rounded_rect(&draw_ctx,
-      //     rect.x0,
-      //     rect.y0,
-      //     rect.x1 - rect.x0,
-      //     rect.y1 - rect.y0,
-      //     4,
-      //     cmd->variant.box.color,
-      //     cmd->variant.box.outline
-      // );
-      // break;
-    case UI_Command_Type_Box:
-      rect = cmd->variant.box.rect;
-      if (rect.x0 > rect.x1 || rect.y0 > rect.y1) {
-        break;
-      }
-
-      wayland_draw_rounded_rect(&draw_ctx,
-          rect.x0,
-          rect.y0,
-          rect.x1 - rect.x0,
-          rect.y1 - rect.y0,
+        wayland_draw_rounded_rect(&draw_ctx,
+          box->rect.x0,
+          box->rect.y0,
+          box->rect.x1 - box->rect.x0,
+          box->rect.y1 - box->rect.y0,
           6,
-          cmd->variant.box.color,
-          cmd->variant.box.outline
-      );
-      break;
-    case UI_Command_Type_Text:
-      x = cmd->variant.text.bounds.x0 + ctx->spacing;
-      y = (float)(cmd->variant.text.bounds.y0 + cmd->variant.text.bounds.y1) / 2 + ttf_get_font_height(&ttf_font, UI_FONT_SIZE) / 2 - 1; 
-      Rectangle bounds;
-      bounds = draw_ctx.rect;
-      draw_ctx.rect = rect_intersection(bounds, cmd->variant.text.bounds);
-      wayland_draw_text_ttf(&draw_ctx, &ttf_font, cmd->variant.text.text, UI_FONT_SIZE, cmd->variant.text.color, &x, &y);
-      draw_ctx.rect = bounds;
+          box->color,
+          box->outline
+        );
+      });
+      UNION_CASE(UI_Command_Text, text, {
+        isize x = text->bounds.x0 + ctx->spacing;
+        isize y = (float)(text->bounds.y0 + text->bounds.y1) / 2 + ttf_get_font_height(&ttf_font, UI_FONT_SIZE) / 2 - 1; 
+        Rectangle bounds;
+        bounds = draw_ctx.rect;
+        draw_ctx.rect = rect_intersection(bounds, text->bounds);
+        wayland_draw_text_ttf(&draw_ctx, &ttf_font, text->text, UI_FONT_SIZE, text->color, &x, &y);
+        draw_ctx.rect = bounds;
 
-      // x = cmd->variant.text.bounds.x0 + ctx->spacing;
-      // y = cmd->variant.text.bounds.y1 - ctx->spacing;
-      // wayland_draw_text_bmf(wl_state, &bmf_font, cmd->variant.text.text, cmd->variant.text.color, &x, &y);
-      break;
-    case UI_Command_Type_Image:
-      rect = cmd->variant.image.rect;
-      wayland_draw_image(
-        &draw_ctx,
-        rect.x0,
-        rect.y0,
-        &ctx->images.data[cmd->variant.image.image.index]
-      );
-      wayland_draw_rect_outlines_alpha(
-        &draw_ctx,
-        rect.x0,
-        rect.y0,
-        rect.x1 - rect.x0,
-        rect.y1 - rect.y0,
-        7,
-        cmd->variant.image.outline
-      );
-      wayland_draw_box_shadow(&draw_ctx, rect);
-      break;
-    }
+        // x = text->bounds.x0 + ctx->spacing;
+        // y = text->bounds.y1 - ctx->spacing;
+        // wayland_draw_text_bmf(wl_state, &bmf_font, text->text, text->color, &x, &y);
+      });
+      UNION_CASE(UI_Command_Image, image, {
+        wayland_draw_image(
+          &draw_ctx,
+          image->rect.x0,
+          image->rect.y0,
+          &ctx->images.data[image->image.index]
+        );
+        wayland_draw_rect_outlines_alpha(
+          &draw_ctx,
+          image->rect.x0,
+          image->rect.y0,
+          image->rect.x1 - image->rect.x0,
+          image->rect.y1 - image->rect.y0,
+          7,
+          image->outline
+        );
+        wayland_draw_box_shadow(&draw_ctx, image->rect);
+      });
+    });
     spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
   });
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
@@ -1543,16 +1522,20 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state, Wayland_
     u32 hash = ui_command_hash(UI_HASH_INITIAL, cmd);
     Rectangle rect;
     ui_command_bounds(cmd, &rect);
-    switch (cmd->type) {
-    case UI_Command_Type_Box:
-    case UI_Command_Type_Gradient:
-    case UI_Command_Type_Image:
-    case UI_Command_Type_Line:
-      rect.x1 += UI_SHADOW_RADIUS;
-      rect.y1 += UI_SHADOW_RADIUS;
-    default:
-      break;
-    }
+    UNION_SWITCH(*cmd, {
+      UNION_CASE(UI_Command_Box, _v, {
+        rect.x1 += UI_SHADOW_RADIUS;
+        rect.y1 += UI_SHADOW_RADIUS;
+      });
+      UNION_CASE(UI_Command_Image, _v, {
+        rect.x1 += UI_SHADOW_RADIUS;
+        rect.y1 += UI_SHADOW_RADIUS;
+      });
+      UNION_CASE(UI_Command_Line, _v, {
+        rect.x1 += UI_SHADOW_RADIUS;
+        rect.y1 += UI_SHADOW_RADIUS;
+      });
+    });
     ui_update_overlapping_cells(&rect, hash);
   });
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
@@ -1683,7 +1666,7 @@ internal void wayland_draw_text_ttf(
       spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
     }
 
-    isize x = *x_pos + cached_glyph->h_metrics.bearing * (i != 0);
+    isize x = *x_pos + cached_glyph->h_metrics.bearing;
     isize y = *y_pos - cached_glyph->v_metrics.height + cached_glyph->v_metrics.bearing;
     for_range(iy, 0, cached_glyph->h) {
       if (iy + y >= ctx->rect.y1) {
@@ -1754,14 +1737,17 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
     ui_layout_end(&ui_context);
   ui_layout_end(&ui_context);
 
-  ui_context.side = Rect_Cut_Side_Bottom;
+  ui_context.side = Rect_Cut_Side_Top;
+
+  slice_iter(*directory, file, _i, {
+    if (file->is_dir) {
+      ui_label(&ui_context, file->name);
+    } else {
+      ui_button(&ui_context, file->name);
+    }
+  });
 
   // ui_image(&ui_context, (UI_Image) {.index = 0});
-
-  enum_iter(Allocator_Error, e) {
-    if (ui_button(&ui_context, enum_to_string(Allocator_Error, e))) {
-    }
-  }
 
   ui_state_render(&ui_context, state, conn);
 

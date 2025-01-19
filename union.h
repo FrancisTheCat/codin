@@ -4,8 +4,10 @@
 #define X_UNION_FIELDS_BYTE(f) byte __##f;
 
 #define X_UNION_VARIANT_NAME(f)                                                \
-  case offset_of(type_of(**((u)->__info)), __##T):                             \
+  case offset_of(type_of(**((u).__info)), __##f):                             \
     return LIT(#f);
+
+#define union_to_string(T, v) (T##__to_string(v))
 
 // __info exists to allow us to get the tag values
 // it is an array of zero pointers to structs so it does not actually occupy space, nor does it change alignment since the tag is a usize anyway
@@ -19,7 +21,14 @@
       byte __nil_value;                                                        \
       Variants(X_UNION_FIELDS_BYTE)                                            \
     } *__info[0];                                                              \
-  } Union;
+  } Union;                                                                     \
+  [[nodiscard]] internal String Union##__to_string(Union u) {                  \
+    switch (u.tag) {                                                           \
+      Variants(X_UNION_VARIANT_NAME)                                           \
+    default:                                                                   \
+      return LIT("Fuck");                                                      \
+    }                                                                          \
+  }
 
 #define UNION_SET(u, T, v)                                                     \
   {                                                                            \

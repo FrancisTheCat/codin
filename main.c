@@ -2,14 +2,6 @@
 #include "image.h"
 #include "iter.h"
 #include "xml.h"
-#include "union.h"
-
-#define VARIANTS(X) \
-  X(i32)            \
-  X(f32)            \
-  X(String)         \
-
-X_UNION(My_Union, VARIANTS)
 
 #define ttf_alloc(U, size) (unwrap_err(mem_alloc(size, *(Allocator *)U)))
 #define ttf_free(U, ptr) ((void)mem_free(ptr, 0, *(Allocator *)U))
@@ -449,11 +441,14 @@ int main() {
   // b8 font_ok = bmf_load_font(font_data, &font);
   // assert(font_ok);
 
-  Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("JetBrainsMonoNerdFont-Medium.ttf"), context.allocator));
-  // Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("Lexend-Regular.ttf"), context.allocator));
-  // Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("Crimson-Roman.ttf"), context.allocator));
   Growing_Arena_Allocator font_arena;
   Allocator font_allocator = growing_arena_allocator_init(&font_arena, 4096, context.allocator);
+
+  Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("JetBrainsMonoNerdFont-Medium.ttf"), font_allocator));
+  // Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("Roboto-Regular.ttf"), font_allocator));
+  // Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("Lexend-Regular.ttf"), font_allocator));
+  // Byte_Slice ttf_font_data = unwrap_err(read_entire_file_path(LIT("Crimson-Roman.ttf"), font_allocator));
+
   b8 font_ok = ttf_load_bytes(ttf_font_data.data, ttf_font_data.len, &ttf_font, &font_allocator);
   assert(font_ok);
 
@@ -579,7 +574,6 @@ int main() {
   }
 
   growing_arena_allocator_destroy(font_arena);
-  slice_delete(ttf_font_data, context.allocator);
 
   directory_delete(directory, context.allocator);
   ui_context_destroy(&ui_context, context.allocator);

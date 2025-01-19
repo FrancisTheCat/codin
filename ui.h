@@ -45,25 +45,33 @@ typedef struct {
   UI_Image  image;
 } UI_Command_Image;
 
-#define UI_COMMAND_TYPES(X)                                                    \
-  X(UI_Command_Type_None)                                                      \
-  X(UI_Command_Type_Box)                                                       \
-  X(UI_Command_Type_Gradient)                                                  \
-  X(UI_Command_Type_Line)                                                       \
-  X(UI_Command_Type_Text)                                                      \
-  X(UI_Command_Type_Image)
+// #define UI_COMMAND_TYPES(X)                                                    \
+//   X(UI_Command_Type_None)                                                      \
+//   X(UI_Command_Type_Box)                                                       \
+//   X(UI_Command_Type_Gradient)                                                  \
+//   X(UI_Command_Type_Line)                                                      \
+//   X(UI_Command_Type_Text)                                                      \
+//   X(UI_Command_Type_Image)
 
-X_ENUM(UI_Command_Type, UI_COMMAND_TYPES)
+// X_ENUM(UI_Command_Type, UI_COMMAND_TYPES)
 
-typedef struct {
-  union {
-    UI_Command_Box   box;
-    UI_Command_Text  text;
-    UI_Command_Image image;
-    UI_Command_Line  line;
-  } variant;
-  UI_Command_Type type;
-} UI_Command;
+#define UI_COMMAND_VARIANTS(X) \
+  X(UI_Command_Box)            \
+  X(UI_Command_Text)           \
+  X(UI_Command_Image)          \
+  X(UI_Command_Line)           \
+
+X_UNION(UI_Command, UI_COMMAND_VARIANTS)
+
+// typedef struct {
+//   union {
+//     UI_Command_Box   box;
+//     UI_Command_Text  text;
+//     UI_Command_Image image;
+//     UI_Command_Line  line;
+//   } variant;
+//   UI_Command_Type type;
+// } UI_Command;
 
 #define UI_HASH_INITIAL 0x811c9dc5
 
@@ -74,53 +82,46 @@ internal u32 ui_hash_bytes(u32 in, Byte_Slice bytes) {
   return in;
 }
 
-internal void ui_command_bounds(UI_Command const *command, Rectangle *rect) {
-  switch (command->type) {
-  case UI_Command_Type_None:
-    *rect = (Rectangle) {0};
-    break;
-  case UI_Command_Type_Line:
-    *rect = (Rectangle) {.x0 = command->variant.line.x, .y0 = command->variant.line.y};
-    if (command->variant.line.vertical) {
-      rect->x1 = rect->x0;
-      rect->y1 = rect->y0 + command->variant.line.length;
-    } else {
-      rect->y1 = rect->y0;
-      rect->x1 = rect->x0 + command->variant.line.length;
-    }
-    break;
-  case UI_Command_Type_Box:
-  case UI_Command_Type_Gradient:
-    *rect = command->variant.box.rect;
-    break;
-  case UI_Command_Type_Text:
-    *rect = command->variant.text.bounds;
-    break;
-  case UI_Command_Type_Image:
-    *rect = command->variant.image.rect;
-    break;
-  default:
-    unreachable();
-  }
+internal void ui_command_bounds(UI_Command *command, Rectangle *rect) {
+  UNION_SWITCH(*command, {
+    UNION_CASE(UI_Command_Line, line, {
+      *rect = ((Rectangle) {.x0 = line->x, .y0 = line->y});
+      if (line->vertical) {
+        rect->x1 = rect->x0;
+        rect->y1 = rect->y0 + line->length;
+      } else {
+        rect->y1 = rect->y0;
+        rect->x1 = rect->x0 + line->length;
+      }
+    });
+    UNION_CASE(UI_Command_Box, box, {
+      *rect = box->rect;
+    });
+    UNION_CASE(UI_Command_Text, text, {
+      *rect = text->bounds;
+    });
+    UNION_CASE(UI_Command_Image, image, {
+      *rect = image->rect;
+    });
+  });
 }
 
-internal u32 ui_command_hash(u32 in, UI_Command const *command) {
-  switch (command->type) {
-  case UI_Command_Type_None:
-    break;
-  case UI_Command_Type_Box:
-  case UI_Command_Type_Gradient:
-  case UI_Command_Type_Line:
-    in = ui_hash_bytes(in, any_to_bytes(&command->variant.box));
-    break;
-  case UI_Command_Type_Text:
-    in = ui_hash_bytes(in, string_to_bytes(command->variant.text.text));
-    in = ui_hash_bytes(in, slice_start(any_to_bytes(&command->variant.text), offset_of(UI_Command_Text, bounds)));
-    break;
-  case UI_Command_Type_Image:
-    in = ui_hash_bytes(in, any_to_bytes(&command->variant.image));
-    break;
-  }
+internal u32 ui_command_hash(u32 in, UI_Command *command) {
+  UNION_SWITCH(*command, {
+    UNION_CASE(UI_Command_Line, line, {
+      in = ui_hash_bytes(in, any_to_bytes(line));
+    });
+    UNION_CASE(UI_Command_Box, box, {
+      in = ui_hash_bytes(in, any_to_bytes(box));
+    });
+    UNION_CASE(UI_Command_Text, text, {
+      in = ui_hash_bytes(in, string_to_bytes(text->text));
+      in = ui_hash_bytes(in, slice_start(any_to_bytes(text), offset_of(UI_Command_Text, bounds)));
+    });
+    UNION_CASE(UI_Command_Image, image, {
+      in = ui_hash_bytes(in, any_to_bytes(image));
+    });
+  });
   return in;
 }
 
@@ -229,7 +230,7 @@ typedef struct {
 
 X_ENUM(UI_Color, UI_COLORS)
 
-typedef isize (*ui_measure_text_proc)(String str);
+typedef isize (*UI_Measure_Text_Proc)(String str);
 
 typedef struct {
   Vector(UI_Command)    commands;
@@ -241,7 +242,7 @@ typedef struct {
     i32 x, y;
     b8  buttons[2];
   } mouse;
-  ui_measure_text_proc  measure_text_proc;
+  UI_Measure_Text_Proc  measure_text_proc;
   i32                   text_height;
   Vector(Image)         images;
   UI_Cursor             cursor;
@@ -274,7 +275,7 @@ internal Rectangle ui_insert_rect(UI_Context *ctx, isize width, isize height) {
 
 internal void ui_context_init(
   UI_Context          *ctx,
-  ui_measure_text_proc measure_text_proc,
+  UI_Measure_Text_Proc measure_text_proc,
   isize                width,
   isize                height,
   isize                text_height,
@@ -335,8 +336,6 @@ internal void ui_layout_begin(UI_Context *ctx, isize a, Rect_Cut_Side side) {
   layout.side = ctx->side;
   layout.rect = ctx->rect;
 
-  UI_Command cmd;
-  cmd.type = UI_Command_Type_Line;
   UI_Command_Line line;
   line.color = ctx->colors[UI_Color_Separator];
 
@@ -376,7 +375,8 @@ internal void ui_layout_begin(UI_Context *ctx, isize a, Rect_Cut_Side side) {
     line.length   = tmp.x1 - tmp.x0;
     break;
   }
-  cmd.variant.line = line;
+  UI_Command cmd;
+  UNION_SET(&cmd, UI_Command_Line, line);
   vector_append(&ctx->commands, cmd);
 
   ctx->rect = tmp;
@@ -431,22 +431,19 @@ internal b8 ui_button(UI_Context *ctx, String text) {
     }
   }
 
-  cmd.type        = UI_Command_Type_Gradient;
-  cmd.variant.box = (UI_Command_Box) {
+  UNION_SET(&cmd, UI_Command_Box, ((UI_Command_Box) {
     .rect    = rect,
     .color   = ctx->colors[color],
     .color2  = ctx->colors[color_2],
     .outline = ctx->colors[outline_color],
-  };
+  }));
   vector_append(&ctx->commands, cmd);
 
-  cmd.type         = UI_Command_Type_Text;
-  cmd.variant.text = (UI_Command_Text) {
+  UNION_SET(&cmd, UI_Command_Text, ((UI_Command_Text) {
     .text   = text,
     .bounds = rect,
     .color  = ctx->colors[text_color],
-  };
-
+  }));
   vector_append(&ctx->commands, cmd);
 
   return color == UI_Color_Button_Clicked;
@@ -470,21 +467,18 @@ internal void ui_label(UI_Context *ctx, String text) {
   UI_Color text_color    = UI_Color_Label_Text;
   UI_Color outline_color = UI_Color_Label_Outline;
   
-  cmd.type        = UI_Command_Type_Box;
-  cmd.variant.box = (UI_Command_Box) {
+  UNION_SET(&cmd, UI_Command_Box, ((UI_Command_Box) {
     .rect    = rect,
     .color   = ctx->colors[color],
     .outline = ctx->colors[outline_color],
-  };
+  }));
   vector_append(&ctx->commands, cmd);
 
-  cmd.type        = UI_Command_Type_Text;
-  cmd.variant.text = (UI_Command_Text) {
+  UNION_SET(&cmd, UI_Command_Text, ((UI_Command_Text) {
     .text   = text,
     .bounds = rect,
     .color  = ctx->colors[text_color],
-  };
-
+  }));
   vector_append(&ctx->commands, cmd);
 }
 
@@ -506,40 +500,13 @@ internal void ui_image(UI_Context *ctx, UI_Image img) {
   assert(image->components == 4);
   assert(image->pixel_type == PT_u8);
 
-  cmd.type          = UI_Command_Type_Image;
-  cmd.variant.image = (UI_Command_Image) {
+  UNION_SET(&cmd, UI_Command_Image, ((UI_Command_Image) {
     .rect    = rect,
     .outline = ctx->colors[UI_Color_Image_Border],
     .image   = img,
-  };
+  }));
   vector_append(&ctx->commands, cmd);
 }
-
-// internal b8 button(UI_Context *ctx, Rect_Cut layout, String text) {
-//     i32 size = ctx->measure_text_proc(text);
-//     Rectangle rect = rectcut_cut(layout, size + ctx->spacing * 2, ctx->text_height + ctx->spacing * 2);
-//     UI_Command cmd;
-//     cmd.type        = UI_Command_Type_Gradient;
-//     cmd.variant.box = (UI_Command_Box) {
-//       .rect    = rect,
-//       .color   = ctx->colors[UI_Color_Button],
-//       .color2  = ctx->colors[UI_Color_Button],
-//       .outline = ctx->colors[UI_Color_Button_Outline],
-//     };
-//     vector_append(&ctx->commands, cmd);
-
-//     cmd.type        = UI_Command_Type_Text;
-//     cmd.variant.text = (UI_Command_Text) {
-//       .text   = text,
-//       .bounds = rect,
-//       .color  = ctx->colors[UI_Color_Button_Text],
-//     };
-//     vector_append(&ctx->commands, cmd);
-
-//     return ui_mouse_in_rect(ctx, &rect) && ctx->mouse.buttons[0];
-//     // interactions
-//     // draw
-// }
 
 internal Rectangle rect_intersection(Rectangle a, Rectangle b) {
   return (Rectangle) {
