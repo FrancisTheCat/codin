@@ -22,6 +22,8 @@ static long syscall(long syscall_number, ...) {
 
   switch (syscall_number) {
   case SYS_fork:
+  case SYS_getgid:
+  case SYS_gettid:
     ret = __syscall0(syscall_number);
     break;
   case SYS_exit:
@@ -46,6 +48,8 @@ static long syscall(long syscall_number, ...) {
   case SYS_memfd_create:
   case SYS_ftruncate:
   case SYS_pipe2:
+  case SYS_kill:
+  case SYS_tkill:
     arg0 = __builtin_va_arg(args, long);
     arg1 = __builtin_va_arg(args, long);
     ret  = __syscall2(syscall_number, arg0, arg1);
@@ -64,6 +68,7 @@ static long syscall(long syscall_number, ...) {
   case SYS_sendmsg:
   case SYS_recvmsg:
   case SYS_fcntl:
+  case SYS_tgkill:
     arg0 = __builtin_va_arg(args, long);
     arg1 = __builtin_va_arg(args, long);
     arg2 = __builtin_va_arg(args, long);
@@ -89,6 +94,7 @@ static long syscall(long syscall_number, ...) {
   case SYS_mmap:
   case SYS_sendto:
   case SYS_recvfrom:
+  case SYS_futex:
     arg0 = __builtin_va_arg(args, long);
     arg1 = __builtin_va_arg(args, long);
     arg2 = __builtin_va_arg(args, long);

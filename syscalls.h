@@ -32,14 +32,17 @@
 #define SYS_chdir         80
 #define SYS_rmdir         84
 #define SYS_unlink        87
+#define SYS_getgid        104
 #define SYS_arch_prctl    158
 #define SYS_gettid        186
+#define SYS_tkill         200
 #define SYS_time          201
 #define SYS_futex         202
 #define SYS_clock_settime 227
 #define SYS_clock_gettime 228
 #define SYS_clock_getres  229
 #define SYS_exit_group    231
+#define SYS_tgkill        234
 #define SYS_waitid        247
 #define SYS_openat        257
 #define SYS_unlinkat      263

@@ -561,6 +561,10 @@ int main() {
         frames_since_print = 0;
       }
 
+      if (!render_threads.len) {
+        renderer_init(&ui_context, &state, 8);
+      }
+
       wayland_render(&wl_connection, &state, &directory);
 
       wayland_wl_surface_attach(&wl_connection, state.wl_surface, state.wl_buffer, 0, 0);
@@ -572,6 +576,8 @@ int main() {
     
     mem_free_all(context.temp_allocator);
   }
+
+  renderer_destroy();
 
   growing_arena_allocator_destroy(font_arena);
 

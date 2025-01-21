@@ -22,8 +22,8 @@ String last_key_string = {0};
 // #define spall_buffer_begin(...)
 // #define spall_buffer_end(...)
 
-SpallBuffer  spall_buffer;
-SpallProfile spall_ctx;
+thread_local SpallBuffer  spall_buffer;
+thread_local SpallProfile spall_ctx;
 
 internal f64 get_time_in_micros() {
   return (f64)(time_now().nsec) / Microsecond;
@@ -1406,9 +1406,9 @@ internal void wayland_draw_rounded_rect(
 }
 
 internal void wayland_ui_redraw_region(
-  UI_Context    *ctx,
-  Wayland_State *wl_state,
-  Rectangle      region
+  UI_Context    const *ctx,
+  Wayland_State const *wl_state,
+  Rectangle            region
 ) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
 
@@ -1513,6 +1513,16 @@ internal void wayland_ui_redraw_region(
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
+typedef struct {
+  UI_Context    const *ctx;
+  Wayland_State const *state;
+  Rectangle            rect;
+  Tid                  tid;
+  volatile u32         futex;
+} Render_Thread;
+
+internal Slice(Render_Thread) render_threads = {0};
+
 internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state, Wayland_Connection *conn) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
 
@@ -1540,47 +1550,38 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state, Wayland_
   });
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
-  Draw_Context draw_ctx = {0};
-
-  draw_ctx.rect.x0 = 0;
-  draw_ctx.rect.y0 = 0;
-  draw_ctx.rect.x1 = wl_state->w;
-  draw_ctx.rect.y1 = wl_state->h;
-  draw_ctx.pixels  = (u32 *)wl_state->shm_pool_data;
-  draw_ctx.w       = wl_state->w;
-  draw_ctx.h       = wl_state->h;
-
   slice_iter(ui_hash_chunks, hash, i, {
     if (*hash != ui_prev_chunks.data[i]) {
-      wayland_ui_redraw_region(
-        ctx,
-        wl_state,
-        (Rectangle) {
-          .x0 = (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
-          .y0 = (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
-          .x1 = (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + UI_HASH_CHUNK_SIZE,
-          .y1 = (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + UI_HASH_CHUNK_SIZE,
-        }
-      );
-    //   wayland_draw_rect_outlines(
-    //     &draw_ctx,
-    //     (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + 1,
-    //     (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + 1,
-    //     UI_HASH_CHUNK_SIZE - 2,
-    //     UI_HASH_CHUNK_SIZE - 2,
-    //     0xFFFF0000
-    //   );
-    // } else {
-    //   wayland_draw_rect_outlines(
-    //     &draw_ctx,
-    //     (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + 1,
-    //     (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + 1,
-    //     UI_HASH_CHUNK_SIZE - 2,
-    //     UI_HASH_CHUNK_SIZE - 2,
-    //     *hash
-    //   );
+      for (;;) {
+        slice_iter(render_threads, t, j, {
+          if (!t->futex) {
+            t->rect = ((Rectangle) {
+              .x0 = (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
+              .y0 = (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
+              .x1 = (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + UI_HASH_CHUNK_SIZE,
+              .y1 = (i32)(i / ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE + UI_HASH_CHUNK_SIZE,
+            });
+            t->futex = 1;
+            syscall(SYS_futex, &t->futex, FUTEX_WAKE, 1);
+            goto chunk_rendered;
+          }
+        });
+      }
     }
+    chunk_rendered: {}
   });
+
+  for (;;) {
+    b8 busy = false;
+    slice_iter(render_threads, t, i, {
+      if (t->futex) {
+        busy = true;
+      }
+    });
+    if (!busy) {
+      break;
+    }
+  }
 
   type_of(ui_prev_chunks) tmp = ui_prev_chunks;
   ui_prev_chunks = transmute(type_of(ui_prev_chunks), ui_hash_chunks);
@@ -1691,10 +1692,38 @@ internal void wayland_draw_text_ttf(
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
+internal void render_thread_proc(Render_Thread *t) {
+  for (;;) {
+    syscall(SYS_futex, &t->futex, FUTEX_WAIT, 0, nil, nil, 0);
+    if (t->futex == -1) {
+      return;
+    }
+    wayland_ui_redraw_region(t->ctx, t->state, t->rect);
+    t->futex = 0;
+  }
+}
+
+internal void renderer_init(UI_Context const *ctx, Wayland_State const *state, i32 n_threads) {
+  slice_init(&render_threads, n_threads, context.allocator);
+  slice_iter(render_threads, t, i, {
+    t->ctx   = ctx;
+    t->state = state;
+    t->tid   = unwrap_err(thread_create((Thread_Proc)render_thread_proc, (rawptr)t));
+  });
+}
+
+internal void renderer_destroy() {
+  slice_iter(render_threads, t, _i, {
+    t->futex = -1;
+    isize result = syscall(SYS_futex, &t->futex, FUTEX_WAKE, 1);
+    assert(result > 0);
+  });
+  slice_delete(render_threads, context.allocator);
+}
+
 internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Directory const *directory) {
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
 
-  // String str = ;
   ui_context.mouse.x = state->mouse_x;
   ui_context.mouse.y = state->mouse_y;
 
