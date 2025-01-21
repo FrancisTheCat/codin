@@ -1376,10 +1376,7 @@ TTF_INTERNAL ttf_i32 _ttf_shape_get_intersections(
     ttf_f32 c = bezier.p0.y - y;
 
     ttf_f32 t, vx, dy;
-    if (a == 0) {
-      if (bezier.p0.y == bezier.p2.y) {
-        continue;
-      }
+    if (ttf_absf(a) < 0.0001) {
       if (
         bezier.p2.y >  y &&
         bezier.p0.y <= y
