@@ -1696,6 +1696,7 @@ internal void render_thread_proc(Render_Thread *t) {
   for (;;) {
     syscall(SYS_futex, &t->futex, FUTEX_WAIT, 0, nil, nil, 0);
     if (t->futex == -1) {
+      t->futex = 0;
       return;
     }
     wayland_ui_redraw_region(t->ctx, t->state, t->rect);
@@ -1717,6 +1718,7 @@ internal void renderer_destroy() {
     t->futex = -1;
     isize result = syscall(SYS_futex, &t->futex, FUTEX_WAKE, 1);
     assert(result > 0);
+    while (t->futex);
   });
   slice_delete(render_threads, context.allocator);
 }
