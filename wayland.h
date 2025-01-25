@@ -1553,7 +1553,7 @@ internal void ui_state_render(UI_Context *ctx, Wayland_State *wl_state, Wayland_
   slice_iter(ui_hash_chunks, hash, i, {
     if (*hash != ui_prev_chunks.data[i]) {
       for (;;) {
-        slice_iter(render_threads, t, j, {
+        slice_iter(render_threads, t, thread_index, {
           if (!t->futex) {
             t->rect = ((Rectangle) {
               .x0 = (i32)(i % ui_hash_chunks_x) * UI_HASH_CHUNK_SIZE,
@@ -1615,23 +1615,29 @@ typedef struct {
   TTF_H_Metrics h_metrics;
   u32           w, h;
   u8           *pixels;
+  volatile b8   lock;
 } Cached_Glyph;
 
 Cached_Glyph glyph_cache[0x10FFFF] = {0};
 
+internal Cached_Glyph *get_cached_glyph(u32 codepoint) {
+  Cached_Glyph *cached_glyph = &glyph_cache[codepoint];
+  if (!cached_glyph->pixels) {
+    spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("render_glyph"), get_time_in_micros());
+    u32 glyph = ttf_get_codepoint_glyph(&ttf_font, codepoint);
+    ttf_get_glyph_h_metrics(&ttf_font, glyph, UI_FONT_SIZE, &cached_glyph->h_metrics);
+    ttf_get_glyph_v_metrics(&ttf_font, glyph, UI_FONT_SIZE, &cached_glyph->v_metrics);
+
+    ttf_get_glyph_bitmap(&ttf_font, glyph, UI_FONT_SIZE, &cached_glyph->w, &cached_glyph->h, &cached_glyph->pixels);
+    spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  }
+  return cached_glyph;
+}
+
 internal isize measure_text_ttf(String text) {
   isize width = 0;
   string_iter(text, codepoint, _i, {
-    Cached_Glyph *cached_glyph = &glyph_cache[codepoint];
-    if (!cached_glyph->pixels) {
-      spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("render_glyph"), get_time_in_micros());
-      u32 glyph = ttf_get_codepoint_glyph(&ttf_font, codepoint);
-      ttf_get_glyph_h_metrics(&ttf_font, glyph, UI_FONT_SIZE, &cached_glyph->h_metrics);
-      ttf_get_glyph_v_metrics(&ttf_font, glyph, UI_FONT_SIZE, &cached_glyph->v_metrics);
-
-      ttf_get_glyph_bitmap(&ttf_font, glyph, UI_FONT_SIZE, &cached_glyph->w, &cached_glyph->h, &cached_glyph->pixels);
-      spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
-    }
+    Cached_Glyph *cached_glyph = get_cached_glyph(codepoint);
     width += cached_glyph->h_metrics.advance;
   });
   return width;
@@ -1656,16 +1662,7 @@ internal void wayland_draw_text_ttf(
       *y_pos += ttf_get_line_height(font, font_size);
       continue;
     }
-    Cached_Glyph *cached_glyph = &glyph_cache[codepoint];
-    if (!cached_glyph->pixels) {
-      spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("render_glyph"), get_time_in_micros());
-      u32 glyph = ttf_get_codepoint_glyph(&ttf_font, codepoint);
-      ttf_get_glyph_h_metrics(&ttf_font, glyph, font_size, &cached_glyph->h_metrics);
-      ttf_get_glyph_v_metrics(&ttf_font, glyph, font_size, &cached_glyph->v_metrics);
-
-      ttf_get_glyph_bitmap(&ttf_font, glyph, font_size, &cached_glyph->w, &cached_glyph->h, &cached_glyph->pixels);
-      spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
-    }
+    Cached_Glyph *cached_glyph = get_cached_glyph(codepoint);
 
     isize x = *x_pos + cached_glyph->h_metrics.bearing;
     isize y = *y_pos - cached_glyph->v_metrics.height + cached_glyph->v_metrics.bearing;

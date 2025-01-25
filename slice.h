@@ -1,5 +1,9 @@
 #include "codin.h"
 
+#define c_array_to_slice(arr) ((Slice(typeof(*arr))) { .data = arr, .len = count_of(arr) })
+
+#define IDX(arr, i) (({ assert(i >= 0); assert(i < arr.len); }), arr.data[i])
+
 #define Array(T, N) struct {                                                   \
   T data[N];                                                                   \
 }

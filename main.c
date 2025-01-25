@@ -239,7 +239,7 @@ void spall_close_callback(SpallProfile *self) {
   file_close((Fd)self->data);
 }
 
-int main() {
+i32 main() {
   Tracking_Allocator track;
   context.allocator = tracking_allocator_init(&track, context.allocator);
 

@@ -171,12 +171,10 @@ typedef Slice(byte) Byte_Slice;
 typedef Slice(void) Void_Slice;
 
 #define LIT(str)                                                               \
-  ({                                                                           \
-    String s;                                                                  \
-    s.data = str;                                                              \
-    s.len = (sizeof str) - 1;                                                  \
-    s;                                                                         \
-  })
+  (String) {                                                                   \
+    .data = str,                                                               \
+    .len  = (sizeof str) - 1,                                                  \
+  }
 
 typedef Slice(const char) String;
 
@@ -376,9 +374,9 @@ internal void __thread_cleanup() {
 
 internal void __runtime_cleanup() { __thread_cleanup(); }
 
-int main();
+i32 main();
 
-int __codin_main(i32 arg_c, cstring *arg_v) {
+i32 __codin_main(i32 arg_c, cstring *arg_v) {
     __runtime_init();
     slice_init(&os_args, arg_c, context.allocator);
     slice_iter(os_args, arg, i, {

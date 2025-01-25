@@ -764,18 +764,21 @@ internal void tracking_allocator_fmt_results_w(
 
 //NOLINTEND
 
+#define fmt_printc(format) fmt_print(LIT(format))
 internal isize fmt_print(String str) {
   Builder b = builder_make(0, 8, context.temp_allocator);
   (void)fmt_sbprintf(&b, LIT("%S"), str);
   return or_else(write_bytes(&stdout, builder_to_bytes(b)), -1);
 }
 
+#define fmt_printlnc(format) fmt_println(LIT(format))
 internal isize fmt_println(String str) {
   Builder b = builder_make(0, 8, context.temp_allocator);
   (void)fmt_sbprintf(&b, LIT("%S\n"), str);
   return or_else(write_bytes(&stdout, builder_to_bytes(b)), -1);
 }
 
+#define fmt_printfc(format, ...) fmt_printf(LIT(format), __VA_ARGS__)
 internal isize fmt_printf(String format, ...) {
   Builder b = builder_make(0, 8, context.temp_allocator);
   va_list va_args;
@@ -785,6 +788,7 @@ internal isize fmt_printf(String format, ...) {
   return or_else(write_bytes(&stdout, builder_to_bytes(b)), -1);
 }
 
+#define fmt_printflnc(format, ...) fmt_printfln(LIT(format), __VA_ARGS__)
 internal isize fmt_printfln(String format, ...) {
   Builder b = builder_make(0, 8, context.temp_allocator);
   va_list va_args;
@@ -795,18 +799,21 @@ internal isize fmt_printfln(String format, ...) {
   return or_else(write_bytes(&stdout, builder_to_bytes(b)), -1);
 }
 
+#define fmt_eprintc(format) fmt_eprint(LIT(format))
 internal isize fmt_eprint(String str) {
   Builder b = builder_make(0, 8, context.temp_allocator);
   (void)fmt_sbprintf(&b, LIT("%S"), str);
   return or_else(write_bytes(&stderr, builder_to_bytes(b)), -1);
 }
 
+#define fmt_eprintlnc(format) fmt_eprintln(LIT(format))
 internal isize fmt_eprintln(String str) {
   Builder b = builder_make(0, 8, context.temp_allocator);
   (void)fmt_sbprintf(&b, LIT("%S\n"), str);
   return or_else(write_bytes(&stderr, builder_to_bytes(b)), -1);
 }
 
+#define fmt_eprintfc(format, ...) fmt_eprintf(LIT(format), __VA_ARGS__)
 internal isize fmt_eprintf(String format, ...) {
   Builder b = builder_make(0, 8, context.temp_allocator);
   va_list va_args;
@@ -816,6 +823,7 @@ internal isize fmt_eprintf(String format, ...) {
   return or_else(write_bytes(&stderr, builder_to_bytes(b)), -1);
 }
 
+#define fmt_eprintflnc(format, ...) fmt_eprintfln(LIT(format), __VA_ARGS__)
 internal isize fmt_eprintfln(String format, ...) {
   Builder b = builder_make(0, 8, context.temp_allocator);
   va_list va_args;

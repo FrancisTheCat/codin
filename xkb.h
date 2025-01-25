@@ -149,8 +149,8 @@ typedef struct {
   isize len;
 } Keymap;
 
-#define X(key, xkb_name) [key] = xkb_name,
-cstring key_names[] = {
+#define X(key, xkb_name) [key] = LIT(xkb_name),
+String key_names[] = {
     KEYS_X
 };
 #undef X
@@ -418,8 +418,7 @@ internal b8 xkb_parse_key_codes(String source, Keymap *out_keymap, Allocator all
 
         Key key = Key_Null;
         for_range(k, 0, count_of(key_names)) {
-          cstring name = key_names[k];
-          if (string_equal(cstring_to_string(name), value)) {
+          if (string_equal(key_names[k], value)) {
             key = (Key)k;
             break;
           }
@@ -441,8 +440,7 @@ internal b8 xkb_parse_key_codes(String source, Keymap *out_keymap, Allocator all
 
           key = Key_Null;
           for_range(k, 0, count_of(key_names)) {
-            cstring name = key_names[k];
-            if (string_equal(cstring_to_string(name), value)) {
+            if (string_equal(key_names[k], value)) {
               key = (Key)k;
               break;
             }
