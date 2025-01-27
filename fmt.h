@@ -693,7 +693,7 @@ internal void tracking_allocator_fmt_results_w(
   hash_map_iter(t->allocations, ptr, fa, {
     fmt_wprintf(
         w,
-        LIT("Allocation(id: %d):\nError: %S\nMode:  %S\nSize:  %d\nPtr: %x\nLoc:   %L\n\n"),
+        LIT("Allocation(id: %d):\nError: %S\nMode:  %S\nSize:  %d\nPtr:   %x\nLoc:   %L\n\n"),
         fa->id,
         enum_to_string(Allocator_Error, fa->error),
         enum_to_string(Allocator_Mode, fa->mode),
