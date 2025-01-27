@@ -36,6 +36,8 @@
                                                                                \
   X(Token_Type_If)                                                             \
   X(Token_Type_For)                                                            \
+  X(Token_Type_Var)                                                            \
+  X(Token_Type_Const)                                                          \
   X(Token_Type_Break)                                                          \
   X(Token_Type_Return)                                                         \
   X(Token_Type_Defer)                                                          \
@@ -85,7 +87,9 @@ struct {
 
   { Token_Type_Fn,       LIT("fn"),       },
   { Token_Type_Def,      LIT("type"),     },
+  { Token_Type_Var,      LIT("var"),      },
   { Token_Type_Enum,     LIT("enum"),     },
+  { Token_Type_Const,    LIT("const"),    },
   { Token_Type_Union,    LIT("union"),    },
   { Token_Type_Struct,   LIT("struct"),   },
   { Token_Type_Ignore,   LIT("_"),        },
@@ -309,115 +313,183 @@ append_token:
 }
 
 #define AST_NODE_TYPES(X) \
-  X(ANT_Ident_Expr)       \
-  X(ANT_Paren_Expr)       \
-  X(ANT_Call_Expr)        \
-  X(ANT_Unary_Expr)       \
-  X(ANT_Binary_Expr)      \
-  X(ANT_Ternary_Expr)     \
-  X(ANT_Index_Stmt)       \
-                          \
-  X(ANT_Pointer_Type)     \
-  X(ANT_Array_Type)       \
-  X(ANT_Dynamic_Array_Type)\
-  X(ANT_Struct_Type)      \
-  X(ANT_Enum_Type)        \
-  X(ANT_Union_Type)       \
-  X(ANT_Named_Type)       \
-                          \
-  X(ANT_Iterator_Stmt)    \
-  X(ANT_Block_Stmt)       \
-  X(ANT_Conditional_Stmt) \
-  X(ANT_Loop_Stmt)        \
-  X(ANT_Assign_Stmt)      \
-  X(ANT_Expr_Stmt)        \
-  X(ANT_Defer_Stmt)       \
-  X(ANT_Return_Stmt)      \
-  X(ANT_Branch_Stmt)      \
-                          \
-  X(ANT_Field)            \
-                          \
-  X(ANT_Operator_Decl)    \
-  X(ANT_Function_Decl)    \
-  X(ANT_Struct_Decl)      \
-  X(ANT_Type_Decl)        \
-  X(ANT_Import_Decl)      \
+  X(Type_Pointer)         \
+  X(Type_Array)           \
+  X(Type_Named)           \
+  X(Type_Enum)            \
+  X(Type_Struct)          \
+  X(Type_Union)           \
+  X(Type_Function)        \
+  X(Decl_Type)            \
+  X(Decl_Function)        \
+  X(Decl_Import)          \
+  X(Field)                \
 
-X_ENUM(Ast_Node_Type, AST_NODE_TYPES);
+#define AST_ENUM_TO_STRING_CASES(v) case ANT_##v: return LIT("ANT_" #v);
+#define AST_ENUM_TO_STRING(Enum, Variants)                                     \
+  ENUM_TO_STRING_PROC_DECL(Enum, v) {                                          \
+    switch (v) {                                                               \
+      Variants(AST_ENUM_TO_STRING_CASES);                                      \
+    default:                                                                   \
+      return LIT(#Enum "_Invalid");                                            \
+    }                                                                          \
+  }
 
-#define AST_BASE           \
-  Token_Location location; \
-  Ast_Node_Type  ast_type
+#define AST_ENUM_IS_VALID_CASES(v) case ANT_##v: return true;
+#define AST_ENUM_IS_VALID(Enum, Variants)                                      \
+  ENUM_IS_VALID_PROC_DECL(Enum, v) {                                           \
+    switch (v) {                                                               \
+      Variants(AST_ENUM_IS_VALID_CASES);                                       \
+    default:                                                                   \
+      return false;                                                            \
+    }                                                                          \
+  }
+
+#define AST_ENUM_VARIANTS(v) ANT_##v,
+#define AST_ENUM_VARIANTS_PRIVATE(v) internal const int NT_Ast_##v = ANT_##v;
+#define AST_ENUM(Enum, Variants)                                               \
+  typedef enum {                                                               \
+    Variants(AST_ENUM_VARIANTS) Enum##__Max_Value,                             \
+  } Enum;                                                                      \
+                                                                               \
+  Variants(AST_ENUM_VARIANTS_PRIVATE)                                          \
+                                                                               \
+  AST_ENUM_TO_STRING(Enum, Variants)                                           \
+  AST_ENUM_IS_VALID(Enum, Variants)
+
+AST_ENUM(Ast_Node_Type, AST_NODE_TYPES);
+
+typedef struct _Ast_Node Ast_Node;
+
+typedef struct _Ast_Node Ast_Expr;
+typedef struct _Ast_Node Ast_Stmt;
+typedef struct _Ast_Node Ast_Decl;
 
 typedef struct {
-  AST_BASE;
-} Ast_Node;
-
-#define AST_EXPR_BASE AST_BASE
-
-typedef struct {
-  AST_BASE;
-} Ast_Expr;
-
-typedef struct {
-  AST_BASE;
-
   String    name;
   Ast_Expr *type;
 } Ast_Field;
 
-typedef struct {
-  AST_BASE;
+typedef Vector(Ast_Field *) Field_Vector;
+typedef Vector(Ast_Stmt  *) Stmt_Vector;
 
+typedef struct {
+  Field_Vector args;
+  Field_Vector returns;
+  Stmt_Vector  *body;
+} Ast_Decl_Function;
+
+typedef struct {
+  Field_Vector args;
+  Field_Vector returns;
+} Ast_Type_Function;
+
+typedef struct {
   String    name;
   Ast_Expr *type;
 } Ast_Decl_Type;
 
 typedef struct {
-  AST_BASE;
-} Ast_Stmt;
+  String    name;
+  Ast_Expr *type;
+  Ast_Expr *value;
+  b8        constant;
+} Ast_Decl_Variable;
 
-typedef Vector(Ast_Field) Fields_Vector;
-typedef Vector(Ast_Stmt)  Stmt_Vector;
-
-typedef struct {
-  AST_BASE;
-
-  Fields_Vector args;
-  Fields_Vector returns;
-  Stmt_Vector  *body;
-} Ast_Decl_Function;
-
-typedef Ast_Node Ast_Decl;
+typedef Vector(Ast_Stmt *) Ast_Stmt_Block;
 
 typedef struct {
-  AST_BASE;
+  Vector(Ast_Stmt *) body;
+} Ast_Stmt_If;
 
+typedef struct {
   String path;
-} Ast_Import;
+} Ast_Decl_Import;
 
 typedef struct {
-  AST_EXPR_BASE;
   Ast_Expr *pointee;
 } Ast_Type_Pointer;
 
 typedef struct {
-  AST_EXPR_BASE;
-
   Ast_Expr *elem;
   Ast_Expr *count;
 } Ast_Type_Array;
 
 typedef struct {
-  AST_EXPR_BASE;
   String name;
 } Ast_Type_Named;
 
 typedef struct {
-  String             path;
-  Vector(Ast_Import) imports;
-  Vector(Ast_Decl *) decls;
+  Field_Vector fields;
+} Ast_Type_Struct;
+
+typedef struct {
+  Field_Vector variants;
+} Ast_Type_Union;
+
+typedef struct {
+  Vector(struct {
+    String    name;
+    Ast_Expr *value;
+  }) values;
+} Ast_Type_Enum;
+
+typedef struct {
+  String name;
+} Ast_Expr_Ident;
+
+typedef struct {
+  String                    path;
+  Vector(Ast_Decl_Import *) imports;
+  Vector(Ast_Decl        *) decls;
 } Ast_File;
+
+struct _Ast_Node {
+  Token_Location location;
+  Ast_Node_Type  ast_type;
+
+  union {
+    Ast_Expr_Ident    expr_ident   [0];
+    Ast_Expr_Unary    expr_unary   [0];
+    Ast_Expr_Binary   expr_binary  [0];
+    Ast_Expr_Ternary  expr_ternary [0];
+    Ast_Expr_Call     expr_call    [0];
+    Ast_Expr_Cast     expr_cast    [0];
+    Ast_Expr_Index    expr_index   [0];
+    
+    Ast_Type_Pointer  type_pointer [0];
+    Ast_Type_Array    type_array   [0];
+    Ast_Type_Named    type_named   [0];
+    Ast_Type_Struct   type_struct  [0];
+    Ast_Type_Union    type_union   [0];
+    Ast_Type_Enum     type_enum    [0];
+    Ast_Type_Function type_function[0];
+
+    Ast_Decl_Import   decl_import  [0];
+    Ast_Decl_Function decl_function[0];
+    Ast_Decl_Type     decl_type    [0];
+    Ast_Decl_Variable decl_variable[0];
+    Ast_Decl_Block    decl_block   [0];
+    Ast_Decl_If       decl_if      [0];
+    Ast_Decl_Loop     decl_loop    [0];
+    Ast_Decl_Switch   decl_switch  [0];
+
+    Ast_Field field[0];
+
+    rawptr _union_accessor[0];
+  };
+};
+
+#define ast_new(Type, _location, allocator)                                    \
+  ({                                                                           \
+    Ast_Node *ast_new_node = (Ast_Node *)(unwrap_err(mem_alloc_aligned(        \
+        size_of(Ast_Node) + size_of(Type), 8, (allocator))));                  \
+    ast_new_node->location = _location;                                        \
+    ast_new_node->ast_type = NT_##Type;                                        \
+    (Type *)&ast_new_node->_union_accessor;                                    \
+  })
+
+#define ast_base(node) (&((Ast_Node *)node)[-1])
 
 typedef struct {
   Slice(Token) tokens;
@@ -465,38 +537,64 @@ internal b8 parser_expect(Parser *parser, Token_Type type, Token *t) {
   return true;
 }
 
-internal void print_type(Ast_Expr *type) {
-  fmt_printflnc("print_type: %x", type);
-  switch (type->ast_type) {
-  case ANT_Pointer_Type: {
+internal void print_type(Ast_Expr *t) {
+  switch (t->ast_type) {
+  case ANT_Type_Function: {
+    fmt_printc("fn(");
+    vector_iter(t->type_function->args, arg, _i, {
+      fmt_printfc("%S: ", (*arg)->name);
+      print_type((*arg)->type);
+      fmt_printfc(", ", (*arg)->name);
+    });
+    fmt_printc(") -> (");
+    vector_iter(t->type_function->returns, return_, _i, {
+      fmt_printfc("%S: ", (*return_)->name);
+      print_type((*return_)->type);
+      fmt_printfc(", ", (*return_)->name);
+    });
+    fmt_printc(")");
+    break;
+  }
+  case ANT_Type_Pointer: {
     fmt_printc("^");
-    print_type(((Ast_Type_Pointer *)type)->pointee);
+    print_type(t->type_pointer->pointee);
     break;
   }
-  case ANT_Array_Type: {
+  case ANT_Type_Array: {
     fmt_printc("[]");
-    print_type(((Ast_Type_Array *)type)->elem);
+    print_type(t->type_array->elem);
     break;
   }
-  case ANT_Dynamic_Array_Type: {
-    fmt_printc("[dynamic]");
-    print_type(((Ast_Type_Array *)type)->elem);
+  case ANT_Type_Enum: {
+    fmt_printc("enum { ");
+    vector_iter(t->type_enum->values, value, _i , {
+      fmt_printfc("%S, ", value->name);
+    });
+    fmt_printc("}");
     break;
   }
-  case ANT_Struct_Type: {
-    
+  case ANT_Type_Struct: {
+    fmt_printc("struct { ");
+    vector_iter(t->type_struct->fields, field, _i, {
+      fmt_printfc("%S: ", (*field)->name);
+      print_type((*field)->type);
+      fmt_printfc(", ", (*field)->name);
+    });
+    fmt_printc("}");
     break;
   }
-  case ANT_Enum_Type: {
-    
+  case ANT_Type_Union: {
+    fmt_printc("union { ");
+    vector_iter(t->type_union->variants, field, _i, {
+      fmt_printfc("%S: ", (*field)->name);
+      print_type((*field)->type);
+      fmt_printfc(", ", (*field)->name);
+    });
+    fmt_printc("}");
     break;
   }
-  case ANT_Union_Type: {
-    
-    break;
-  }
-  case ANT_Named_Type: {
-    fmt_print(((Ast_Type_Named *)type)->name);
+  case ANT_Type_Named: {
+    fmt_print(t->type_named->name);
     break;
   }
   default:
@@ -504,13 +602,21 @@ internal void print_type(Ast_Expr *type) {
   }
 }
 
+internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
+  return nil;
+}
+
+internal Ast_Expr *parse_expr(Parser *parser, Allocator allocator) {
+  return nil;
+}
+
+internal b8 parse_fields(Parser *parser, Token_Type terminator, Field_Vector *fields, Allocator allocator);
+
 internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
   Token t = parser_advance(parser);
   switch (t.type) {
   case Token_Type_Open_Square: {
-    Ast_Type_Array *array = mem_tnew(Ast_Type_Array, allocator);
-    array->ast_type = ANT_Array_Type;
-    array->location = t.location;
+    Ast_Type_Array *array = ast_new(Ast_Type_Array, t.location, allocator);
 
     t = parser_advance(parser);
     if (t.type != Token_Type_Close_Square) {
@@ -519,31 +625,96 @@ internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
       parser_expect(parser, Token_Type_Close_Square, nil);
     }
     array->elem = parse_type(parser, allocator);
-    return (Ast_Expr *)array;
-    break;
+    return ast_base(array);
   }
-  case Token_Type_Struct:
-    unimplemented();
-    break;
-  case Token_Type_Union:
-    unimplemented();
-    break;
-  case Token_Type_Enum:
-    unimplemented();
-    break;
+  case Token_Type_Struct: {
+    Ast_Type_Struct *s = ast_new(Ast_Type_Struct, t.location, allocator);
+    vector_init(&s->fields, 0, 8, allocator);
+
+    if (!parser_expect(parser, Token_Type_Open_Squirly, nil)) {
+      break;
+    }
+    parse_fields(parser, Token_Type_Close_Squirly, &s->fields, allocator);
+
+    return ast_base(s);
+  }
+  case Token_Type_Union: {
+    Ast_Type_Union *s = ast_new(Ast_Type_Union, t.location, allocator);
+    vector_init(&s->variants, 0, 8, allocator);
+
+    if (!parser_expect(parser, Token_Type_Open_Squirly, nil)) {
+      break;
+    }
+    parse_fields(parser, Token_Type_Close_Squirly, &s->variants, allocator);
+
+    return ast_base(s);
+  }
+  case Token_Type_Enum: {
+    Ast_Type_Enum *e = ast_new(Ast_Type_Enum, t.location, allocator);
+    vector_init(&e->values, 0, 8, allocator);
+
+    if (!parser_expect(parser, Token_Type_Open_Squirly, nil)) {
+      break;
+    }
+
+    for (Token t = parser_peek(parser); t.type != Token_Type_Close_Squirly; t = parser_peek(parser)) {
+      Token ident;
+      if (!parser_expect(parser, Token_Type_Ident, &ident)) {
+        return false;
+      }
+      type_of(e->values.data[0]) v = {0};
+      v.name = ident.literal.string;
+
+      if (parser_peek(parser).type == Token_Type_Assign) {
+        parser_advance(parser);
+
+        v.value = parse_expr(parser, allocator);
+      }
+      
+      vector_append(&e->values, v);
+
+      if (!parser_peek_expect(parser, Token_Type_Comma)) {
+        break;
+      }
+      parser_advance(parser);
+    }
+    if (!parser_expect(parser, Token_Type_Close_Squirly, nil)) {
+      break;
+    }
+
+    return ast_base(e);
+  }
   case Token_Type_Pointer: {
-    Ast_Type_Pointer *pointer = mem_tnew(Ast_Type_Pointer, allocator);
-    pointer->ast_type = ANT_Pointer_Type;
-    pointer->location = t.location;
+    Ast_Type_Pointer *pointer = ast_new(Ast_Type_Pointer, t.location, allocator);
     pointer->pointee  = parse_type(parser, allocator);
-    return (Ast_Expr *)pointer;
+    return ast_base(pointer);
   }
   case Token_Type_Ident: {
-    Ast_Type_Named *type = mem_tnew(Ast_Type_Named, allocator);
-    type->location = t.location;
-    type->ast_type = ANT_Named_Type;
-    type->name     = t.literal.string;
-    return (Ast_Expr *)type;
+    Ast_Type_Named *type = ast_new(Ast_Type_Named, t.location, allocator);
+    type->name = t.literal.string;
+    return ast_base(type);
+  }
+  case Token_Type_Fn: {
+    if (!parser_expect(parser, Token_Type_Open_Paren, nil)) {
+      return false;
+    }
+
+    Field_Vector args = vector_make(Field_Vector, 0, 8, allocator);
+    parse_fields(parser, Token_Type_Close_Paren, &args, allocator);
+
+    Field_Vector returns = {0};
+    Token t2 = parser_peek(parser);
+    if (t2.type == Token_Type_Arrow) {
+      parser_advance(parser);
+      parser_expect(parser, Token_Type_Open_Paren, nil);
+      returns = vector_make(Field_Vector, 0, 8, allocator);
+      parse_fields(parser, Token_Type_Close_Paren, &returns, allocator);
+    }
+
+    Ast_Type_Function *fn = ast_new(Ast_Type_Function, t.location, allocator);
+    fn->args     = args;
+    fn->returns  = returns;
+    return ast_base(fn);
   }
   default:
     errorc(Error_Type_Syntax, t.location, "Expect type");
@@ -553,24 +724,20 @@ internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
   return nil;
 }
 
-internal b8 parse_fields(Parser *parser, Token_Type terminator, Fields_Vector *fields, Allocator allocator) {
+internal b8 parse_fields(Parser *parser, Token_Type terminator, Field_Vector *fields, Allocator allocator) {
   for (Token t = parser_peek(parser); t.type != terminator; t = parser_peek(parser)) {
     Token ident;
     if (!parser_expect(parser, Token_Type_Ident, &ident)) {
       return false;
     }
-    if (!parser_expect(parser, Token_Type_Colon, &ident)) {
+    if (!parser_expect(parser, Token_Type_Colon, nil)) {
       return false;
     }
     Ast_Expr *type = parse_type(parser, allocator);
 
-    Ast_Field field = {
-      .ast_type = ANT_Field,
-      .location = ident.location,
-      .name     = ident.literal.string,
-      .type     = type,
-    };
-
+    Ast_Field *field = ast_new(Ast_Field, ident.location, allocator);
+    field->name = ident.literal.string;
+    field->type = type;
     vector_append(fields, field);
 
     if (!parser_peek_expect(parser, Token_Type_Comma)) {
@@ -595,26 +762,23 @@ internal Ast_Decl_Function *parse_function(Parser *parser, Allocator allocator) 
     return false;
   }
 
-  Fields_Vector args = vector_make(Fields_Vector, 0, 8, allocator);
+  Field_Vector args = vector_make(Field_Vector, 0, 8, allocator);
   parse_fields(parser, Token_Type_Close_Paren, &args, allocator);
 
-  Fields_Vector returns;
+  Field_Vector returns = {0};
   Token t2 = parser_peek(parser);
   if (t2.type == Token_Type_Arrow) {
     parser_advance(parser);
     parser_expect(parser, Token_Type_Open_Paren, nil);
-    returns = vector_make(Fields_Vector, 0, 8, allocator);
+    returns = vector_make(Field_Vector, 0, 8, allocator);
     parse_fields(parser, Token_Type_Close_Paren, &returns, allocator);
   }
   parser_expect(parser, Token_Type_Open_Squirly,  nil);
   parser_expect(parser, Token_Type_Close_Squirly, nil);
 
-  Ast_Decl_Function *fn = mem_tnew(Ast_Decl_Function, allocator);
+  Ast_Decl_Function *fn = ast_new(Ast_Decl_Function, t.location, allocator);
   fn->args     = args;
   fn->returns  = returns;
-  fn->ast_type = ANT_Function_Decl;
-  fn->location = t.location;
-
   return fn;
 }
 
@@ -625,13 +789,15 @@ internal void parse_file(Parser *parser, Allocator allocator) {
     switch (t.type) {
     case Token_Type_Fn: {
       Ast_Decl_Function *func_decl = parse_function(parser, allocator);
-      vector_append(&parser->file.decls, (Ast_Decl *)func_decl);
+      vector_append(&parser->file.decls, ast_base(func_decl));
 
       vector_iter(func_decl->args, arg, i, {
-        fmt_printflnc("arg: '%S'", arg->name);
+        fmt_printfc("%S: ", (*arg)->name);
+        print_type((*arg)->type);
+        fmt_printlnc("");
       });
       vector_iter(func_decl->returns, return_value, i, {
-        fmt_printflnc("return_value: '%S'", return_value->name);
+        fmt_printflnc("return_value: '%S'", (*return_value)->name);
       });
       break;
     }
@@ -642,18 +808,11 @@ internal void parse_file(Parser *parser, Allocator allocator) {
         break;
       }
       Ast_Expr *type = parse_type(parser, allocator);
-      Ast_Decl_Type *type_decl = mem_tnew(Ast_Decl_Type, allocator);
-      type_decl->ast_type = ANT_Type_Decl;
-      type_decl->location = t.location;
-      type_decl->type     = type;
-      type_decl->name     = ident.literal.string;
-      vector_append(&parser->file.decls, (Ast_Decl *)type_decl);
+      Ast_Decl_Type *type_decl = ast_new(Ast_Decl_Type, t.location, allocator);
+      type_decl->type = type;
+      type_decl->name = ident.literal.string;
+      vector_append(&parser->file.decls, ast_base(type_decl));
       parser_expect(parser, Token_Type_Semicolon, &ident);
-
-      fmt_printflnc("type: '%x'", type_decl);
-      print_type(type);
-      fmt_printflnc("\ndecl: '%x'", (Ast_Expr *)IDX(parser->file.decls, parser->file.decls.len - 1));
-      print_type(((Ast_Decl_Type *)parser->file.decls.data[parser->file.decls.len - 1])->type);
       break;
     case Token_Type_Import:
       parser_skip(parser);
@@ -661,7 +820,8 @@ internal void parse_file(Parser *parser, Allocator allocator) {
       if (!parser_expect(parser, Token_Type_String, &t2)) {
         break;
       }
-      Ast_Import import = { .location = t.location, .ast_type = ANT_Import_Decl, .path = t2.literal.string };
+      Ast_Decl_Import *import = ast_new(Ast_Decl_Import, t.location, allocator);
+      import->path = t2.literal.string;
       vector_append(&parser->file.imports, import);
       if (!parser_expect(parser, Token_Type_Semicolon, &t2)) {
         break;
@@ -679,7 +839,7 @@ internal void parse_file(Parser *parser, Allocator allocator) {
 }
 
 i32 main() {
-  Tracking_Allocator track;
+  Tracking_Allocator track = {0};
   context.allocator = tracking_allocator_init(&track, context.allocator);
   context.logger    = create_file_logger(1);
 
@@ -693,7 +853,7 @@ i32 main() {
       fmt_eprintflnc("Failed to read file '%S': '%S'", *path, enum_to_string(OS_Error, err));
       continue;
     });
-    Token_Vector tokens = vector_make(Token_Vector, 0, 8, context.allocator);
+    Token_Vector tokens = vector_make(Token_Vector, 0, 8, context.temp_allocator);
     if (!tokenize_file(bytes_to_string(file_data), *path, &tokens)) {
       fmt_eprintflnc("Failed to tokenize file '%S'", *path);
     }
@@ -701,74 +861,21 @@ i32 main() {
     Parser parser    = {0};
     parser.tokens    = vector_to_slice(type_of(parser.tokens), tokens);
     parser.file.path = *path;
-    vector_init(&parser.file.decls, 0, 8, context.allocator);
+    vector_init(&parser.file.decls, 0, 8, context.temp_allocator);
 
     parse_file(&parser, context.temp_allocator);
 
     slice_iter(parser.file.imports, import, _i, {
-      fmt_printflnc("Import: '%S'", import->path);
+      fmt_printflnc("Import: '%S'", (*import)->path);
     });
 
-    slice_iter(parser.file.decls, decl, _i, {
-      if ((*decl)->ast_type == ANT_Type_Decl) {
-        fmt_printfc("decl: '%S = ", ((Ast_Decl_Type *)decl)->name);
-        print_type(((Ast_Decl_Type *)decl)->type);
+    slice_iter(parser.file.decls, td, _i, {
+      if ((*td)->ast_type == NT_Ast_Decl_Type) {
+        fmt_printfc("decl: '%S = ", (*td)->decl_type->name);
+        print_type((*td)->decl_type->type);
         fmt_printlnc("'");
       }
     });
-
-    // slice_iter(tokens, token, i, {
-    //   switch (token->type) {
-    //     case Token_Type_String: {
-    //       fmt_printflnc(
-    //         "%S('%S') at %d:%d",
-    //         enum_to_string(Token_Type, token->type),
-    //         token->literal.string,
-    //         token->location.line,
-    //         token->location.column
-    //       );
-    //       break;
-    //     }
-    //     case Token_Type_Float: {
-    //       fmt_printflnc(
-    //         "%S('%f') at %d:%d",
-    //         enum_to_string(Token_Type, token->type),
-    //         (f32)token->literal.decimal,
-    //         token->location.line,
-    //         token->location.column
-    //       );
-    //       break;
-    //     }
-    //     case Token_Type_Int: {
-    //       fmt_printflnc(
-    //         "%S('%d') at %d:%d",
-    //         enum_to_string(Token_Type, token->type),
-    //         token->literal.integer,
-    //         token->location.line,
-    //         token->location.column
-    //       );
-    //       break;
-    //     }
-    //     case Token_Type_Ident: {
-    //       fmt_printflnc(
-    //         "%S('%S') at %d:%d",
-    //         enum_to_string(Token_Type, token->type),
-    //         token->literal.string,
-    //         token->location.line,
-    //         token->location.column
-    //       );
-    //       break;
-    //     }
-    //     default: {
-    //       fmt_printflnc(
-    //         "%S at %d:%d",
-    //         enum_to_string(Token_Type, token->type),
-    //         token->location.line,
-    //         token->location.column
-    //       );
-    //     }
-    //   }
-    // });
   });
 
   tracking_allocator_fmt_results_w(&stdout, &track);
