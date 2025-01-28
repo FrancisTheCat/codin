@@ -34,6 +34,9 @@
   X(Token_Type_Open_Square)                                                    \
   X(Token_Type_Close_Square)                                                   \
                                                                                \
+  X(Token_Type_Cast)                                                           \
+  X(Token_Type_Transmute)                                                      \
+                                                                               \
   X(Token_Type_If)                                                             \
   X(Token_Type_For)                                                            \
   X(Token_Type_Var)                                                            \
@@ -95,6 +98,9 @@ struct {
   { Token_Type_Ignore,   LIT("_"),        },
   { Token_Type_Import,   LIT("import"),   },
   { Token_Type_Dynamic,  LIT("dynamic"),  },
+
+  { Token_Type_Cast,      LIT("cast"),      },
+  { Token_Type_Transmute, LIT("transmute"), },
 };
 
 struct {
@@ -263,7 +269,6 @@ internal b8 tokenize_file(String file, String path, Token_Vector *tokens) {
             break;
           }
         }
-        fmt_printflnc("value: %d, decimal: %f", value, decimal);
         token.literal.decimal = value + decimal;
         token.type            = Token_Type_Float;
         goto append_token;
@@ -312,18 +317,44 @@ append_token:
   return ok;
 }
 
-#define AST_NODE_TYPES(X) \
-  X(Type_Pointer)         \
-  X(Type_Array)           \
-  X(Type_Named)           \
-  X(Type_Enum)            \
-  X(Type_Struct)          \
-  X(Type_Union)           \
-  X(Type_Function)        \
-  X(Decl_Type)            \
-  X(Decl_Function)        \
-  X(Decl_Import)          \
-  X(Field)                \
+#define AST_NODE_TYPES(X)                                                      \
+  X(Expr_Ident)                                                                \
+  X(Expr_Literal)                                                              \
+  X(Expr_Unary)                                                                \
+  X(Expr_Binary)                                                               \
+  X(Expr_Ternary)                                                              \
+  X(Expr_Call)                                                                 \
+  X(Expr_Deref)                                                                \
+  X(Expr_Cast)                                                                 \
+  X(Expr_Index)                                                                \
+                                                                               \
+  X(Type_Pointer)                                                              \
+  X(Type_Array)                                                                \
+  X(Type_Named)                                                                \
+  X(Type_Struct)                                                               \
+  X(Type_Union)                                                                \
+  X(Type_Enum)                                                                 \
+  X(Type_Function)                                                             \
+                                                                               \
+  X(Decl_Import)                                                               \
+  X(Decl_Function)                                                             \
+  X(Decl_Type)                                                                 \
+  X(Decl_Variable)                                                             \
+  X(Decl_Label)                                                                \
+                                                                               \
+  X(Stmt_Defer)                                                                \
+  X(Stmt_Return)                                                               \
+  X(Stmt_Break)                                                                \
+  X(Stmt_Continue)                                                             \
+  X(Stmt_Block)                                                                \
+  X(Stmt_If)                                                                   \
+  X(Stmt_Loop)                                                                 \
+  X(Stmt_Switch)                                                               \
+  X(Stmt_Assign)                                                               \
+  X(Stmt_Expr)                                                                 \
+  X(Stmt_Decl)                                                                 \
+                                                                               \
+  X(Field)
 
 #define AST_ENUM_TO_STRING_CASES(v) case ANT_##v: return LIT("ANT_" #v);
 #define AST_ENUM_TO_STRING(Enum, Variants)                                     \
@@ -371,12 +402,12 @@ typedef struct {
 } Ast_Field;
 
 typedef Vector(Ast_Field *) Field_Vector;
-typedef Vector(Ast_Stmt  *) Stmt_Vector;
+typedef Vector(Ast_Stmt  *) Ast_Stmt_Block;
 
 typedef struct {
-  Field_Vector args;
-  Field_Vector returns;
-  Stmt_Vector  *body;
+  Field_Vector   args;
+  Field_Vector   returns;
+  Ast_Stmt_Block body;
 } Ast_Decl_Function;
 
 typedef struct {
@@ -396,11 +427,63 @@ typedef struct {
   b8        constant;
 } Ast_Decl_Variable;
 
-typedef Vector(Ast_Stmt *) Ast_Stmt_Block;
+typedef struct {
+  String    name;
+} Ast_Decl_Label;
 
 typedef struct {
-  Vector(Ast_Stmt *) body;
+  Ast_Expr      *cond;
+  Ast_Stmt_Block body;
 } Ast_Stmt_If;
+
+typedef struct {
+  Ast_Stmt *rhs;
+} Ast_Stmt_Defer;
+
+typedef struct {
+  Vector(Ast_Expr *) values;
+} Ast_Stmt_Return;
+
+typedef struct {
+  String label;
+} Ast_Stmt_Break;
+
+typedef struct {
+  String label;
+} Ast_Stmt_Continue;
+
+typedef struct {
+  Ast_Decl      *pre;
+  Ast_Expr      *cond;
+  Ast_Stmt      *post;
+  Ast_Stmt_Block body;
+} Ast_Stmt_Loop;
+
+typedef struct {
+  Ast_Expr      *lhs;
+  Field_Vector   decls;
+  Ast_Stmt_Block body;
+} Ast_Stmt_Iterator;
+
+typedef struct {
+  Vector(struct {
+    Ast_Expr      *case_;
+    Ast_Stmt_Block block;
+  }) body;
+} Ast_Stmt_Switch;
+
+typedef struct {
+  Ast_Expr *lhs;
+  Ast_Expr *rhs;
+} Ast_Stmt_Assign;
+
+typedef struct {
+  Ast_Expr *expr;
+} Ast_Stmt_Expr;
+
+typedef struct {
+  Ast_Decl *decl;
+} Ast_Stmt_Decl;
 
 typedef struct {
   String path;
@@ -439,9 +522,56 @@ typedef struct {
 } Ast_Expr_Ident;
 
 typedef struct {
-  String                    path;
-  Vector(Ast_Decl_Import *) imports;
-  Vector(Ast_Decl        *) decls;
+  Token_Type type;
+  union {
+    String string;
+    isize  integer;
+    rune   rune;
+    f64    decimal;
+  } value;
+} Ast_Expr_Literal;
+
+typedef struct {
+  Token_Type op;
+  Ast_Expr  *rhs;
+} Ast_Expr_Unary;
+
+typedef struct {
+  Token_Type op;
+  Ast_Expr  *lhs;
+  Ast_Expr  *rhs;
+} Ast_Expr_Binary;
+
+typedef struct {
+  Token_Type op;
+  Ast_Expr  *cond;
+  Ast_Expr  *lhs;
+  Ast_Expr  *rhs;
+} Ast_Expr_Ternary;
+
+typedef struct {
+  Ast_Expr        *  lhs;
+  Vector(Ast_Expr *) args;
+} Ast_Expr_Call;
+
+typedef struct {
+  Ast_Expr *lhs;
+} Ast_Expr_Deref;
+
+typedef struct {
+  Ast_Expr    *type;
+  Ast_Expr    *rhs;
+  b8           bitwise;
+} Ast_Expr_Cast;
+
+typedef struct {
+  Ast_Expr    *base;
+  Ast_Expr    *index;
+} Ast_Expr_Index;
+
+typedef struct {
+  String             path;
+  Vector(Ast_Decl *) decls;
 } Ast_File;
 
 struct _Ast_Node {
@@ -450,10 +580,12 @@ struct _Ast_Node {
 
   union {
     Ast_Expr_Ident    expr_ident   [0];
+    Ast_Expr_Literal  expr_literal [0];
     Ast_Expr_Unary    expr_unary   [0];
     Ast_Expr_Binary   expr_binary  [0];
     Ast_Expr_Ternary  expr_ternary [0];
     Ast_Expr_Call     expr_call    [0];
+    Ast_Expr_Deref    expr_deref   [0];
     Ast_Expr_Cast     expr_cast    [0];
     Ast_Expr_Index    expr_index   [0];
     
@@ -469,12 +601,19 @@ struct _Ast_Node {
     Ast_Decl_Function decl_function[0];
     Ast_Decl_Type     decl_type    [0];
     Ast_Decl_Variable decl_variable[0];
-    Ast_Decl_Block    decl_block   [0];
-    Ast_Decl_If       decl_if      [0];
-    Ast_Decl_Loop     decl_loop    [0];
-    Ast_Decl_Switch   decl_switch  [0];
+    Ast_Decl_Label    decl_label   [0];
 
-    Ast_Field field[0];
+    Ast_Stmt_Defer    stmt_defer   [0];
+    Ast_Stmt_Return   stmt_return  [0];
+    Ast_Stmt_Block    stmt_block   [0];
+    Ast_Stmt_If       stmt_if      [0];
+    Ast_Stmt_Loop     stmt_loop    [0];
+    Ast_Stmt_Switch   stmt_switch  [0];
+    Ast_Stmt_Assign   stmt_assign  [0];
+    Ast_Stmt_Expr     stmt_expr    [0];
+    Ast_Stmt_Decl     stmt_decl    [0];
+
+    Ast_Field         field[0];
 
     rawptr _union_accessor[0];
   };
@@ -537,6 +676,80 @@ internal b8 parser_expect(Parser *parser, Token_Type type, Token *t) {
   return true;
 }
 
+internal void print_expr(Ast_Expr *t) {
+  switch (t->ast_type) {
+  case ANT_Expr_Ident: {
+      fmt_print(t->expr_ident->name);
+      break;
+    }
+  case ANT_Expr_Literal: {
+      switch (t->expr_literal->type) {
+      case Token_Type_String: {
+          fmt_printfc("\"%S\"", t->expr_literal->value.string);
+          break;
+        }
+      case Token_Type_Int: {
+          fmt_printfc("%d", t->expr_literal->value.integer);
+          break;
+        }
+      case Token_Type_Rune: {
+          fmt_printfc("'%c'", t->expr_literal->value.rune);
+          break;
+        }
+      case Token_Type_Float: {
+          fmt_printfc("%d", t->expr_literal->value.decimal);
+          break;
+        }
+      default:
+        unreachable();
+      }
+      break;
+    }
+  case ANT_Expr_Unary: {
+      slice_iter(c_array_to_slice(single_char_tokens), single_char_token, _i, {
+        if (t->expr_unary->op == single_char_token->type) {
+          fmt_printfc("%c", single_char_token->c);
+        }
+      });
+      print_expr(t->expr_unary->rhs);
+      break;
+    }
+  case ANT_Expr_Binary: {
+      print_expr(t->expr_binary->lhs);
+      slice_iter(c_array_to_slice(single_char_tokens), single_char_token, _i, {
+        if (t->expr_binary->op == single_char_token->type) {
+          fmt_printfc(" %c ", single_char_token->c);
+          break;
+        }
+      });
+      print_expr(t->expr_binary->rhs);
+      break;
+    }
+  case ANT_Expr_Ternary: {
+      
+      break;
+    }
+  case ANT_Expr_Call: {
+      
+      break;
+    }
+  case ANT_Expr_Deref: {
+      
+      break;
+    }
+  case ANT_Expr_Cast: {
+      
+      break;
+    }
+  case ANT_Expr_Index: {
+      
+      break;
+    }
+  default:
+    unreachable();
+  }
+}
+
 internal void print_type(Ast_Expr *t) {
   switch (t->ast_type) {
   case ANT_Type_Function: {
@@ -561,7 +774,11 @@ internal void print_type(Ast_Expr *t) {
     break;
   }
   case ANT_Type_Array: {
-    fmt_printc("[]");
+    fmt_printc("[");
+    if (t->type_array->count) {
+      print_expr(t->type_array->count);
+    }
+    fmt_printc("]");
     print_type(t->type_array->elem);
     break;
   }
@@ -602,12 +819,187 @@ internal void print_type(Ast_Expr *t) {
   }
 }
 
-internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
-  return nil;
-}
+internal Ast_Expr *parse_atom_expr(Parser *parser, Allocator allocator);
 
 internal Ast_Expr *parse_expr(Parser *parser, Allocator allocator) {
-  return nil;
+  Token_Location start_location = parser_peek(parser).location;
+  Ast_Expr *lhs = parse_atom_expr(parser, allocator);
+
+  Token t = parser_peek(parser);
+  switch (t.type) {
+  case Token_Type_Multiply:
+  case Token_Type_Percent:
+  case Token_Type_Divide:
+  case Token_Type_Minus:
+  case Token_Type_Plus:
+  case Token_Type_And:
+  case Token_Type_Or: {
+      parser_advance(parser);
+      Ast_Expr *rhs = parse_expr(parser, allocator);
+      Ast_Expr_Binary *b = ast_new(Ast_Expr_Binary, start_location, allocator);
+      b->op  = t.type;
+      b->lhs = lhs;
+      b->rhs = rhs;
+      return ast_base(b);
+    }
+  case Token_Type_Pointer: {
+      Ast_Expr_Deref *d = ast_new(Ast_Expr_Deref, start_location, allocator);
+      d->lhs = lhs;
+      return ast_base(d);
+    }
+  case Token_Type_Open_Square: {
+      Ast_Expr_Index *i = ast_new(Ast_Expr_Index, start_location, allocator);
+      i->base = lhs;
+      parser_advance(parser);
+      i->index = parse_expr(parser, allocator);
+      parser_expect(parser, Token_Type_Close_Square, nil);
+      return ast_base(i);
+    }
+  case Token_Type_Open_Paren: {
+      Ast_Expr_Call *c = ast_new(Ast_Expr_Call, start_location, allocator);
+      c->lhs = lhs;
+      parser_advance(parser);
+      vector_init(&c->args, 0, 8, allocator);
+      while (parser_peek(parser).type != Token_Type_Close_Paren) {
+        Ast_Expr *e = parse_expr(parser, allocator);
+        vector_append(&c->args, e);
+
+        if (parser_peek(parser).type != Token_Type_Comma) {
+          break;
+        }
+        parser_advance(parser);
+      }
+      parser_expect(parser, Token_Type_Close_Paren, nil);
+      return ast_base(c);
+    }
+  default:
+    return lhs;
+  }
+}
+
+internal Ast_Expr *parse_type(Parser *parser, Allocator allocator);
+
+internal Ast_Expr *parse_atom_expr(Parser *parser, Allocator allocator) {
+  Token t = parser_advance(parser);
+
+  switch (t.type) {
+  case Token_Type_Ident: {
+      Ast_Expr_Ident *ident = ast_new(Ast_Expr_Ident, t.location, allocator);
+      ident->name = t.literal.string;
+      return ast_base(ident);
+    }
+  case Token_Type_String: {
+      Ast_Expr_Literal *literal = ast_new(Ast_Expr_Literal, t.location, allocator);
+      literal->value.string = t.literal.string;
+      literal->type         = t.type;
+      return ast_base(literal);
+    }
+  case Token_Type_Int: {
+      Ast_Expr_Literal *literal = ast_new(Ast_Expr_Literal, t.location, allocator);
+      literal->value.integer = t.literal.integer;
+      literal->type          = t.type;
+      return ast_base(literal);
+    }
+  case Token_Type_Float: {
+      Ast_Expr_Literal *literal = ast_new(Ast_Expr_Literal, t.location, allocator);
+      literal->value.decimal = t.literal.decimal;
+      literal->type          = t.type;
+      return ast_base(literal);
+    }
+  case Token_Type_Open_Paren: {
+      Ast_Expr *expr = parse_expr(parser, allocator);
+      parser_expect(parser, Token_Type_Close_Paren, nil);
+      return expr;
+    }
+  case Token_Type_Transmute:
+  case Token_Type_Cast: {
+      Ast_Expr_Cast *cast = ast_new(Ast_Expr_Cast, t.location, allocator);
+      cast->bitwise = t.type == Token_Type_Transmute;
+
+      parser_expect(parser, Token_Type_Open_Paren, nil);
+      cast->type = parse_type(parser, allocator);
+      parser_expect(parser, Token_Type_Close_Paren, nil);
+      cast->rhs = parse_expr(parser, allocator);
+
+      return ast_base(cast);
+    }
+  default:
+    errorfc(Error_Type_Syntax, t.location, "Failed to parse atomic expression: unexpected token: '%S'", t.lexeme);
+    return nil;
+  }
+
+  unreachable();
+}
+
+internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
+  Token t = parser_advance(parser);
+
+  switch (t.type) {
+  case Token_Type_Return: {
+      Ast_Stmt_Return *r = ast_new(Ast_Stmt_Return, t.location, allocator);
+      vector_init(&r->values, 0, 8, allocator);
+      while (parser_peek(parser).type != Token_Type_Semicolon) {
+        Ast_Expr *expr = parse_expr(parser, allocator);
+        vector_append(&r->values, expr);
+
+        if (parser_peek(parser).type != Token_Type_Comma) {
+          break;
+        }
+        parser_advance(parser);
+      }
+      parser_expect(parser, Token_Type_Semicolon, nil);
+      return ast_base(r);
+    }
+  case Token_Type_Continue: {
+      Ast_Stmt_Continue *c = ast_new(Ast_Stmt_Continue, t.location, allocator);
+      t = parser_advance(parser);
+      switch (t.type) {
+      case Token_Type_Semicolon: {
+        }
+      case Token_Type_Ident: {
+          c->label = t.literal.string;
+        }
+      default:
+        errorfc(
+          Error_Type_Syntax,
+          ast_base(c)->location,
+          "Expected 'continue' keyword to be followed by label or semicolon, but got '%S'",
+          t.lexeme
+        );
+        return nil;
+      }
+    }
+  case Token_Type_Break: {
+      Ast_Stmt_Break *c = ast_new(Ast_Stmt_Break, t.location, allocator);
+      t = parser_advance(parser);
+      switch (t.type) {
+      case Token_Type_Semicolon: {
+        }
+      case Token_Type_Ident: {
+          c->label = t.literal.string;
+        }
+      default:
+        errorfc(
+          Error_Type_Syntax,
+          ast_base(c)->location,
+          "Expected 'break' keyword to be followed by label or semicolon, but got '%S'",
+          t.lexeme
+        );
+        return nil;
+      }
+    }
+  case Token_Type_Defer: {
+      Ast_Stmt_Defer *defer = ast_new(Ast_Stmt_Defer, t.location, allocator);
+      defer->rhs = parse_stmt(parser, allocator);
+      return ast_base(defer);
+    }
+  default: {
+      errorfc(Error_Type_Syntax, t.location, "Unexpected token at beginning of statement: '%S'", t.lexeme);
+      return nil;
+    }
+  }
+
+  unreachable();
 }
 
 internal b8 parse_fields(Parser *parser, Token_Type terminator, Field_Vector *fields, Allocator allocator);
@@ -618,12 +1010,11 @@ internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
   case Token_Type_Open_Square: {
     Ast_Type_Array *array = ast_new(Ast_Type_Array, t.location, allocator);
 
-    t = parser_advance(parser);
+    t = parser_peek(parser);
     if (t.type != Token_Type_Close_Square) {
-      unimplemented();
-      // array->count = parse_expr(parser, allocator);
-      parser_expect(parser, Token_Type_Close_Square, nil);
+      array->count = parse_expr(parser, allocator);
     }
+    parser_expect(parser, Token_Type_Close_Square, nil);
     array->elem = parse_type(parser, allocator);
     return ast_base(array);
   }
@@ -730,17 +1121,32 @@ internal b8 parse_fields(Parser *parser, Token_Type terminator, Field_Vector *fi
     if (!parser_expect(parser, Token_Type_Ident, &ident)) {
       return false;
     }
+    i32 repeat_start = fields->len;
+    while (parser_peek(parser).type == Token_Type_Comma) {
+      Ast_Field *field = ast_new(Ast_Field, ident.location, allocator);
+      field->name = ident.literal.string;
+      field->type = nil;
+      vector_append(fields, field);
+      parser_advance(parser);
+      if (!parser_expect(parser, Token_Type_Ident, &ident)) {
+        return false;
+      }
+    }
     if (!parser_expect(parser, Token_Type_Colon, nil)) {
       return false;
     }
     Ast_Expr *type = parse_type(parser, allocator);
+
+    for_range(i, repeat_start, fields->len) {
+      IDX(*fields, i)->type = type;
+    }
 
     Ast_Field *field = ast_new(Ast_Field, ident.location, allocator);
     field->name = ident.literal.string;
     field->type = type;
     vector_append(fields, field);
 
-    if (!parser_peek_expect(parser, Token_Type_Comma)) {
+    if (parser_peek(parser).type != Token_Type_Comma) {
       break;
     }
     parser_advance(parser);
@@ -774,67 +1180,73 @@ internal Ast_Decl_Function *parse_function(Parser *parser, Allocator allocator) 
     parse_fields(parser, Token_Type_Close_Paren, &returns, allocator);
   }
   parser_expect(parser, Token_Type_Open_Squirly,  nil);
-  parser_expect(parser, Token_Type_Close_Squirly, nil);
 
   Ast_Decl_Function *fn = ast_new(Ast_Decl_Function, t.location, allocator);
-  fn->args     = args;
-  fn->returns  = returns;
+  fn->args    = args;
+  fn->returns = returns;
+  vector_init(&fn->body, 0, 8, allocator);
+
+  while (parser_peek(parser).type != Token_Type_Close_Squirly) {
+    Ast_Stmt *stmt = parse_stmt(parser, allocator);
+    vector_append(&fn->body, stmt);
+  }
+  
+  parser_expect(parser, Token_Type_Close_Squirly, nil);
+
   return fn;
 }
 
-internal void parse_file(Parser *parser, Allocator allocator) {
-  while (parser->current < parser->tokens.len) {
-    Token t = parser_peek(parser);
+internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
+  Token t = parser_peek(parser);
 
-    switch (t.type) {
-    case Token_Type_Fn: {
+  switch (t.type) {
+  case Token_Type_Fn: {
       Ast_Decl_Function *func_decl = parse_function(parser, allocator);
-      vector_append(&parser->file.decls, ast_base(func_decl));
-
-      vector_iter(func_decl->args, arg, i, {
-        fmt_printfc("%S: ", (*arg)->name);
-        print_type((*arg)->type);
-        fmt_printlnc("");
-      });
-      vector_iter(func_decl->returns, return_value, i, {
-        fmt_printflnc("return_value: '%S'", (*return_value)->name);
-      });
-      break;
+      return ast_base(func_decl);
     }
-    case Token_Type_Def:
+  case Token_Type_Def: {
       parser_skip(parser);
       Token ident;
       if (!parser_expect(parser, Token_Type_Ident, &ident)) {
-        break;
+        return nil;
       }
       Ast_Expr *type = parse_type(parser, allocator);
       Ast_Decl_Type *type_decl = ast_new(Ast_Decl_Type, t.location, allocator);
       type_decl->type = type;
       type_decl->name = ident.literal.string;
-      vector_append(&parser->file.decls, ast_base(type_decl));
       parser_expect(parser, Token_Type_Semicolon, &ident);
-      break;
-    case Token_Type_Import:
+
+      return ast_base(type_decl);
+    }
+  case Token_Type_Import: {
       parser_skip(parser);
       Token t2;
       if (!parser_expect(parser, Token_Type_String, &t2)) {
-        break;
+        return nil;
       }
       Ast_Decl_Import *import = ast_new(Ast_Decl_Import, t.location, allocator);
       import->path = t2.literal.string;
-      vector_append(&parser->file.imports, import);
       if (!parser_expect(parser, Token_Type_Semicolon, &t2)) {
-        break;
+        return nil;
       }
-      break;
-
-    case Token_Type_EOF:
-      return;
-
-    default:
-      parser_skip(parser);
-      errorfc(Error_Type_Syntax, t.location, "Unexpected token at file scope: '%S'", t.lexeme);
+      return ast_base(import);
     }
+  case Token_Type_Semicolon:
+  case Token_Type_EOF:
+    return nil;
+
+  default:
+    parser_skip(parser);
+    errorfc(Error_Type_Syntax, t.location, "Unexpected token in declaration: '%S'", t.lexeme);
+  }
+
+  unreachable();
+}
+
+internal void parse_file(Parser *parser, Allocator allocator) {
+  while (parser->current < parser->tokens.len) {
+    Ast_Decl *decl = parse_decl(parser, allocator);
+    vector_append(&parser->file.decls, decl);
   }
 }
 
@@ -861,18 +1273,17 @@ i32 main() {
     Parser parser    = {0};
     parser.tokens    = vector_to_slice(type_of(parser.tokens), tokens);
     parser.file.path = *path;
-    vector_init(&parser.file.decls, 0, 8, context.temp_allocator);
+    vector_init(&parser.file.decls,   0, 8, context.temp_allocator);
 
     parse_file(&parser, context.temp_allocator);
 
-    slice_iter(parser.file.imports, import, _i, {
-      fmt_printflnc("Import: '%S'", (*import)->path);
-    });
-
-    slice_iter(parser.file.decls, td, _i, {
-      if ((*td)->ast_type == NT_Ast_Decl_Type) {
-        fmt_printfc("decl: '%S = ", (*td)->decl_type->name);
-        print_type((*td)->decl_type->type);
+    slice_iter(parser.file.decls, d, _i, {
+      if ((*d)->ast_type == ANT_Decl_Import) {
+        fmt_printflnc("Import: '%S'", (*d)->decl_import->path);
+      }
+      if ((*d)->ast_type == ANT_Decl_Type) {
+        fmt_printfc("decl: '%S = ", (*d)->decl_type->name);
+        print_type((*d)->decl_type->type);
         fmt_printlnc("'");
       }
     });
