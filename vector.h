@@ -142,7 +142,8 @@ typedef Vector(byte) Byte_Buffer;
     removed_item;                                                              \
   })
 
-#define vector_iter slice_iter
+#define vector_iter   slice_iter
+#define vector_iter_v slice_iter_v
 
 #define vector_to_slice(Type, _vector)                                         \
   ({                                                                           \

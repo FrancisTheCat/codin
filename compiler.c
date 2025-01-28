@@ -214,9 +214,9 @@ internal b8 tokenize_file(String file, String path, Token_Vector *tokens) {
       goto append_token;
     }
 
-    slice_iter(c_array_to_slice(single_char_tokens), single_char_token, _i, {
-       if (c == single_char_token->c) {
-         token.type = single_char_token->type;
+    slice_iter_v(c_array_to_slice(single_char_tokens), single_char_token, _i, {
+       if (c == single_char_token.c) {
+         token.type = single_char_token.type;
          current   += 1;
          goto append_token;
        }
@@ -289,9 +289,9 @@ internal b8 tokenize_file(String file, String path, Token_Vector *tokens) {
       token.literal.string = slice_range(file, start, current);
       token.type           = Token_Type_Ident;
       
-      slice_iter(c_array_to_slice(keyword_strings), keyword_string, _i, {
-         if (string_equal(token.literal.string, keyword_string->string)) {
-           token.type = keyword_string->type;
+      slice_iter_v(c_array_to_slice(keyword_strings), keyword_string, _i, {
+         if (string_equal(token.literal.string, keyword_string.string)) {
+           token.type = keyword_string.type;
            break;
          }
       });
@@ -351,10 +351,11 @@ append_token:
   X(Stmt_Loop)                                                                 \
   X(Stmt_Switch)                                                               \
   X(Stmt_Assign)                                                               \
-  X(Stmt_Expr)                                                                 \
-  X(Stmt_Decl)                                                                 \
-                                                                               \
   X(Field)
+
+// X(Stmt_Expr)                                                                 \
+// X(Stmt_Decl)                                                                 \
+//                                                                              \
 
 #define AST_ENUM_TO_STRING_CASES(v) case ANT_##v: return LIT("ANT_" #v);
 #define AST_ENUM_TO_STRING(Enum, Variants)                                     \
@@ -405,6 +406,7 @@ typedef Vector(Ast_Field *) Field_Vector;
 typedef Vector(Ast_Stmt  *) Ast_Stmt_Block;
 
 typedef struct {
+  String         name;
   Field_Vector   args;
   Field_Vector   returns;
   Ast_Stmt_Block body;
@@ -706,9 +708,9 @@ internal void print_expr(Ast_Expr *t) {
       break;
     }
   case ANT_Expr_Unary: {
-      slice_iter(c_array_to_slice(single_char_tokens), single_char_token, _i, {
-        if (t->expr_unary->op == single_char_token->type) {
-          fmt_printfc("%c", single_char_token->c);
+      slice_iter_v(c_array_to_slice(single_char_tokens), single_char_token, _i, {
+        if (t->expr_unary->op == single_char_token.type) {
+          fmt_printfc("%c", single_char_token.c);
         }
       });
       print_expr(t->expr_unary->rhs);
@@ -716,9 +718,9 @@ internal void print_expr(Ast_Expr *t) {
     }
   case ANT_Expr_Binary: {
       print_expr(t->expr_binary->lhs);
-      slice_iter(c_array_to_slice(single_char_tokens), single_char_token, _i, {
-        if (t->expr_binary->op == single_char_token->type) {
-          fmt_printfc(" %c ", single_char_token->c);
+      slice_iter_v(c_array_to_slice(single_char_tokens), single_char_token, _i, {
+        if (t->expr_binary->op == single_char_token.type) {
+          fmt_printfc(" %c ", single_char_token.c);
           break;
         }
       });
@@ -754,16 +756,16 @@ internal void print_type(Ast_Expr *t) {
   switch (t->ast_type) {
   case ANT_Type_Function: {
     fmt_printc("fn(");
-    vector_iter(t->type_function->args, arg, _i, {
-      fmt_printfc("%S: ", (*arg)->name);
-      print_type((*arg)->type);
-      fmt_printfc(", ", (*arg)->name);
+    vector_iter_v(t->type_function->args, arg, _i, {
+      fmt_printfc("%S: ", arg->name);
+      print_type(arg->type);
+      fmt_printfc(", ", arg->name);
     });
     fmt_printc(") -> (");
-    vector_iter(t->type_function->returns, return_, _i, {
-      fmt_printfc("%S: ", (*return_)->name);
-      print_type((*return_)->type);
-      fmt_printfc(", ", (*return_)->name);
+    vector_iter_v(t->type_function->returns, return_, _i, {
+      fmt_printfc("%S: ", return_->name);
+      print_type(return_->type);
+      fmt_printfc(", ", return_->name);
     });
     fmt_printc(")");
     break;
@@ -784,28 +786,28 @@ internal void print_type(Ast_Expr *t) {
   }
   case ANT_Type_Enum: {
     fmt_printc("enum { ");
-    vector_iter(t->type_enum->values, value, _i , {
-      fmt_printfc("%S, ", value->name);
+    vector_iter_v(t->type_enum->values, value, _i , {
+      fmt_printfc("%S, ", value.name);
     });
     fmt_printc("}");
     break;
   }
   case ANT_Type_Struct: {
     fmt_printc("struct { ");
-    vector_iter(t->type_struct->fields, field, _i, {
-      fmt_printfc("%S: ", (*field)->name);
-      print_type((*field)->type);
-      fmt_printfc(", ", (*field)->name);
+    vector_iter_v(t->type_struct->fields, field, _i, {
+      fmt_printfc("%S: ", field->name);
+      print_type(field->type);
+      fmt_printfc(", ", field->name);
     });
     fmt_printc("}");
     break;
   }
   case ANT_Type_Union: {
     fmt_printc("union { ");
-    vector_iter(t->type_union->variants, field, _i, {
-      fmt_printfc("%S: ", (*field)->name);
-      print_type((*field)->type);
-      fmt_printfc(", ", (*field)->name);
+    vector_iter_v(t->type_union->variants, field, _i, {
+      fmt_printfc("%S: ", field->name);
+      print_type(field->type);
+      fmt_printfc(", ", field->name);
     });
     fmt_printc("}");
     break;
@@ -931,11 +933,14 @@ internal Ast_Expr *parse_atom_expr(Parser *parser, Allocator allocator) {
   unreachable();
 }
 
+internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator);
+
 internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
-  Token t = parser_advance(parser);
+  Token t = parser_peek(parser);
 
   switch (t.type) {
   case Token_Type_Return: {
+      parser_skip(parser);
       Ast_Stmt_Return *r = ast_new(Ast_Stmt_Return, t.location, allocator);
       vector_init(&r->values, 0, 8, allocator);
       while (parser_peek(parser).type != Token_Type_Semicolon) {
@@ -951,6 +956,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
       return ast_base(r);
     }
   case Token_Type_Continue: {
+      parser_skip(parser);
       Ast_Stmt_Continue *c = ast_new(Ast_Stmt_Continue, t.location, allocator);
       t = parser_advance(parser);
       switch (t.type) {
@@ -970,6 +976,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
       }
     }
   case Token_Type_Break: {
+      parser_skip(parser);
       Ast_Stmt_Break *c = ast_new(Ast_Stmt_Break, t.location, allocator);
       t = parser_advance(parser);
       switch (t.type) {
@@ -989,11 +996,33 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
       }
     }
   case Token_Type_Defer: {
+      parser_skip(parser);
       Ast_Stmt_Defer *defer = ast_new(Ast_Stmt_Defer, t.location, allocator);
       defer->rhs = parse_stmt(parser, allocator);
       return ast_base(defer);
     }
+  case Token_Type_Open_Paren:
+  case Token_Type_Ident: {
+      Ast_Stmt_Assign *assign = ast_new(Ast_Stmt_Assign, t.location, allocator);
+      assign->lhs = parse_expr(parser, allocator);
+      parser_expect(parser, Token_Type_Assign, nil);
+      assign->rhs = parse_expr(parser, allocator);
+
+      parser_expect(parser, Token_Type_Semicolon, nil);
+
+      return ast_base(assign);
+    }
+  case Token_Type_Fn:
+  case Token_Type_Def:
+  case Token_Type_Const:
+  case Token_Type_Var: {
+      // Ast_Stmt_Decl *s = ast_new(Ast_Stmt_Decl, t.location, allocator);
+      // s->decl = parse_decl(parser, allocator);
+      // return ast_base(s);
+      return parse_decl(parser, allocator);
+    }
   default: {
+      parser_skip(parser);
       errorfc(Error_Type_Syntax, t.location, "Unexpected token at beginning of statement: '%S'", t.lexeme);
       return nil;
     }
@@ -1182,6 +1211,7 @@ internal Ast_Decl_Function *parse_function(Parser *parser, Allocator allocator) 
   parser_expect(parser, Token_Type_Open_Squirly,  nil);
 
   Ast_Decl_Function *fn = ast_new(Ast_Decl_Function, t.location, allocator);
+  fn->name    = ident.literal.string;
   fn->args    = args;
   fn->returns = returns;
   vector_init(&fn->body, 0, 8, allocator);
@@ -1203,6 +1233,27 @@ internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
   case Token_Type_Fn: {
       Ast_Decl_Function *func_decl = parse_function(parser, allocator);
       return ast_base(func_decl);
+    }
+  case Token_Type_Const:
+  case Token_Type_Var: {
+      parser_advance(parser);
+      Ast_Decl_Variable *var = ast_new(Ast_Decl_Variable, t.location, allocator);
+      var->constant = t.type == Token_Type_Const;
+
+      Token ident;
+      parser_expect(parser, Token_Type_Ident, &ident);
+      var->name = ident.literal.string;
+      parser_expect(parser, Token_Type_Colon, nil);
+      var->type = parse_type(parser, allocator);
+      if (parser_peek(parser).type == Token_Type_Assign || t.type == Token_Type_Const) {
+        parser_expect(parser, Token_Type_Assign, nil);
+
+        var->value = parse_expr(parser, allocator);
+      }
+
+      parser_expect(parser, Token_Type_Semicolon, nil);
+      
+      return ast_base(var);
     }
   case Token_Type_Def: {
       parser_skip(parser);
@@ -1251,8 +1302,7 @@ internal void parse_file(Parser *parser, Allocator allocator) {
 }
 
 i32 main() {
-  Tracking_Allocator track = {0};
-  context.allocator = tracking_allocator_init(&track, context.allocator);
+  context.allocator = panic_allocator();
   context.logger    = create_file_logger(1);
 
   if (os_args.len < 2) {
@@ -1260,36 +1310,58 @@ i32 main() {
     os_exit(1);
   }
 
-  slice_iter(slice_start(os_args, 1), path, _i, {
-    Byte_Slice file_data = or_do_err(read_entire_file_path(*path, context.temp_allocator), err, {
-      fmt_eprintflnc("Failed to read file '%S': '%S'", *path, enum_to_string(OS_Error, err));
+  slice_iter_v(slice_start(os_args, 1), path, _i, {
+    Byte_Slice file_data = or_do_err(read_entire_file_path(path, context.temp_allocator), err, {
+      fmt_eprintflnc("Failed to read file '%S': '%S'", path, enum_to_string(OS_Error, err));
       continue;
     });
     Token_Vector tokens = vector_make(Token_Vector, 0, 8, context.temp_allocator);
-    if (!tokenize_file(bytes_to_string(file_data), *path, &tokens)) {
-      fmt_eprintflnc("Failed to tokenize file '%S'", *path);
+    if (!tokenize_file(bytes_to_string(file_data), path, &tokens)) {
+      fmt_eprintflnc("Failed to tokenize file '%S'", path);
     }
 
     Parser parser    = {0};
     parser.tokens    = vector_to_slice(type_of(parser.tokens), tokens);
-    parser.file.path = *path;
+    parser.file.path = path;
     vector_init(&parser.file.decls,   0, 8, context.temp_allocator);
 
     parse_file(&parser, context.temp_allocator);
 
-    slice_iter(parser.file.decls, d, _i, {
-      if ((*d)->ast_type == ANT_Decl_Import) {
-        fmt_printflnc("Import: '%S'", (*d)->decl_import->path);
+    slice_iter_v(parser.file.decls, d, _i, {
+      if (d->ast_type == ANT_Decl_Import) {
+        fmt_printflnc("Import: '%S'", d->decl_import->path);
       }
-      if ((*d)->ast_type == ANT_Decl_Type) {
-        fmt_printfc("decl: '%S = ", (*d)->decl_type->name);
-        print_type((*d)->decl_type->type);
+      if (d->ast_type == ANT_Decl_Type) {
+        fmt_printfc("decl: '%S = ", d->decl_type->name);
+        print_type(d->decl_type->type);
+        fmt_printlnc("'");
+      }
+      if (d->ast_type == ANT_Decl_Function) {
+        fmt_printflnc("fn: %S(...) -> (...)", d->decl_function->name);
+
+        slice_iter_v(d->decl_function->body, d2, _i2, {
+          if (d2->ast_type == ANT_Decl_Import) {
+            fmt_printflnc("Import: '%S'", d2->decl_import->path);
+          }
+          if (d2->ast_type == ANT_Decl_Type) {
+            fmt_printfc("decl: '%S = ", d2->decl_type->name);
+            print_type(d2->decl_type->type);
+            fmt_printlnc("'");
+          }
+          if (d2->ast_type == ANT_Decl_Variable) {
+            fmt_printfc("var: '%S: ", d2->decl_variable->name);
+            print_type(d2->decl_variable->type);
+            fmt_printlnc("'");
+          }
+        });
+      }
+      if (d->ast_type == ANT_Decl_Variable) {
+        fmt_printfc("var: '%S: ", d->decl_variable->name);
+        print_type(d->decl_variable->type);
         fmt_printlnc("'");
       }
     });
   });
 
-  tracking_allocator_fmt_results_w(&stdout, &track);
-  tracking_allocator_destroy(track);
   return 0;
 }

@@ -153,6 +153,12 @@ internal Byte_Slice pointer_to_bytes(rawptr data, isize size, isize count) {
     { BLOCK }                                                                  \
   }                                                                            \
   
+#define slice_iter_v(slice, elem, i, BLOCK)                                    \
+  for (isize i = 0; i < (slice).len; i++) {                                    \
+    type_of(*(slice).data) elem = (slice).data[i];                             \
+    { BLOCK }                                                                  \
+  }                                                                            \
+  
 
 [[nodiscard]]
 internal Byte_Slice bytes_concatenate(Byte_Slice a, Byte_Slice b,

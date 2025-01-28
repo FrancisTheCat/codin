@@ -359,7 +359,7 @@ internal _Thread_local Default_Allocator       __default_heap_allocator;
 internal void __thread_init() {
   context.allocator = default_allocator_init(&__default_heap_allocator);
   context.temp_allocator = growing_arena_allocator_init(
-      &__default_temp_allocator_arena, 1 << 12, context.allocator);
+      &__default_temp_allocator_arena, 1 << 16, context.allocator);
   context.logger = create_file_logger(1);
 }
 
