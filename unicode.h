@@ -7,7 +7,7 @@ internal rune utf8_first_rune(String str, isize *n) {
     }
     return 0;
   }
-  u8 first = IDX(str, 0);
+  u8 first = *IDX(str, 0);
   if ((first & 0x80) == 0) {
     if (n) {
     *n = 1;
@@ -37,12 +37,12 @@ internal rune utf8_first_rune(String str, isize *n) {
   }
 
   u8   mask = 0x1F >> (len - 3);
-  rune value = IDX(str, 0) & mask;
+  rune value = *IDX(str, 0) & mask;
 
   mask = 0x3F;
   for_range(i, 1, len) {
     value <<= 6;
-    value |= IDX(str, i) & mask;
+    value |= *IDX(str, i) & mask;
   }
   return value;
 }

@@ -1,5 +1,9 @@
 #include "codin.h"
 
+#define FD_STDIN  0
+#define FD_STDOUT 1
+#define FD_STDERR 2
+
 #define EPERM    1	/* Operation not permitted */
 #define ENOENT   2	/* No such file or directory */
 #define ESRCH    3	/* No such process */
@@ -307,9 +311,9 @@ internal OS_Result_Pid _create_process(String path,
 
   syscall(SYS_close, pipe_fds[0]);
 
-  syscall(SYS_dup2, args->stdin,  0);
-  syscall(SYS_dup2, args->stdout, 1);
-  syscall(SYS_dup2, args->stderr, 2);
+  syscall(SYS_dup2, args->stdin,  FD_STDIN );
+  syscall(SYS_dup2, args->stdout, FD_STDOUT);
+  syscall(SYS_dup2, args->stderr, FD_STDERR);
 
   cstring c_path = string_to_cstring_clone(path, context.temp_allocator);
 

@@ -105,11 +105,10 @@ internal Allocator_Result arena_allocator_proc(
 }
 
 [[nodiscard]]
-internal Allocator arena_allocator_init(Arena_Allocator *arena, isize capacity,
-                                        Allocator backing_allocator) {
-  arena->data = (byte *)unwrap_err(mem_alloc(capacity, backing_allocator));
-  mem_zero(arena->data, capacity);
-  arena->allocated = capacity;
+internal Allocator arena_allocator_init(Arena_Allocator *arena, Byte_Slice data) {
+  arena->data = data.data;
+  mem_zero(data.data, data.len);
+  arena->allocated = data.len;
   arena->used = 0;
   return (Allocator) {
       arena_allocator_proc,

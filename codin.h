@@ -31,6 +31,10 @@
 #define count_of(...) (size_of(__VA_ARGS__) / size_of(*__VA_ARGS__))
 #define align_of(...) __alignof__(__VA_ARGS__)
 
+#define SWITCH(v) switch (v)
+#define CASE    break; case
+#define DEFAULT break; default
+
 #define min(_A, _B)                                                            \
   ({                                                                           \
     type_of(_A) __A = (_A);                                                    \

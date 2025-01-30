@@ -18,7 +18,7 @@ internal String get_env(String key) {
   return (String) {.len = 0};
 }
 
-#define stdin __stdin
+#define stdin  __stdin
 #define stdout __stdout
 #define stderr __stderr
 

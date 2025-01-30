@@ -764,7 +764,7 @@ internal void tracking_allocator_fmt_results_w(
 
 //NOLINTEND
 
-#define fmt_printc(format) fmt_print(LIT(format))
+#define fmt_printc(format) fmt_print(LIT((format)))
 internal isize fmt_print(String str) {
   Builder b = builder_make(0, 8, context.temp_allocator);
   (void)fmt_sbprintf(&b, LIT("%S"), str);

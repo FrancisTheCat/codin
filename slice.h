@@ -2,7 +2,7 @@
 
 #define c_array_to_slice(arr) ((Slice(typeof(*arr))) { .data = arr, .len = count_of(arr) })
 
-#define IDX(arr, i) (({ assert((i) >= 0); assert((i) < (arr).len); }), (arr).data[(i)])
+#define IDX(arr, i) (({ assert((i) >= 0); assert((i) < (arr).len); }), &(arr).data[(i)])
 
 #define Array(T, N) struct {                                                   \
   T data[N];                                                                   \
@@ -150,13 +150,13 @@ internal Byte_Slice pointer_to_bytes(rawptr data, isize size, isize count) {
 #define slice_iter(slice, elem, i, BLOCK)                                      \
   for (isize i = 0; i < (slice).len; i++) {                                    \
     type_of((slice).data) elem = &(slice).data[i];                             \
-    { BLOCK }                                                                  \
+    { BLOCK; }                                                                 \
   }                                                                            \
   
 #define slice_iter_v(slice, elem, i, BLOCK)                                    \
   for (isize i = 0; i < (slice).len; i++) {                                    \
     type_of(*(slice).data) elem = (slice).data[i];                             \
-    { BLOCK }                                                                  \
+    { BLOCK; }                                                                 \
   }                                                                            \
   
 
