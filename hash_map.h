@@ -85,7 +85,7 @@ internal u64 default_hasher(rawptr data, uintptr seed, isize N) {
     isize index = hash % map_.cap;                                             \
     type_of(map_.data->value) *value = nil;                                    \
                                                                                \
-    for (;; index = (index + 1) % map_.cap) {                                  \
+    for (;map_.cap; index = (index + 1) % map_.cap) {                          \
       type_of(map_.data) entry = &map_.data[index];                            \
       if (!entry->hash) { break; }                                             \
       if (_hash_compare_entry(map_, entry, key_, hash)) {                      \
@@ -104,7 +104,7 @@ internal u64 default_hasher(rawptr data, uintptr seed, isize N) {
     isize index = hash % map_.cap;                                             \
     b8 contains = false;                                                       \
                                                                                \
-    for (;; index = (index + 1) % map_.cap) {                                  \
+    for (;map_.cap; index = (index + 1) % map_.cap) {                          \
       type_of(map_.data) entry = &map_.data[index];                            \
       if (!entry->hash) { break; }                                             \
       if (_hash_compare_entry(map_, entry, key_, hash)) {                      \
@@ -120,8 +120,9 @@ internal u64 default_hasher(rawptr data, uintptr seed, isize N) {
     type_of(KEY  ) key_   = (KEY);                                             \
     type_of(MAP  ) map_   = (MAP);                                             \
     type_of(VALUE) value_ = (VALUE);                                           \
-    if (map_->len * 3 > map_->cap * 2) {                                       \
-      isize cap_ = 2 * map_->cap;                                              \
+    if (!map_->allocator.proc) { map_->allocator = context.allocator; }        \
+    if (map_->len * 3 >= map_->cap * 2) {                                      \
+      isize cap_ = max(64, 2 * map_->cap);                                     \
       type_of(map_->data) new_data = (type_of(map_->data))unwrap_err(          \
           mem_alloc(sizeof(*(map_->data)) * cap_, map_->allocator));           \
       for_range(i, 0, map_->cap) {                                             \
@@ -167,13 +168,13 @@ internal u64 default_hasher(rawptr data, uintptr seed, isize N) {
 
 #define hash_map_remove(MAP, KEY)                                              \
   ({                                                                           \
-    b8 ok;                                                                     \
+    b8 ok = false;                                                             \
     type_of(KEY  ) key_   = (KEY);                                             \
     type_of(MAP  ) map_   = (MAP);                                             \
     u64 hash = _hash_map_hash((*map_), key_);                                  \
     isize index = hash % map_->cap;                                            \
                                                                                \
-    for (;; index = (index + 1) % map_->cap) {                                 \
+    for (;map_->cap; index = (index + 1) % map_->cap) {                        \
       type_of(map_->data) entry = &map_->data[index];                          \
       if (!entry->hash) {                                                      \
         ok = false;                                                            \
@@ -220,21 +221,15 @@ internal u64 default_hasher(rawptr data, uintptr seed, isize N) {
   }
 
 #define hash_map_iter(map, key_, value_, BLOCK)                                \
-  {                                                                            \
-    for (                                                                      \
-      isize _hash_map_iter_index = 0;                                          \
-      _hash_map_iter_index < (map).cap;                                        \
-      _hash_map_iter_index += 1                                                \
-    ) {                                                                        \
-      type_of(map.data) _hash_map_iter_entry =                                 \
-        &map.data[_hash_map_iter_index];                                       \
-      type_of(_hash_map_iter_entry->key)    key_   =                           \
-        _hash_map_iter_entry->key;                                             \
-      type_of(&_hash_map_iter_entry->value) value_ =                           \
-        &_hash_map_iter_entry->value;                                          \
-      if (_hash_map_iter_entry->hash > 1) { BLOCK; }                           \
-    }                                                                          \
-  }
+  for_range(_hash_map_iter_index, 0, (map).cap) {                              \
+    type_of(map.data) _hash_map_iter_entry =                                   \
+      &map.data[_hash_map_iter_index];                                         \
+    type_of(_hash_map_iter_entry->key)    key_   =                             \
+      _hash_map_iter_entry->key;                                               \
+    type_of(&_hash_map_iter_entry->value) value_ =                             \
+      &_hash_map_iter_entry->value;                                            \
+    if (_hash_map_iter_entry->hash > 1) { BLOCK; }                             \
+  }                                                                            \
 
 internal u64 cstring_hash(cstring value) {
   isize len = cstring_len(value);

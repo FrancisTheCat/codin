@@ -135,8 +135,6 @@ internal Allocator_Error _mem_free(rawptr ptr, isize size, Allocator allocator,
   // }
   assert(allocator.proc);
   return allocator.proc(allocator.data, AM_Free, size, 0, ptr, location).err;
-  // free(ptr);
-  // return AE_None;
 }
 
 #define mem_resize(data, old_size, new_size, allocator)                        \

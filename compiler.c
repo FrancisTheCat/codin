@@ -1061,6 +1061,10 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
 
           return ast_base(assign);
         }
+      case Token_Type_Semicolon: { // maybe we should have an expression statement ast node
+          parser_advance(parser);
+          return ast_base(lhs);
+        }
       default:
         unreachable();
       }
@@ -1955,13 +1959,17 @@ internal Type *resolve_ast_type(Ast_Expr *t, Checker_Scope *scope, Allocator all
     isize offset    = 0;
     isize max_align = 0;
     slice_iter_v(t->type_struct->fields, field, i, {
+      Type *field_type = resolve_ast_type(field->type, scope, allocator);
+      offset = (offset + field_type->align - 1) & ~(field_type->align - 1);
+
       IDX(s->fields, i)->name   = field->name;
-      IDX(s->fields, i)->type   = resolve_ast_type(field->type, scope, allocator);
+      IDX(s->fields, i)->type   = field_type;
       IDX(s->fields, i)->offset = offset;
 
       offset   += IDX(s->fields, i)->type->size;
       max_align = max(max_align, IDX(s->fields, i)->type->align);
     });
+    offset = (offset + max_align - 1) & ~(max_align - 1);
     return type_base(s, offset, max_align);
   }
   CASE ANT_Type_Union: {
@@ -2001,8 +2009,39 @@ internal Type *new_basic_type(Basic_Type_Kind kind, isize size, isize align, All
   return type_base(b, size, align);
 }
 
-internal void type_check_function_decl(Ast_Decl_Function *function, Checker_Scope *cs, Allocator allocator) {
-  
+internal Type_Function *type_check_function_decl(Ast_Decl_Function *function, Checker_Scope *cs, Allocator allocator) {
+  Type_Function *f = type_new(Function, allocator);
+  slice_init(&f->args,    function->args.len,    allocator);
+  slice_init(&f->returns, function->returns.len, allocator);
+
+  Checker_Scope scope = {
+    .parent = cs,
+  };
+  scope.variables.allocator = allocator;
+  scope.types.allocator = allocator;
+
+  slice_iter_v(function->args, arg, i, {
+    f->args.data[i].type = resolve_ast_type(arg->type, cs, allocator);
+    f->args.data[i].name = arg->name;
+
+    hash_map_insert(&scope.variables, f->args.data[i].name, f->args.data[i].type);
+  });
+  slice_iter_v(function->returns, ret, i, {
+    f->returns.data[i].type = resolve_ast_type(ret->type, cs, allocator);
+    f->returns.data[i].name = ret->name;
+
+    hash_map_insert(&scope.variables, f->returns.data[i].name, f->returns.data[i].type);
+  });
+
+  hash_map_iter(scope.types, name, type, {
+    fmt_printflnc("%S:\tType: %12S, Size: %2d, Align: %2d", function->name, name, (*type)->size, (*type)->align);
+  });
+
+  hash_map_iter(scope.variables, name, type, {
+    fmt_printflnc("%S:\tVar:  %12S, Size: %2d, Align: %2d", function->name, name, (*type)->size, (*type)->align);
+  });
+
+  return f;
 }
 
 internal void type_check_variable_decl(Ast_Decl_Variable *variable, Checker_Scope *cs, Allocator allocator) {
@@ -2054,13 +2093,16 @@ internal b8 type_check_file(Ast_File file, Allocator allocator) {
   b8 ok = true;
 
   Checker_Scope cs = {0};
-  hash_map_init(&cs.variables, 128, string_equal, string_hash, allocator);
-  hash_map_init(&cs.types    , 128, string_equal, string_hash, allocator);
+  hash_map_init(&cs.variables, 64, string_equal, string_hash, allocator);
+  hash_map_init(&cs.types    , 64, string_equal, string_hash, allocator);
 
   // TODO(Franz): set int, uint and pointer types to platform specific values
-  
-  #define BASIC_TYPE(name, size, align)                                                            \
-    hash_map_insert(&cs.types, LIT(name), new_basic_type(Basic_Type_Int, size, align, allocator)); \
+
+  #define BASIC_TYPE(name, size, align)                                          \
+    {                                                                            \
+      Type *t = new_basic_type(Basic_Type_Int, size, align, allocator);          \
+      hash_map_insert(&cs.types, LIT(name), t);                                  \
+    }
 
   BASIC_TYPE("i8",      1, 1);
   BASIC_TYPE("i16",     2, 2);
@@ -2131,6 +2173,8 @@ i32 main() {
   context.allocator = panic_allocator();
   context.logger    = create_file_logger(FD_STDERR);
 
+  struct Time start = time_now();
+
   // context.temp_allocator.proc = printing_allocator_proc;
 
   if (os_args.len < 2) {
@@ -2183,6 +2227,8 @@ i32 main() {
     })
     fmt_printflnc("Bytes allocated: %M", allocated);
   });
+
+  log_infof(LIT("time: %fms"), (f32)time_since(start) / Millisecond);
 
   return 0;
 }
