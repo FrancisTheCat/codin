@@ -2119,16 +2119,16 @@ internal void type_check_stmt_assign(Ast_Stmt_Assign *assign, Checker_Scope *cs,
   Type *lhs = type_check_expr(assign->lhs, cs, allocator);
   Type *rhs = type_check_expr(assign->rhs, cs, allocator);
 
-  print_type(lhs);
-  fmt_printc(" == ");
-  print_type(rhs);
-  fmt_printlnc("");
+  // print_type(lhs);
+  // fmt_printc(" == ");
+  // print_type(rhs);
+  // fmt_printlnc("");
 
-  if (lhs) { log_infof(LIT("lhs: %S(%x) at %d"), enum_to_string(Type_Kind, lhs->type_kind), lhs, assign->lhs->location.line); }
-  if (rhs) { log_infof(LIT("rhs: %S(%x) at %d"), enum_to_string(Type_Kind, rhs->type_kind), rhs, assign->rhs->location.line); }
-  if (lhs) {
-    log_infof(LIT("lhs == rhs -> %B"), lhs == rhs);
-  }
+  // if (lhs) { log_infof(LIT("lhs: %S(%x) at %d"), enum_to_string(Type_Kind, lhs->type_kind), lhs, assign->lhs->location.line); }
+  // if (rhs) { log_infof(LIT("rhs: %S(%x) at %d"), enum_to_string(Type_Kind, rhs->type_kind), rhs, assign->rhs->location.line); }
+  // if (lhs) {
+  //   log_infof(LIT("lhs == rhs -> %B"), lhs == rhs);
+  // }
 }
 
 internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocator) {
@@ -2160,13 +2160,13 @@ internal void type_check_scope(Ast_Stmt_Block body, Checker_Scope *cs, Allocator
     type_check_stmt(stmt, cs, allocator);
   });
 
-  hash_map_iter(cs->types, name, type, {
-    fmt_printflnc("\tType: %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
-  });
+  // hash_map_iter(cs->types, name, type, {
+  //   fmt_printflnc("\tType: %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
+  // });
 
-  hash_map_iter(cs->variables, name, type, {
-    fmt_printflnc("\tVar:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
-  });
+  // hash_map_iter(cs->variables, name, type, {
+  //   fmt_printflnc("\tVar:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
+  // });
 }
 
 internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Checker_Scope *cs, Allocator allocator) {
@@ -2253,13 +2253,13 @@ internal void type_check_decl_variable(Ast_Decl_Variable *variable, Checker_Scop
     c.value = evaluate_constant_expression(variable->value, cs);
     c.type  = type;
     hash_map_insert(&cs->constants, variable->name, c);
-    log_infof(LIT("Constant %S: %S (size: %d, align: %d)"), variable->name, enum_to_string(Type_Kind, type->type_kind), type->size, type->align);
+    // log_infof(LIT("Constant %S: %S (size: %d, align: %d)"), variable->name, enum_to_string(Type_Kind, type->type_kind), type->size, type->align);
     return;
   }
   if (variable->value) {
     type_check_expr(variable->value, cs, allocator);
   }
-  log_infof(LIT("Variable %S: %S (size: %d, align: %d)"), variable->name, enum_to_string(Type_Kind, type->type_kind), type->size, type->align);
+  // log_infof(LIT("Variable %S: %S (size: %d, align: %d)"), variable->name, enum_to_string(Type_Kind, type->type_kind), type->size, type->align);
   hash_map_insert(&cs->variables, variable->name, type);
 }
 
@@ -2395,13 +2395,13 @@ internal b8 type_check_file(Ast_File file, Allocator allocator) {
     }
   });
 
-  hash_map_iter(cs.types, name, type, {
-    fmt_printflnc("Type: %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
-  });
+  // hash_map_iter(cs.types, name, type, {
+  //   fmt_printflnc("Type: %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
+  // });
 
-  hash_map_iter(cs.variables, name, type, {
-    fmt_printflnc("Var:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
-  });
+  // hash_map_iter(cs.variables, name, type, {
+  //   fmt_printflnc("Var:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
+  // });
 
   return ok;
 }

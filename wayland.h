@@ -452,7 +452,7 @@ internal void wayland_handle_events(Wayland_Connection *conn, Wayland_State *sta
         state->keymap_data.data = (rawptr)syscall(SYS_mmap, nil, n * OS_PAGE_SIZE, PROT_READ, MAP_PRIVATE, fd, 0);
         state->keymap_data.len  = n;
         ok = xkb_parse_key_codes((String){.data = (char *)state->keymap_data.data, .len = size}, &state->keymap, context.allocator);
-        write_entire_file_path(LIT("keymap.txt"), (Byte_Slice){.data = (byte *)state->keymap_data.data, .len = size});
+        // write_entire_file_path(LIT("keymap.txt"), (Byte_Slice){.data = (byte *)state->keymap_data.data, .len = size});
         assert(ok);
         break;
 
