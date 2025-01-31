@@ -1,64 +1,64 @@
 #include "codin.h"
 
 #define TOKENS(X)                                                              \
-  X(Token_Type_String)                                                         \
-  X(Token_Type_Int)                                                            \
-  X(Token_Type_Float)                                                          \
-  X(Token_Type_Rune)                                                           \
-  X(Token_Type_Ident)                                                          \
+  X(Token_Type_String       )                                                  \
+  X(Token_Type_Int          )                                                  \
+  X(Token_Type_Float        )                                                  \
+  X(Token_Type_Rune         )                                                  \
+  X(Token_Type_Ident        )                                                  \
                                                                                \
-  X(Token_Type_Assign)                                                         \
-  X(Token_Type_Assign_Op)                                                      \
-  X(Token_Type_Semicolon)                                                      \
-  X(Token_Type_Colon)                                                          \
-  X(Token_Type_Comma)                                                          \
-  X(Token_Type_Arrow)                                                          \
-  X(Token_Type_Dot)                                                            \
-  X(Token_Type_Dollar)                                                         \
-  X(Token_Type_Pointer)                                                        \
+  X(Token_Type_Assign       )                                                  \
+  X(Token_Type_Assign_Op    )                                                  \
+  X(Token_Type_Semicolon    )                                                  \
+  X(Token_Type_Colon        )                                                  \
+  X(Token_Type_Comma        )                                                  \
+  X(Token_Type_Arrow        )                                                  \
+  X(Token_Type_Dot          )                                                  \
+  X(Token_Type_Dollar       )                                                  \
+  X(Token_Type_Pointer      )                                                  \
                                                                                \
-  X(Token_Type_Plus)                                                           \
-  X(Token_Type_Minus)                                                          \
-  X(Token_Type_Multiply)                                                       \
-  X(Token_Type_Divide)                                                         \
-  X(Token_Type_Not)                                                            \
-  X(Token_Type_And)                                                            \
-  X(Token_Type_Or)                                                             \
-  X(Token_Type_Bit_And)                                                        \
-  X(Token_Type_Bit_Or)                                                         \
-  X(Token_Type_Less)                                                           \
-  X(Token_Type_More)                                                           \
-  X(Token_Type_Equal)                                                          \
-  X(Token_Type_Less_Equal)                                                     \
-  X(Token_Type_More_Equal)                                                     \
-  X(Token_Type_Modulo)                                                         \
+  X(Token_Type_Plus         )                                                  \
+  X(Token_Type_Minus        )                                                  \
+  X(Token_Type_Multiply     )                                                  \
+  X(Token_Type_Divide       )                                                  \
+  X(Token_Type_Not          )                                                  \
+  X(Token_Type_And          )                                                  \
+  X(Token_Type_Or           )                                                  \
+  X(Token_Type_Bit_And      )                                                  \
+  X(Token_Type_Bit_Or       )                                                  \
+  X(Token_Type_Less         )                                                  \
+  X(Token_Type_More         )                                                  \
+  X(Token_Type_Equal        )                                                  \
+  X(Token_Type_Less_Equal   )                                                  \
+  X(Token_Type_More_Equal   )                                                  \
+  X(Token_Type_Modulo       )                                                  \
                                                                                \
-  X(Token_Type_Open_Paren)                                                     \
-  X(Token_Type_Close_Paren)                                                    \
-  X(Token_Type_Open_Squirly)                                                   \
+  X(Token_Type_Open_Paren   )                                                  \
+  X(Token_Type_Close_Paren  )                                                  \
+  X(Token_Type_Open_Squirly )                                                  \
   X(Token_Type_Close_Squirly)                                                  \
-  X(Token_Type_Open_Square)                                                    \
-  X(Token_Type_Close_Square)                                                   \
+  X(Token_Type_Open_Square  )                                                  \
+  X(Token_Type_Close_Square )                                                  \
                                                                                \
-  X(Token_Type_Cast)                                                           \
-  X(Token_Type_Transmute)                                                      \
+  X(Token_Type_Cast         )                                                  \
+  X(Token_Type_Transmute    )                                                  \
                                                                                \
-  X(Token_Type_If)                                                             \
-  X(Token_Type_For)                                                            \
-  X(Token_Type_Break)                                                          \
-  X(Token_Type_Return)                                                         \
-  X(Token_Type_Defer)                                                          \
-  X(Token_Type_Continue)                                                       \
-  X(Token_Type_Fn)                                                             \
-  X(Token_Type_Def)                                                            \
-  X(Token_Type_Enum)                                                           \
-  X(Token_Type_Union)                                                          \
-  X(Token_Type_Struct)                                                         \
-  X(Token_Type_Ignore)                                                         \
-  X(Token_Type_Import)                                                         \
-  X(Token_Type_Dynamic)                                                        \
+  X(Token_Type_If           )                                                  \
+  X(Token_Type_For          )                                                  \
+  X(Token_Type_Break        )                                                  \
+  X(Token_Type_Return       )                                                  \
+  X(Token_Type_Defer        )                                                  \
+  X(Token_Type_Continue     )                                                  \
+  X(Token_Type_Fn           )                                                  \
+  X(Token_Type_Def          )                                                  \
+  X(Token_Type_Enum         )                                                  \
+  X(Token_Type_Union        )                                                  \
+  X(Token_Type_Struct       )                                                  \
+  X(Token_Type_Ignore       )                                                  \
+  X(Token_Type_Import       )                                                  \
+  X(Token_Type_Dynamic      )                                                  \
                                                                                \
-  X(Token_Type_EOF)                                                            \
+  X(Token_Type_EOF          )                                                  \
 
 X_ENUM(Token_Type, TOKENS);
 
@@ -387,76 +387,44 @@ append_token:
 }
 
 #define AST_NODE_TYPES(X)                                                      \
-  X(Expr_Ident)                                                                \
-  X(Expr_Literal)                                                              \
-  X(Expr_Unary)                                                                \
-  X(Expr_Binary)                                                               \
-  X(Expr_Ternary)                                                              \
-  X(Expr_Call)                                                                 \
-  X(Expr_Selector)                                                             \
-  X(Expr_Deref)                                                                \
-  X(Expr_Cast)                                                                 \
-  X(Expr_Index)                                                                \
-  X(Expr_Address)                                                              \
+  X(ANT_Expr_Ident   )                                                         \
+  X(ANT_Expr_Literal )                                                         \
+  X(ANT_Expr_Unary   )                                                         \
+  X(ANT_Expr_Binary  )                                                         \
+  X(ANT_Expr_Ternary )                                                         \
+  X(ANT_Expr_Call    )                                                         \
+  X(ANT_Expr_Selector)                                                         \
+  X(ANT_Expr_Deref   )                                                         \
+  X(ANT_Expr_Cast    )                                                         \
+  X(ANT_Expr_Index   )                                                         \
+  X(ANT_Expr_Address )                                                         \
                                                                                \
-  X(Type_Pointer)                                                              \
-  X(Type_Array)                                                                \
-  X(Type_Named)                                                                \
-  X(Type_Struct)                                                               \
-  X(Type_Union)                                                                \
-  X(Type_Enum)                                                                 \
-  X(Type_Function)                                                             \
+  X(ANT_Type_Pointer )                                                         \
+  X(ANT_Type_Array   )                                                         \
+  X(ANT_Type_Named   )                                                         \
+  X(ANT_Type_Struct  )                                                         \
+  X(ANT_Type_Union   )                                                         \
+  X(ANT_Type_Enum    )                                                         \
+  X(ANT_Type_Function)                                                         \
                                                                                \
-  X(Decl_Import)                                                               \
-  X(Decl_Function)                                                             \
-  X(Decl_Type)                                                                 \
-  X(Decl_Variable)                                                             \
+  X(ANT_Decl_Import  )                                                         \
+  X(ANT_Decl_Function)                                                         \
+  X(ANT_Decl_Type    )                                                         \
+  X(ANT_Decl_Variable)                                                         \
                                                                                \
-  X(Stmt_Defer)                                                                \
-  X(Stmt_Return)                                                               \
-  X(Stmt_Break)                                                                \
-  X(Stmt_Continue)                                                             \
-  X(Stmt_Block)                                                                \
-  X(Stmt_If)                                                                   \
-  X(Stmt_Loop)                                                                 \
-  X(Stmt_Iterator)                                                             \
-  X(Stmt_Switch)                                                               \
-  X(Stmt_Assign)                                                               \
-  X(Field)
+  X(ANT_Stmt_Defer   )                                                         \
+  X(ANT_Stmt_Return  )                                                         \
+  X(ANT_Stmt_Break   )                                                         \
+  X(ANT_Stmt_Continue)                                                         \
+  X(ANT_Stmt_Block   )                                                         \
+  X(ANT_Stmt_If      )                                                         \
+  X(ANT_Stmt_Loop    )                                                         \
+  X(ANT_Stmt_Iterator)                                                         \
+  X(ANT_Stmt_Switch  )                                                         \
+  X(ANT_Stmt_Assign  )                                                         \
+  X(ANT_Field        )
 
-#define AST_ENUM_TO_STRING_CASES(v) case ANT_##v: return LIT("ANT_" #v);
-#define AST_ENUM_TO_STRING(Enum, Variants)                                     \
-  ENUM_TO_STRING_PROC_DECL(Enum, v) {                                          \
-    switch (v) {                                                               \
-      Variants(AST_ENUM_TO_STRING_CASES);                                      \
-    default:                                                                   \
-      return LIT(#Enum "_Invalid");                                            \
-    }                                                                          \
-  }
-
-#define AST_ENUM_IS_VALID_CASES(v) case ANT_##v: return true;
-#define AST_ENUM_IS_VALID(Enum, Variants)                                      \
-  ENUM_IS_VALID_PROC_DECL(Enum, v) {                                           \
-    switch (v) {                                                               \
-      Variants(AST_ENUM_IS_VALID_CASES);                                       \
-    default:                                                                   \
-      return false;                                                            \
-    }                                                                          \
-  }
-
-#define AST_ENUM_VARIANTS(v) ANT_##v,
-#define AST_ENUM_VARIANTS_PRIVATE(v) internal const int NT_Ast_##v = ANT_##v;
-#define AST_ENUM(Enum, Variants)                                               \
-  typedef enum {                                                               \
-    Variants(AST_ENUM_VARIANTS) Enum##__Max_Value,                             \
-  } Enum;                                                                      \
-                                                                               \
-  Variants(AST_ENUM_VARIANTS_PRIVATE)                                          \
-                                                                               \
-  AST_ENUM_TO_STRING(Enum, Variants)                                           \
-  AST_ENUM_IS_VALID(Enum, Variants)
-
-AST_ENUM(Ast_Node_Type, AST_NODE_TYPES);
+X_ENUM(Ast_Node_Type, AST_NODE_TYPES);
 
 typedef struct _Ast_Node Ast_Node;
 
@@ -551,10 +519,6 @@ typedef struct {
 } Ast_Stmt_Assign;
 
 typedef struct {
-  Ast_Expr *expr;
-} Ast_Stmt_Expr;
-
-typedef struct {
   Ast_Decl *decl;
 } Ast_Stmt_Decl;
 
@@ -603,6 +567,10 @@ typedef struct {
     f64    decimal;
   } value;
 } Ast_Expr_Literal;
+
+typedef struct {
+  Ast_Expr  *rhs;
+} Ast_Expr_Address;
 
 typedef struct {
   Token_Type op;
@@ -667,6 +635,7 @@ struct _Ast_Node {
     Ast_Expr_Deref    expr_deref   [0];
     Ast_Expr_Cast     expr_cast    [0];
     Ast_Expr_Index    expr_index   [0];
+    Ast_Expr_Address  expr_address [0];
     
     Ast_Type_Pointer  type_pointer [0];
     Ast_Type_Array    type_array   [0];
@@ -689,7 +658,6 @@ struct _Ast_Node {
     Ast_Stmt_Iterator stmt_iterator[0];
     Ast_Stmt_Switch   stmt_switch  [0];
     Ast_Stmt_Assign   stmt_assign  [0];
-    Ast_Stmt_Expr     stmt_expr    [0];
     Ast_Stmt_Decl     stmt_decl    [0];
 
     Ast_Field         field[0];
@@ -701,10 +669,10 @@ struct _Ast_Node {
 #define ast_new(Type, _location, allocator)                                    \
   ({                                                                           \
     Ast_Node *ast_new_node = (Ast_Node *)(unwrap_err(mem_alloc_aligned(        \
-        size_of(Ast_Node) + size_of(Type), 8, (allocator))));                  \
+        size_of(Ast_Node) + size_of(Ast_##Type), 8, (allocator))));            \
     ast_new_node->location = _location;                                        \
-    ast_new_node->ast_type = NT_##Type;                                        \
-    (Type *)&ast_new_node->_union_accessor;                                    \
+    ast_new_node->ast_type = ANT_##Type;                                       \
+    (Ast_##Type *)&ast_new_node->_union_accessor;                              \
   })
 
 #define ast_base(node) (&((Ast_Node *)node)[-1])
@@ -768,34 +736,34 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator);
 internal Ast_Expr *parse_type(Parser *parser, Allocator allocator);
 internal Ast_Expr *parse_expr(Parser *parser, Allocator allocator);
 
-internal void print_expr(Ast_Expr *e);
-internal void print_type(Ast_Expr *e);
-internal void print_stmt(Ast_Stmt *s);
-internal void print_decl(Ast_Decl *d);
+internal void print_ast_expr(Ast_Expr *e);
+internal void print_ast_type(Ast_Expr *e);
+internal void print_ast_stmt(Ast_Stmt *s);
+internal void print_ast_decl(Ast_Decl *d);
 
 internal Ast_Expr *parse_atom_expr(Parser *parser, Allocator allocator) {
   Token t = parser_advance(parser);
 
   switch (t.type) {
   case Token_Type_Ident: {
-      Ast_Expr_Ident *ident = ast_new(Ast_Expr_Ident, t.location, allocator);
+      Ast_Expr_Ident *ident = ast_new(Expr_Ident, t.location, allocator);
       ident->name = t.literal.string;
       return ast_base(ident);
     }
   case Token_Type_String: {
-      Ast_Expr_Literal *literal = ast_new(Ast_Expr_Literal, t.location, allocator);
+      Ast_Expr_Literal *literal = ast_new(Expr_Literal, t.location, allocator);
       literal->value.string = t.literal.string;
       literal->type         = t.type;
       return ast_base(literal);
     }
   case Token_Type_Int: {
-      Ast_Expr_Literal *literal = ast_new(Ast_Expr_Literal, t.location, allocator);
+      Ast_Expr_Literal *literal = ast_new(Expr_Literal, t.location, allocator);
       literal->value.integer = t.literal.integer;
       literal->type          = t.type;
       return ast_base(literal);
     }
   case Token_Type_Float: {
-      Ast_Expr_Literal *literal = ast_new(Ast_Expr_Literal, t.location, allocator);
+      Ast_Expr_Literal *literal = ast_new(Expr_Literal, t.location, allocator);
       literal->value.decimal = t.literal.decimal;
       literal->type          = t.type;
       return ast_base(literal);
@@ -807,7 +775,7 @@ internal Ast_Expr *parse_atom_expr(Parser *parser, Allocator allocator) {
     }
   case Token_Type_Transmute:
   case Token_Type_Cast: {
-      Ast_Expr_Cast *cast = ast_new(Ast_Expr_Cast, t.location, allocator);
+      Ast_Expr_Cast *cast = ast_new(Expr_Cast, t.location, allocator);
       cast->bitwise = t.type == Token_Type_Transmute;
 
       parser_expect(parser, Token_Type_Open_Paren, nil);
@@ -817,10 +785,14 @@ internal Ast_Expr *parse_atom_expr(Parser *parser, Allocator allocator) {
 
       return ast_base(cast);
     }
-  case Token_Type_And:
+  case Token_Type_And: {
+      Ast_Expr_Address *addr = ast_new(Expr_Address, t.location, allocator);
+      addr->rhs = parse_expr(parser, allocator);
+      return ast_base(addr);
+    }
   case Token_Type_Plus:
   case Token_Type_Minus: {
-      Ast_Expr_Unary *unary = ast_new(Ast_Expr_Unary, t.location, allocator);
+      Ast_Expr_Unary *unary = ast_new(Expr_Unary, t.location, allocator);
       unary->op  = t.type;
       unary->rhs = parse_expr(parser, allocator);
       return ast_base(unary);
@@ -872,7 +844,7 @@ internal Ast_Expr *_parse_expr(Parser *parser, isize min_bp, Allocator allocator
         }
         parser_advance(parser);
         Ast_Expr *rhs = _parse_expr(parser, bp, allocator);
-        Ast_Expr_Binary *b = ast_new(Ast_Expr_Binary, start_location, allocator);
+        Ast_Expr_Binary *b = ast_new(Expr_Binary, start_location, allocator);
         b->op  = t.type;
         b->lhs = lhs;
         b->rhs = rhs;
@@ -881,13 +853,13 @@ internal Ast_Expr *_parse_expr(Parser *parser, isize min_bp, Allocator allocator
       }
     case Token_Type_Pointer: {
         parser_advance(parser);
-        Ast_Expr_Deref *d = ast_new(Ast_Expr_Deref, start_location, allocator);
+        Ast_Expr_Deref *d = ast_new(Expr_Deref, start_location, allocator);
         d->lhs = lhs;
         lhs = ast_base(d);
         break;
       }
     case Token_Type_Open_Square: {
-        Ast_Expr_Index *i = ast_new(Ast_Expr_Index, start_location, allocator);
+        Ast_Expr_Index *i = ast_new(Expr_Index, start_location, allocator);
         i->base = lhs;
         parser_advance(parser);
         i->index = parse_expr(parser, allocator);
@@ -896,7 +868,7 @@ internal Ast_Expr *_parse_expr(Parser *parser, isize min_bp, Allocator allocator
         break;
       }
     case Token_Type_Open_Paren: {
-        Ast_Expr_Call *c = ast_new(Ast_Expr_Call, start_location, allocator);
+        Ast_Expr_Call *c = ast_new(Expr_Call, start_location, allocator);
         c->lhs = lhs;
         parser_advance(parser);
         vector_init(&c->args, 0, 8, allocator);
@@ -915,7 +887,7 @@ internal Ast_Expr *_parse_expr(Parser *parser, isize min_bp, Allocator allocator
       }
     case Token_Type_Dot: {
         parser_advance(parser);
-        Ast_Expr_Selector *s = ast_new(Ast_Expr_Selector, start_location, allocator);
+        Ast_Expr_Selector *s = ast_new(Expr_Selector, start_location, allocator);
         s->lhs = lhs;
         Token ident = {0};
         parser_expect(parser, Token_Type_Ident, &ident);
@@ -951,7 +923,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
   switch (t.type) {
   case Token_Type_Return: {
       parser_skip(parser);
-      Ast_Stmt_Return *r = ast_new(Ast_Stmt_Return, t.location, allocator);
+      Ast_Stmt_Return *r = ast_new(Stmt_Return, t.location, allocator);
       vector_init(&r->values, 0, 8, allocator);
       while (parser_peek(parser).type != Token_Type_Semicolon) {
         Ast_Expr *expr = parse_expr(parser, allocator);
@@ -967,7 +939,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
     }
   case Token_Type_Continue: {
       parser_skip(parser);
-      Ast_Stmt_Continue *c = ast_new(Ast_Stmt_Continue, t.location, allocator);
+      Ast_Stmt_Continue *c = ast_new(Stmt_Continue, t.location, allocator);
       t = parser_advance(parser);
       switch (t.type) {
       case Token_Type_Semicolon: {
@@ -987,7 +959,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
     }
   case Token_Type_Break: {
       parser_skip(parser);
-      Ast_Stmt_Break *c = ast_new(Ast_Stmt_Break, t.location, allocator);
+      Ast_Stmt_Break *c = ast_new(Stmt_Break, t.location, allocator);
       t = parser_advance(parser);
       switch (t.type) {
       case Token_Type_Semicolon: {
@@ -1007,7 +979,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
     }
   case Token_Type_Defer: {
       parser_skip(parser);
-      Ast_Stmt_Defer *defer = ast_new(Ast_Stmt_Defer, t.location, allocator);
+      Ast_Stmt_Defer *defer = ast_new(Stmt_Defer, t.location, allocator);
       defer->rhs = parse_stmt(parser, allocator);
       return ast_base(defer);
     }
@@ -1016,7 +988,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
         parser_advance(parser);
         parser_expect(parser, Token_Type_Colon, nil);
 
-        Ast_Decl_Variable *var = ast_new(Ast_Decl_Variable, t.location, allocator);
+        Ast_Decl_Variable *var = ast_new(Decl_Variable, t.location, allocator);
 
         var->name = t.literal.string;
         var->type = parse_type(parser, allocator);
@@ -1037,7 +1009,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
       Ast_Expr *lhs = parse_expr(parser, allocator);
       switch (parser_peek(parser).type) {
       case Token_Type_Assign: {
-          Ast_Stmt_Assign *assign = ast_new(Ast_Stmt_Assign, t.location, allocator);
+          Ast_Stmt_Assign *assign = ast_new(Stmt_Assign, t.location, allocator);
           assign->lhs = lhs;
           parser_expect(parser, Token_Type_Assign, nil);
           assign->rhs = parse_expr(parser, allocator);
@@ -1047,11 +1019,11 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
           return ast_base(assign);
         }
       case Token_Type_Assign_Op: {
-          Ast_Stmt_Assign *assign = ast_new(Ast_Stmt_Assign, t.location, allocator);
+          Ast_Stmt_Assign *assign = ast_new(Stmt_Assign, t.location, allocator);
           assign->lhs = lhs;
           Token op;
           parser_expect(parser, Token_Type_Assign_Op, &op);
-          Ast_Expr_Binary *b = ast_new(Ast_Expr_Binary, t.location, allocator);
+          Ast_Expr_Binary *b = ast_new(Expr_Binary, t.location, allocator);
           b->lhs = lhs;
           b->rhs = parse_expr(parser, allocator);
           b->op  = op.assign_op;
@@ -1072,7 +1044,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
     }
   case Token_Type_If: {
       parser_expect(parser, Token_Type_If, nil);
-      Ast_Stmt_If *i = ast_new(Ast_Stmt_If, t.location, allocator);
+      Ast_Stmt_If *i = ast_new(Stmt_If, t.location, allocator);
       i->cond = parse_expr(parser, allocator);
       i->body.allocator = allocator;
 
@@ -1086,7 +1058,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
       parser_expect(parser, Token_Type_For, nil);
       if (parser_peek(parser).type == Token_Type_Open_Square) {
         parser_advance(parser);
-        Ast_Stmt_Loop *l = ast_new(Ast_Stmt_Loop, t.location, allocator);
+        Ast_Stmt_Loop *l = ast_new(Stmt_Loop, t.location, allocator);
         Ast_Expr      *e = parse_expr(parser, allocator);
         if (parser_peek(parser).type == Token_Type_Comma) {
           parser_advance(parser);
@@ -1099,7 +1071,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
         parser_expect(parser, Token_Type_Arrow, nil);
         Token ident;
         parser_expect(parser, Token_Type_Ident, &ident);
-        Ast_Decl_Variable *var = ast_new(Ast_Decl_Variable, ident.location, allocator);
+        Ast_Decl_Variable *var = ast_new(Decl_Variable, ident.location, allocator);
         var->name  = ident.literal.string;
         parser_expect(parser, Token_Type_Colon, nil);
         var->type  = parse_type(parser, allocator);
@@ -1112,7 +1084,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
         
         return ast_base(l);
       } else {
-        Ast_Stmt_Iterator *i = ast_new(Ast_Stmt_Iterator, t.location, allocator);
+        Ast_Stmt_Iterator *i = ast_new(Stmt_Iterator, t.location, allocator);
         i->lhs = parse_expr(parser, allocator);
         i->body.allocator = allocator;
         i->decls.allocator = allocator;
@@ -1143,7 +1115,7 @@ internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
   Token t = parser_advance(parser);
   switch (t.type) {
   case Token_Type_Open_Square: {
-    Ast_Type_Array *array = ast_new(Ast_Type_Array, t.location, allocator);
+    Ast_Type_Array *array = ast_new(Type_Array, t.location, allocator);
 
     t = parser_peek(parser);
     if (t.type != Token_Type_Close_Square) {
@@ -1154,7 +1126,7 @@ internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
     return ast_base(array);
   }
   case Token_Type_Struct: {
-    Ast_Type_Struct *s = ast_new(Ast_Type_Struct, t.location, allocator);
+    Ast_Type_Struct *s = ast_new(Type_Struct, t.location, allocator);
     vector_init(&s->fields, 0, 8, allocator);
 
     if (!parser_expect(parser, Token_Type_Open_Squirly, nil)) {
@@ -1165,7 +1137,7 @@ internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
     return ast_base(s);
   }
   case Token_Type_Union: {
-    Ast_Type_Union *s = ast_new(Ast_Type_Union, t.location, allocator);
+    Ast_Type_Union *s = ast_new(Type_Union, t.location, allocator);
     vector_init(&s->variants, 0, 8, allocator);
 
     if (!parser_expect(parser, Token_Type_Open_Squirly, nil)) {
@@ -1176,7 +1148,7 @@ internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
     return ast_base(s);
   }
   case Token_Type_Enum: {
-    Ast_Type_Enum *e = ast_new(Ast_Type_Enum, t.location, allocator);
+    Ast_Type_Enum *e = ast_new(Type_Enum, t.location, allocator);
     vector_init(&e->values, 0, 8, allocator);
 
     if (!parser_expect(parser, Token_Type_Open_Squirly, nil)) {
@@ -1211,12 +1183,12 @@ internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
     return ast_base(e);
   }
   case Token_Type_Pointer: {
-    Ast_Type_Pointer *pointer = ast_new(Ast_Type_Pointer, t.location, allocator);
+    Ast_Type_Pointer *pointer = ast_new(Type_Pointer, t.location, allocator);
     pointer->pointee  = parse_type(parser, allocator);
     return ast_base(pointer);
   }
   case Token_Type_Ident: {
-    Ast_Type_Named *type = ast_new(Ast_Type_Named, t.location, allocator);
+    Ast_Type_Named *type = ast_new(Type_Named, t.location, allocator);
     type->name = t.literal.string;
     return ast_base(type);
   }
@@ -1237,7 +1209,7 @@ internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
       parse_fields(parser, Token_Type_Close_Paren, &returns, false, allocator);
     }
 
-    Ast_Type_Function *fn = ast_new(Ast_Type_Function, t.location, allocator);
+    Ast_Type_Function *fn = ast_new(Type_Function, t.location, allocator);
     fn->args     = args;
     fn->returns  = returns;
     return ast_base(fn);
@@ -1258,7 +1230,7 @@ internal b8 parse_fields(Parser *parser, Token_Type terminator, Field_Vector *fi
     }
     i32 repeat_start = fields->len;
     while (parser_peek(parser).type == Token_Type_Comma) {
-      Ast_Field *field = ast_new(Ast_Field, ident.location, allocator);
+      Ast_Field *field = ast_new(Field, ident.location, allocator);
       field->name = ident.literal.string;
       field->type = nil;
       vector_append(fields, field);
@@ -1283,7 +1255,7 @@ internal b8 parse_fields(Parser *parser, Token_Type terminator, Field_Vector *fi
       (*IDX(*fields, i))->value = value;
     }
 
-    Ast_Field *field = ast_new(Ast_Field, ident.location, allocator);
+    Ast_Field *field = ast_new(Field, ident.location, allocator);
     field->name  = ident.literal.string;
     field->type  = type;
     field->value = value;
@@ -1324,7 +1296,7 @@ internal Ast_Decl_Function *parse_function_decl(Parser *parser, Allocator alloca
   }
   parser_expect(parser, Token_Type_Open_Squirly,  nil);
 
-  Ast_Decl_Function *fn = ast_new(Ast_Decl_Function, t.location, allocator);
+  Ast_Decl_Function *fn = ast_new(Decl_Function, t.location, allocator);
   fn->name    = ident.literal.string;
   fn->args    = args;
   fn->returns = returns;
@@ -1348,7 +1320,7 @@ internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
       parser_advance(parser);
       parser_expect(parser, Token_Type_Colon, nil);
 
-      Ast_Decl_Variable *var = ast_new(Ast_Decl_Variable, t.location, allocator);
+      Ast_Decl_Variable *var = ast_new(Decl_Variable, t.location, allocator);
 
       var->name = t.literal.string;
       var->type = parse_type(parser, allocator);
@@ -1372,7 +1344,7 @@ internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
         return nil;
       }
       Ast_Expr *type = parse_type(parser, allocator);
-      Ast_Decl_Type *type_decl = ast_new(Ast_Decl_Type, t.location, allocator);
+      Ast_Decl_Type *type_decl = ast_new(Decl_Type, t.location, allocator);
       type_decl->type = type;
       type_decl->name = ident.literal.string;
       parser_expect(parser, Token_Type_Semicolon, &ident);
@@ -1385,7 +1357,7 @@ internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
       if (!parser_expect(parser, Token_Type_String, &t2)) {
         return nil;
       }
-      Ast_Decl_Import *import = ast_new(Ast_Decl_Import, t.location, allocator);
+      Ast_Decl_Import *import = ast_new(Decl_Import, t.location, allocator);
       import->path = t2.literal.string;
       if (!parser_expect(parser, Token_Type_Semicolon, &t2)) {
         return nil;
@@ -1418,15 +1390,15 @@ internal void print_fields(Field_Vector fields) {
       fmt_printc(", ");
     }
     fmt_printfc("%S: ", field->name);
-    print_type(field->type);
+    print_ast_type(field->type);
     if (field->value) {
       fmt_printc(" = ");
-      print_expr(field->value);
+      print_ast_expr(field->value);
     }
   });
 }
 
-internal void print_decl(Ast_Decl *d) {
+internal void print_ast_decl(Ast_Decl *d) {
   switch (d->ast_type) {
   case ANT_Decl_Import: {
       fmt_printflnc("import \"%S\";", d->decl_import->path);
@@ -1440,7 +1412,7 @@ internal void print_decl(Ast_Decl *d) {
       fmt_printlnc(") {");
       slice_iter_v(d->decl_function->body, stmt, i, {
         fmt_printc("\t");
-        print_stmt(stmt);
+        print_ast_stmt(stmt);
         fmt_printlnc(";");
       })
       fmt_printlnc("}");
@@ -1448,20 +1420,20 @@ internal void print_decl(Ast_Decl *d) {
     }
   case ANT_Decl_Type: {
       fmt_printfc("type %S ", d->decl_type->name);
-      print_type(d->decl_type->type);
+      print_ast_type(d->decl_type->type);
       fmt_printlnc(";");
       return;
     }
   case ANT_Decl_Variable: {
       fmt_printfc("%S: ", d->decl_variable->name);
-      print_type(d->decl_variable->type);
+      print_ast_type(d->decl_variable->type);
       if (d->decl_variable->value) {
         if (d->decl_variable->constant) {
           fmt_printc(" : ");
         } else {
           fmt_printc(" = ");
         }
-        print_expr(d->decl_variable->value);
+        print_ast_expr(d->decl_variable->value);
       }
       fmt_printlnc(";");
       return;
@@ -1471,7 +1443,7 @@ internal void print_decl(Ast_Decl *d) {
   }
 }
 
-internal void print_stmt(Ast_Stmt *s) {
+internal void print_ast_stmt(Ast_Stmt *s) {
   switch (s->ast_type) {
   case ANT_Expr_Ident:
   case ANT_Expr_Literal:
@@ -1483,19 +1455,19 @@ internal void print_stmt(Ast_Stmt *s) {
   case ANT_Expr_Cast:
   case ANT_Expr_Index:
   case ANT_Expr_Address:
-    print_expr(s);
+    print_ast_expr(s);
     return;
 
   case ANT_Decl_Import:
   case ANT_Decl_Function:
   case ANT_Decl_Type:
   case ANT_Decl_Variable:
-    print_decl(s);
+    print_ast_decl(s);
     return;
 
   case ANT_Stmt_Defer: {
       fmt_printc("defer ");
-      print_stmt(s->stmt_defer->rhs);
+      print_ast_stmt(s->stmt_defer->rhs);
       return;
     }
   case ANT_Stmt_Return: {
@@ -1504,7 +1476,7 @@ internal void print_stmt(Ast_Stmt *s) {
         if (i) {
           fmt_printc(", ");
         }
-        print_expr(*r);
+        print_ast_expr(*r);
       })
       return;
     }
@@ -1522,11 +1494,11 @@ internal void print_stmt(Ast_Stmt *s) {
     }
   case ANT_Stmt_If: {
       fmt_printc("if ");
-      print_expr(s->stmt_if->cond);
+      print_ast_expr(s->stmt_if->cond);
       fmt_printlnc(" {");
       slice_iter_v(s->stmt_if->body, stmt, i, {
         fmt_printc("\t");
-        print_stmt(stmt);
+        print_ast_stmt(stmt);
         fmt_printlnc(";");
       });
       fmt_printc("}");
@@ -1535,16 +1507,16 @@ internal void print_stmt(Ast_Stmt *s) {
   case ANT_Stmt_Loop: {
       fmt_printc("for [");
       if (s->stmt_loop->begin) {
-        print_expr(s->stmt_loop->begin);
+        print_ast_expr(s->stmt_loop->begin);
         fmt_printc(", ");
       }
-      print_expr(s->stmt_loop->end);
+      print_ast_expr(s->stmt_loop->end);
       fmt_printc("] -> ");
-      print_decl(s->stmt_loop->decl);
+      print_ast_decl(s->stmt_loop->decl);
       fmt_printlnc(" {");
       slice_iter_v(s->stmt_loop->body, stmt, i, {
         fmt_printc("\t");
-        print_stmt(stmt);
+        print_ast_stmt(stmt);
         fmt_printlnc(";");
       });
       fmt_printc("\t}");
@@ -1556,28 +1528,28 @@ internal void print_stmt(Ast_Stmt *s) {
     }
   case ANT_Stmt_Iterator: {
       fmt_printc("for ");
-      print_expr(s->stmt_iterator->lhs);
+      print_ast_expr(s->stmt_iterator->lhs);
       fmt_printc(" -> ");
       slice_iter_v(s->stmt_iterator->decls, decl, i, {
          if (i) {
             fmt_printc(", ");
          }
         fmt_printfc("%S: ", decl->name);
-        print_type(decl->type);
+        print_ast_type(decl->type);
       });
       fmt_printlnc(" {");
       slice_iter_v(s->stmt_iterator->body, stmt, i, {
         fmt_printc("\t");
-        print_stmt(stmt);
+        print_ast_stmt(stmt);
         fmt_printlnc(";");
       });
       fmt_printc("\t}");
       return;
     }
   case ANT_Stmt_Assign: {
-      print_expr(s->stmt_assign->lhs);
+      print_ast_expr(s->stmt_assign->lhs);
       fmt_printc(" = ");
-      print_expr(s->stmt_assign->rhs);
+      print_ast_expr(s->stmt_assign->rhs);
 
       return;
     }
@@ -1586,11 +1558,11 @@ internal void print_stmt(Ast_Stmt *s) {
   }
 }
 
-internal void print_expr(Ast_Expr *e) {
+internal void print_ast_expr(Ast_Expr *e) {
   fmt_printc("(");
   switch (e->ast_type) {
   case ANT_Expr_Selector: {
-      print_expr(e->expr_selector->lhs);
+      print_ast_expr(e->expr_selector->lhs);
       fmt_printfc(".%S", e->expr_selector->selector);
       break;
     }
@@ -1627,13 +1599,13 @@ internal void print_expr(Ast_Expr *e) {
           fmt_printfc("%c", i);
         }
       });
-      print_expr(e->expr_unary->rhs);
+      print_ast_expr(e->expr_unary->rhs);
       break;
     }
   case ANT_Expr_Binary: {
-      print_expr(e->expr_binary->lhs);
+      print_ast_expr(e->expr_binary->lhs);
       fmt_printfc(" %S ", binary_op_strings[e->expr_binary->op]);
-      print_expr(e->expr_binary->rhs);
+      print_ast_expr(e->expr_binary->rhs);
       break;
     }
   case ANT_Expr_Ternary: {
@@ -1641,36 +1613,36 @@ internal void print_expr(Ast_Expr *e) {
       break;
     }
   case ANT_Expr_Call: {
-      print_expr(e->expr_call->lhs);
+      print_ast_expr(e->expr_call->lhs);
       fmt_printc("(");
       slice_iter_v(e->expr_call->args, arg, i, {
         if (i) {
           fmt_printc(", ");
         }
-        print_expr(arg);
+        print_ast_expr(arg);
       });
       fmt_printc(")");
 
       break;
     }
   case ANT_Expr_Deref: {
-      print_expr(e->expr_deref->lhs);
+      print_ast_expr(e->expr_deref->lhs);
       fmt_printc("^");
       
       break;
     }
   case ANT_Expr_Cast: {
       fmt_printc("cast(");
-      print_type(e->expr_cast->type);
+      print_ast_type(e->expr_cast->type);
       fmt_printc(")");
-      print_expr(e->expr_cast->rhs);
+      print_ast_expr(e->expr_cast->rhs);
 
       break;
     }
   case ANT_Expr_Index: {
-      print_expr(e->expr_index->base);
+      print_ast_expr(e->expr_index->base);
       fmt_printc("[");
-      print_expr(e->expr_index->index);
+      print_ast_expr(e->expr_index->index);
       fmt_printc("]");
 
       break;
@@ -1681,7 +1653,7 @@ internal void print_expr(Ast_Expr *e) {
   fmt_printc(")");
 }
 
-internal void print_type(Ast_Expr *t) {
+internal void print_ast_type(Ast_Expr *t) {
   switch (t->ast_type) {
   case ANT_Type_Function: {
     fmt_printc("fn(");
@@ -1693,16 +1665,16 @@ internal void print_type(Ast_Expr *t) {
   }
   case ANT_Type_Pointer: {
     fmt_printc("^");
-    print_type(t->type_pointer->pointee);
+    print_ast_type(t->type_pointer->pointee);
     break;
   }
   case ANT_Type_Array: {
     fmt_printc("[");
     if (t->type_array->count) {
-      print_expr(t->type_array->count);
+      print_ast_expr(t->type_array->count);
     }
     fmt_printc("]");
-    print_type(t->type_array->elem);
+    print_ast_type(t->type_array->elem);
     break;
   }
   case ANT_Type_Enum: {
@@ -1761,37 +1733,38 @@ internal Allocator_Result printing_allocator_proc(
 }
 
 #define TYPE_KINDS(X)                                                          \
-  X(Type_Kind_Array)                                                           \
-  X(Type_Kind_Struct)                                                          \
-  X(Type_Kind_Union)                                                           \
-  X(Type_Kind_Enum)                                                            \
-  X(Type_Kind_Named)                                                           \
-  X(Type_Kind_Pointer)                                                         \
-  X(Type_Kind_Basic)                                                           \
+  X(Type_Kind_Array   )                                                        \
+  X(Type_Kind_Struct  )                                                        \
+  X(Type_Kind_Union   )                                                        \
+  X(Type_Kind_Enum    )                                                        \
+  X(Type_Kind_Named   )                                                        \
+  X(Type_Kind_Pointer )                                                        \
+  X(Type_Kind_Basic   )                                                        \
   X(Type_Kind_Function)                                                        \
-  X(Type_Kind_Untyped)
+  X(Type_Kind_Untyped )                                                        \
+  X(Type_Kind_Tuple   )
 
 X_ENUM(Type_Kind, TYPE_KINDS);
 
 #define BASIC_TYPES(X)                                                         \
-  X(Basic_Type_Int)                                                            \
-  X(Basic_Type_Bool)                                                           \
-  X(Basic_Type_Uint)                                                           \
-  X(Basic_Type_Rune)                                                           \
-  X(Basic_Type_Float)                                                          \
-  X(Basic_Type_String)                                                         \
+  X(Basic_Type_Int    )                                                        \
+  X(Basic_Type_Bool   )                                                        \
+  X(Basic_Type_Uint   )                                                        \
+  X(Basic_Type_Rune   )                                                        \
+  X(Basic_Type_Float  )                                                        \
+  X(Basic_Type_String )                                                        \
   X(Basic_Type_Cstring)                                                        \
-  X(Basic_Type_Rawptr)                                                         \
+  X(Basic_Type_Rawptr )                                                        \
   X(Basic_Type_Uintptr)
 
 X_ENUM(Basic_Type_Kind, BASIC_TYPES);
 
 #define UNTYPED_TYPES(X)                                                       \
-  X(Untyped_Type_Int)                                                          \
-  X(Untyped_Type_Bool)                                                         \
-  X(Untyped_Type_Float)                                                        \
+  X(Untyped_Type_Int   )                                                       \
+  X(Untyped_Type_Bool  )                                                       \
+  X(Untyped_Type_Float )                                                       \
   X(Untyped_Type_String)                                                       \
-  X(Untyped_Type_Rune)
+  X(Untyped_Type_Rune  )
 
 X_ENUM(Untyped_Type_Kind, UNTYPED_TYPES);
 
@@ -1804,6 +1777,10 @@ typedef struct {
     isize  offset;
   }) fields;
 } Type_Struct;
+
+typedef struct {
+  Slice(Type *) fields;
+} Type_Tuple;
 
 typedef struct {
   Slice(struct {
@@ -1834,11 +1811,12 @@ typedef struct {
 } Type_Pointer;
 
 typedef struct {
-  Type *type;
+  String name;
+  Type  *type;
 } Type_Named;
 
 typedef struct {
-  Basic_Type_Kind basic_kind;
+  Basic_Type_Kind kind;
 } Type_Basic;
 
 typedef struct {
@@ -1849,11 +1827,8 @@ typedef struct {
   Slice(struct {
     String name;
     Type  *type;
-  }) args;
-  Slice(struct {
-    String name;
-    Type  *type;
-  }) returns;
+  })       args;
+  Type    *ret;
 } Type_Function;
 
 struct _Type {
@@ -1869,6 +1844,7 @@ struct _Type {
     Type_Named    named   [0];
     Type_Function function[0];
     Type_Untyped  untyped [0];
+    Type_Basic    basic   [0];
 
     rawptr _union_accessor[0];
   };
@@ -1888,11 +1864,24 @@ struct _Type {
     &((Type *)type)[-1];                                                       \
   })
 
+typedef struct {
+  Type *type;
+  isize value;
+} Constant;
+
 typedef struct _Checker_Scope {
-  Hash_Map(String, Type *) types;
-  Hash_Map(String, Type *) variables;
-  struct _Checker_Scope   *parent;
+  Hash_Map(String, Type *)   types;
+  Hash_Map(String, Type *)   variables;
+  Hash_Map(String, Constant) constants;
+  struct _Checker_Scope     *parent;
 } Checker_Scope;
+
+internal void checker_scope_init(Checker_Scope *cs, Checker_Scope *parent, Allocator allocator) {
+  cs->parent = parent;
+  hash_map_init(&cs->variables, 16, string_equal, string_hash, allocator);
+  hash_map_init(&cs->types    , 16, string_equal, string_hash, allocator);
+  hash_map_init(&cs->constants, 16, string_equal, string_hash, allocator);
+}
 
 internal Type *resolve_named_type(Checker_Scope *scope, String name) {
   while (scope) {
@@ -1916,23 +1905,133 @@ internal Type *resolve_ident(Checker_Scope *scope, String name) {
   return nil;
 }
 
+internal Constant *resolve_constant(Checker_Scope *scope, String name) {
+  while (scope) {
+    Constant *c = hash_map_get(scope->constants, name);
+    if (c) {
+      return c;
+    }
+    scope = scope->parent;
+  }
+  return nil;
+}
+
+internal isize evaluate_constant_expression(Ast_Expr *e, Checker_Scope *scope) {
+  switch (e->ast_type) {
+  CASE ANT_Expr_Ident: {
+    Constant *constant = resolve_constant(scope, e->expr_ident->name);
+    if (constant) {
+      return constant->value;
+    }
+    log_infof(LIT("Unresolved constant: %S"), e->expr_ident->name);
+    return 0;
+  }
+  CASE ANT_Expr_Literal:
+    switch (e->expr_literal->type) {
+    CASE Token_Type_Int:
+      return e->expr_literal->value.integer;
+    CASE Token_Type_Float:
+      return e->expr_literal->value.decimal;
+    CASE Token_Type_Rune:
+      return e->expr_literal->value.rune;
+    CASE Token_Type_String:
+      unimplemented();
+    DEFAULT:
+      unimplemented();
+  }
+  CASE ANT_Expr_Unary: {
+    isize rhs = evaluate_constant_expression(e->expr_unary->rhs, scope);
+    switch (e->expr_binary->op) {
+    CASE Token_Type_Plus:
+      return rhs;
+    CASE Token_Type_Minus:
+      return -rhs;
+    CASE Token_Type_Not:
+      return !rhs;
+    DEFAULT:
+      unimplemented();
+    }
+  }
+  CASE ANT_Expr_Binary: {
+    isize lhs = evaluate_constant_expression(e->expr_binary->lhs, scope);
+    isize rhs = evaluate_constant_expression(e->expr_binary->rhs, scope);
+
+    switch (e->expr_binary->op) {
+    CASE Token_Type_Plus:
+      return lhs + rhs;
+    CASE Token_Type_Minus:
+      return lhs - rhs;
+    CASE Token_Type_Multiply:
+      return lhs * rhs;
+    CASE Token_Type_Divide:
+      return lhs / rhs;
+    CASE Token_Type_And:
+      return lhs && rhs;
+    CASE Token_Type_Or:
+      return lhs || rhs;
+    CASE Token_Type_Bit_And:
+      return lhs & rhs;
+    CASE Token_Type_Bit_Or:
+      return lhs | rhs;
+    CASE Token_Type_Less:
+      return lhs < rhs;
+    CASE Token_Type_More:
+      return lhs > rhs;
+    CASE Token_Type_Equal:
+      return lhs == rhs;
+    CASE Token_Type_Less_Equal:
+      return lhs <= rhs;
+    CASE Token_Type_More_Equal:
+      return lhs >= rhs;
+    CASE Token_Type_Modulo:
+      return lhs % rhs;
+    DEFAULT:
+      unimplemented();
+    }
+  }
+  CASE ANT_Expr_Ternary:
+    unimplemented();
+  CASE ANT_Expr_Call:
+    unimplemented();
+  CASE ANT_Expr_Selector:
+    unimplemented();
+  CASE ANT_Expr_Deref:
+    unimplemented();
+  CASE ANT_Expr_Cast:
+    unimplemented();
+  CASE ANT_Expr_Index:
+    unimplemented();
+  CASE ANT_Expr_Address:
+    unimplemented();
+  DEFAULT:
+    unimplemented();
+  }
+
+  unreachable();
+}
+
 internal Type *resolve_ast_type(Ast_Expr *t, Checker_Scope *scope, Allocator allocator) {
   SWITCH (t->ast_type) {
   CASE ANT_Type_Function: {
-    Type_Function *fn = type_new(Function, allocator);
-    slice_init(&fn->args,    t->type_function->args.len,    allocator);
-    slice_init(&fn->returns, t->type_function->returns.len, allocator);
-    slice_iter_v(t->type_function->args, arg, i, {
-      Type *arg_type = resolve_ast_type(arg->type, scope, allocator);
-      IDX(fn->args, i)->type = arg_type;
-      IDX(fn->args, i)->name = arg->name;
+    Type_Function *f = type_new(Function, allocator);
+    Ast_Type_Function *function = t->type_function;
+    slice_init(&f->args, function->args.len, allocator);
+
+    slice_iter_v(function->args, arg, i, {
+      f->args.data[i].type = resolve_ast_type(arg->type, scope, allocator);
+      f->args.data[i].name = arg->name;
     });
-    slice_iter_v(t->type_function->returns, ret, i, {
-      Type *ret_type = resolve_ast_type(ret->type, scope, allocator);
-      IDX(fn->returns, i)->type = ret_type;
-      IDX(fn->returns, i)->name = ret->name;
-    });
-    return type_base(fn, 8, 8);
+    if (function->returns.len > 1) {
+      Type_Tuple *tuple = type_new(Tuple, allocator);
+      slice_init(&tuple->fields, function->returns.len, allocator);
+      slice_iter_v(function->returns, ret, i, {
+        tuple->fields.data[i] = resolve_ast_type(ret->type, scope, allocator);
+      });
+      f->ret = type_base(tuple, 0, 0);
+    } else if (function->returns.len) {
+      f->ret = resolve_ast_type(function->returns.data[0]->type, scope, allocator);
+    }
+    return type_base(f, 8, 8);
   }
   CASE ANT_Type_Pointer: {
     Type_Pointer *p = type_new(Pointer, allocator);
@@ -1942,7 +2041,13 @@ internal Type *resolve_ast_type(Ast_Expr *t, Checker_Scope *scope, Allocator all
   CASE ANT_Type_Array: {
     Type_Array *a = type_new(Array, allocator);
     a->elem = resolve_ast_type(t->type_array->elem, scope, allocator);
-    return type_base(a, a->elem->size, a->elem->align);
+    if (t->type_array->count) {
+      a->count = evaluate_constant_expression(t->type_array->count, scope);
+      return type_base(a, a->elem->size * a->count, a->elem->align);
+    } else {
+      a->count = nil;
+      return type_base(a, 16, 8);
+    }
   }
   CASE ANT_Type_Enum: {
     Type_Enum *e = type_new(Enum, allocator);
@@ -1985,40 +2090,91 @@ internal Type *resolve_ast_type(Ast_Expr *t, Checker_Scope *scope, Allocator all
     });
     return type_base(u, max_size, max_align);
   }
-  CASE ANT_Type_Named: {
-    Type_Named *n = type_new(Named, allocator);
-    n->type       = resolve_named_type(scope, t->type_named->name);
-    if (n->type) {
-      return type_base(n, n->type->size, n->type->align);
-    }
-    return type_base(n, 0, 0);
-  }
+  CASE ANT_Type_Named:
+    return resolve_named_type(scope, t->type_named->name);
   DEFAULT:
     unreachable();
   }
   unreachable();
 }
 
-internal b8 typecheck_function(Ast_Decl_Function function) {
-  return true;
-}
-
 internal Type *new_basic_type(Basic_Type_Kind kind, isize size, isize align, Allocator allocator) {
   Type_Basic *b = type_new(Basic, allocator);
-  b->basic_kind = kind;
+  b->kind = kind;
   return type_base(b, size, align);
 }
 
-internal Type_Function *type_check_function_decl(Ast_Decl_Function *function, Checker_Scope *cs, Allocator allocator) {
+internal Type          *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator);
+internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Checker_Scope *cs, Allocator allocator);
+internal void           type_check_decl_variable(Ast_Decl_Variable *variable, Checker_Scope *cs, Allocator allocator);
+
+internal void type_check_decl_type(Ast_Decl_Type *type_decl, Checker_Scope *cs, Allocator allocator) {
+  Type *t = resolve_ast_type(type_decl->type, cs, allocator);
+  hash_map_insert(&cs->types, type_decl->name, t);
+}
+
+internal void print_type(Type *type);
+
+internal void type_check_stmt_assign(Ast_Stmt_Assign *assign, Checker_Scope *cs, Allocator allocator) {
+  Type *lhs = type_check_expr(assign->lhs, cs, allocator);
+  Type *rhs = type_check_expr(assign->rhs, cs, allocator);
+
+  print_type(lhs);
+  fmt_printc(" == ");
+  print_type(rhs);
+  fmt_printlnc("");
+
+  if (lhs) { log_infof(LIT("lhs: %S(%x) at %d"), enum_to_string(Type_Kind, lhs->type_kind), lhs, assign->lhs->location.line); }
+  if (rhs) { log_infof(LIT("rhs: %S(%x) at %d"), enum_to_string(Type_Kind, rhs->type_kind), rhs, assign->rhs->location.line); }
+  if (lhs) {
+    log_infof(LIT("lhs == rhs -> %B"), lhs == rhs);
+  }
+}
+
+internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocator) {
+  switch (s->ast_type) {
+  CASE ANT_Decl_Function:
+    type_check_decl_function(s->decl_function, cs, allocator);
+  CASE ANT_Decl_Type:
+    type_check_decl_type(s->decl_type, cs, allocator);
+  CASE ANT_Decl_Variable:
+    type_check_decl_variable(s->decl_variable, cs, allocator);
+  CASE ANT_Stmt_Defer:
+    type_check_stmt(s->stmt_defer->rhs, cs, allocator);
+  CASE ANT_Stmt_Return:
+  CASE ANT_Stmt_Break:
+  CASE ANT_Stmt_Continue:
+  CASE ANT_Stmt_Block:
+  CASE ANT_Stmt_If:
+  CASE ANT_Stmt_Loop:
+  CASE ANT_Stmt_Iterator:
+  CASE ANT_Stmt_Switch:
+  CASE ANT_Stmt_Assign:
+    type_check_stmt_assign(s->stmt_assign, cs, allocator);
+  DEFAULT: {}
+  }
+}
+
+internal void type_check_scope(Ast_Stmt_Block body, Checker_Scope *cs, Allocator allocator) {
+  slice_iter_v(body, stmt, _i, {
+    type_check_stmt(stmt, cs, allocator);
+  });
+
+  hash_map_iter(cs->types, name, type, {
+    fmt_printflnc("\tType: %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
+  });
+
+  hash_map_iter(cs->variables, name, type, {
+    fmt_printflnc("\tVar:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
+  });
+}
+
+internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Checker_Scope *cs, Allocator allocator) {
   Type_Function *f = type_new(Function, allocator);
   slice_init(&f->args,    function->args.len,    allocator);
-  slice_init(&f->returns, function->returns.len, allocator);
 
-  Checker_Scope scope = {
-    .parent = cs,
-  };
-  scope.variables.allocator = allocator;
-  scope.types.allocator = allocator;
+  Checker_Scope scope;
+  checker_scope_init(&scope, cs, allocator);
 
   slice_iter_v(function->args, arg, i, {
     f->args.data[i].type = resolve_ast_type(arg->type, cs, allocator);
@@ -2026,30 +2182,94 @@ internal Type_Function *type_check_function_decl(Ast_Decl_Function *function, Ch
 
     hash_map_insert(&scope.variables, f->args.data[i].name, f->args.data[i].type);
   });
-  slice_iter_v(function->returns, ret, i, {
-    f->returns.data[i].type = resolve_ast_type(ret->type, cs, allocator);
-    f->returns.data[i].name = ret->name;
+  if (function->returns.len > 1) {
+    Type_Tuple *tuple = type_new(Tuple, allocator);
+    slice_init(&tuple->fields, function->returns.len, allocator);
 
-    hash_map_insert(&scope.variables, f->returns.data[i].name, f->returns.data[i].type);
-  });
+    slice_iter_v(function->returns, ret, i, {
+      tuple->fields.data[i] = resolve_ast_type(ret->type, cs, allocator);
+      hash_map_insert(&scope.variables, ret->name, tuple->fields.data[i]);
+    });
+    f->ret = type_base(tuple, 0, 0);
+  } else if (function->returns.len) {
+    f->ret = resolve_ast_type(function->returns.data[0]->type, cs, allocator);
+    hash_map_insert(&scope.variables, function->returns.data[0]->name, f->ret);
+  }
 
-  hash_map_iter(scope.types, name, type, {
-    fmt_printflnc("%S:\tType: %12S, Size: %2d, Align: %2d", function->name, name, (*type)->size, (*type)->align);
-  });
-
-  hash_map_iter(scope.variables, name, type, {
-    fmt_printflnc("%S:\tVar:  %12S, Size: %2d, Align: %2d", function->name, name, (*type)->size, (*type)->align);
-  });
+  type_check_scope(function->body, &scope, allocator);
 
   return f;
 }
 
-internal void type_check_variable_decl(Ast_Decl_Variable *variable, Checker_Scope *cs, Allocator allocator) {
+internal void print_type(Type *type) {
+  if (type == nil) {
+    fmt_printc("<nil>");
+    return;
+  }
+  switch (type->type_kind) {
+  CASE Type_Kind_Array: {
+    fmt_printfc("[%d]", type->array->count);
+    print_type(type->array->elem);
+  }
+  CASE Type_Kind_Struct: {
+    
+  }
+  CASE Type_Kind_Union: {
+    
+  }
+  CASE Type_Kind_Enum: {
+    
+  }
+  CASE Type_Kind_Named: {
+    fmt_printfc("%S (aka ", type->named->name);
+    print_type(type->named->type);
+    fmt_printc(")");
+  }
+  CASE Type_Kind_Pointer: {
+    fmt_printc("^");
+    print_type(type->pointer->pointee);
+  }
+  CASE Type_Kind_Basic: {
+    fmt_printfc("%S", enum_to_string(Basic_Type_Kind, type->basic->kind));
+  }
+  CASE Type_Kind_Function: {
+    
+  }
+  CASE Type_Kind_Untyped: {
+    
+  }
+  CASE Type_Kind_Tuple: {
+    
+  }
+  DEFAULT:
+    unreachable();
+  }
 }
 
-internal Type *type_base_type(Type *type) {
+internal void type_check_decl_variable(Ast_Decl_Variable *variable, Checker_Scope *cs, Allocator allocator) {
+  Type *type = resolve_ast_type(variable->type, cs, allocator);
+  if (variable->constant) {
+    Constant c;
+    c.value = evaluate_constant_expression(variable->value, cs);
+    c.type  = type;
+    hash_map_insert(&cs->constants, variable->name, c);
+    log_infof(LIT("Constant %S: %S (size: %d, align: %d)"), variable->name, enum_to_string(Type_Kind, type->type_kind), type->size, type->align);
+    return;
+  }
+  if (variable->value) {
+    type_check_expr(variable->value, cs, allocator);
+  }
+  log_infof(LIT("Variable %S: %S (size: %d, align: %d)"), variable->name, enum_to_string(Type_Kind, type->type_kind), type->size, type->align);
+  hash_map_insert(&cs->variables, variable->name, type);
+}
+
+internal Type *type_base_type(Type *type, Checker_Scope *cs) {
   while (type->type_kind == Type_Kind_Named) {
-    type = type->named->type;
+    if (type->named->type) {
+      type = type->named->type;
+      continue;
+    }
+    type = resolve_named_type(cs, type->named->name);
   }
   return type;
 }
@@ -2075,15 +2295,41 @@ internal Type *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allo
     return type_base(u, 0, 0);
   }
   CASE ANT_Expr_Unary:
-    return type_check_expr(expr, cs, allocator);
-  CASE ANT_Expr_Binary:
+    return type_check_expr(expr->expr_unary->rhs, cs, allocator);
+  CASE ANT_Expr_Binary: {
+    Type *lhs = type_check_expr(expr->expr_binary->lhs, cs, allocator);
+    Type *rhs = type_check_expr(expr->expr_binary->rhs, cs, allocator);
+    return lhs;
+  }
   CASE ANT_Expr_Ternary:
-  CASE ANT_Expr_Call:
-  CASE ANT_Expr_Selector:
+  CASE ANT_Expr_Call: {
+    Type *t = type_check_expr(expr->expr_call->lhs, cs, allocator);
+    if (t->type_kind != Type_Kind_Function) {
+      panic("call operator can only be used on functions");
+    }
+  }
+  CASE ANT_Expr_Selector: {
+    // Type *t = type_check_expr(expr->expr_selector->lhs, cs, allocator);
+    // if (t->type_kind != Type_Kind_Struct) {
+    //   panic("selector operator can only be used on structs");
+    // }
+  }
   CASE ANT_Expr_Deref:
   CASE ANT_Expr_Cast:
-  CASE ANT_Expr_Index:
-  CASE ANT_Expr_Address:
+  CASE ANT_Expr_Index: {
+    Type *lhs = type_check_expr(expr->expr_index->base,  cs, allocator);
+    Type *rhs = type_check_expr(expr->expr_index->index, cs, allocator);
+    lhs = type_base_type(lhs, cs);
+    if (lhs->type_kind == Type_Kind_Array) {
+      return lhs->array->elem;
+    }
+    return nil;
+  }
+  CASE ANT_Expr_Address: {
+    Type_Pointer *p = type_new(Pointer, allocator);
+    p->pointee      = type_check_expr(expr->expr_address->rhs, cs, allocator);
+    return type_base(p, 8, 8);
+  }
   DEFAULT: {}
   }
   return nil;
@@ -2092,9 +2338,8 @@ internal Type *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allo
 internal b8 type_check_file(Ast_File file, Allocator allocator) {
   b8 ok = true;
 
-  Checker_Scope cs = {0};
-  hash_map_init(&cs.variables, 64, string_equal, string_hash, allocator);
-  hash_map_init(&cs.types    , 64, string_equal, string_hash, allocator);
+  Checker_Scope cs;
+  checker_scope_init(&cs, nil, allocator);
 
   // TODO(Franz): set int, uint and pointer types to platform specific values
 
@@ -2138,21 +2383,13 @@ internal b8 type_check_file(Ast_File file, Allocator allocator) {
   slice_iter_v(file.decls, decl, _i, {
     switch (decl->ast_type) {
     CASE ANT_Decl_Type: {
-      Type *t = resolve_ast_type(decl->decl_type->type, &cs, allocator);
-      hash_map_insert(&cs.types, decl->decl_type->name, t);
-    }
-    DEFAULT: {}
-    }
-  });
-
-  slice_iter_v(file.decls, decl, _i, {
-    switch (decl->ast_type) {
-    CASE ANT_Decl_Function: {
-      type_check_function_decl(decl->decl_function, &cs, allocator);
+      type_check_decl_type(decl->decl_type, &cs, allocator);
     }
     CASE ANT_Decl_Variable: {
-      Type *variable_type = resolve_ast_type(decl->decl_variable->type, &cs, allocator);
-      hash_map_insert(&cs.variables, decl->decl_variable->name, variable_type);
+      type_check_decl_variable(decl->decl_variable, &cs, allocator);
+    }
+    CASE ANT_Decl_Function: {
+      type_check_decl_function(decl->decl_function, &cs, allocator);
     }
     DEFAULT: {}
     }

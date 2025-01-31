@@ -82,7 +82,7 @@ internal u64 default_hasher(rawptr data, uintptr seed, isize N) {
     type_of(KEY) key_ = (KEY);                                                 \
     type_of(MAP) map_ = (MAP);                                                 \
     u64 hash = _hash_map_hash(map_, key_);                                     \
-    isize index = hash % map_.cap;                                             \
+    isize index = map_.cap ? hash % map_.cap : 0;                              \
     type_of(map_.data->value) *value = nil;                                    \
                                                                                \
     for (;map_.cap; index = (index + 1) % map_.cap) {                          \
@@ -101,7 +101,7 @@ internal u64 default_hasher(rawptr data, uintptr seed, isize N) {
     type_of(KEY) key_ = (KEY);                                                 \
     type_of(MAP) map_ = (MAP);                                                 \
     u64 hash = _hash_map_hash(map_, key_);                                     \
-    isize index = hash % map_.cap;                                             \
+    isize index = map_.cap ? hash % map_.cap : 0;                              \
     b8 contains = false;                                                       \
                                                                                \
     for (;map_.cap; index = (index + 1) % map_.cap) {                          \
@@ -172,7 +172,7 @@ internal u64 default_hasher(rawptr data, uintptr seed, isize N) {
     type_of(KEY  ) key_   = (KEY);                                             \
     type_of(MAP  ) map_   = (MAP);                                             \
     u64 hash = _hash_map_hash((*map_), key_);                                  \
-    isize index = hash % map_->cap;                                            \
+    isize index = map_->cap ? hash % map_->cap : 0;                            \
                                                                                \
     for (;map_->cap; index = (index + 1) % map_->cap) {                        \
       type_of(map_->data) entry = &map_->data[index];                          \
