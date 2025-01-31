@@ -1,5 +1,14 @@
 #include "codin.h"
 
+#include "spall.h"
+
+thread_local SpallBuffer  spall_buffer;
+thread_local SpallProfile spall_ctx;
+
+internal f64 get_time_in_micros() {
+  return (f64)(time_now().nsec) / Microsecond;
+}
+
 #define TOKENS(X)                                                              \
   X(Token_Type_String       )                                                  \
   X(Token_Type_Int          )                                                  \
@@ -153,12 +162,13 @@ internal String binary_op_strings[] = {
   [Token_Type_More_Equal] = LIT(">="),
   [Token_Type_Modulo    ] = LIT("%" ),
 };
-#define ERROR_TYPES(X)            \
-  X(Error_Type_Tokenizer)         \
-  X(Error_Type_Syntax)            \
-  X(Error_Type_Type)              \
-  X(Error_Type_Internal)          \
-  X(Error_Type_Linker)            \
+
+#define ERROR_TYPES(X)                                                         \
+  X(Error_Type_Tokenizer)                                                      \
+  X(Error_Type_Syntax   )                                                      \
+  X(Error_Type_Type     )                                                      \
+  X(Error_Type_Internal )                                                      \
+  X(Error_Type_Linker   )                                                      \
 
 X_ENUM(Error_Type, ERROR_TYPES);
 
@@ -171,6 +181,7 @@ internal void error(Error_Type type, Token_Location location, String msg) {
 }
 
 internal b8 tokenize_file(String file, String path, Token_Vector *tokens) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   b8 ok = true;
   isize start = 0, current = 0, line = 1, column = 1;
 
@@ -383,6 +394,7 @@ append_token:
     continue;
   }
   
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
   return ok;
 }
 
@@ -1378,10 +1390,12 @@ internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
 }
 
 internal void parse_file(Parser *parser, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   while (parser->current < parser->tokens.len) {
     Ast_Decl *decl = parse_decl(parser, allocator);
     vector_append(&parser->file.decls, decl);
   }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void print_fields(Field_Vector fields) {
@@ -1704,32 +1718,6 @@ internal void print_ast_type(Ast_Expr *t) {
   default:
     unreachable();
   }
-}
-
-internal Allocator_Result printing_allocator_proc(
-  rawptr               data,
-  Allocator_Mode       mode,
-  isize                size,
-  isize                align,
-  rawptr               old_memory,
-  Source_Code_Location location
-) {
-  if (mode == AM_Alloc) {
-    CONTEXT_GUARD({
-      static byte backing[256];
-      Arena_Allocator a = {0};
-      context.temp_allocator = arena_allocator_init(&a, transmute(Byte_Slice, c_array_to_slice(backing)));
-      fmt_printfln(LIT("Allocation: %M\t at %L"), size, location);
-    });
-  }
-  return growing_arena_allocator_proc(
-    data,
-    mode,
-    size,
-    align,
-    old_memory,
-    location
-  );
 }
 
 #define TYPE_KINDS(X)                                                          \
@@ -2336,6 +2324,7 @@ internal Type *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allo
 }
 
 internal b8 type_check_file(Ast_File file, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   b8 ok = true;
 
   Checker_Scope cs;
@@ -2403,14 +2392,56 @@ internal b8 type_check_file(Ast_File file, Allocator allocator) {
   //   fmt_printflnc("Var:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
   // });
 
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
   return ok;
+}
+
+internal Allocator_Result printing_allocator_proc(
+  rawptr               data,
+  Allocator_Mode       mode,
+  isize                size,
+  isize                align,
+  rawptr               old_memory,
+  Source_Code_Location location
+) {
+  if (mode == AM_Alloc) {
+    CONTEXT_GUARD({
+      static byte backing[256];
+      Arena_Allocator a = {0};
+      context.temp_allocator = arena_allocator_init(&a, transmute(Byte_Slice, c_array_to_slice(backing)));
+      fmt_printfln(LIT("Allocation: %M\t at %L"), size, location);
+    });
+  }
+  return growing_arena_allocator_proc(
+    data,
+    mode,
+    size,
+    align,
+    old_memory,
+    location
+  );
+}
+
+b8 spall_write_callback(SpallProfile *self, const void *data, isize length) {
+  return file_write((Fd)self->data, (Byte_Slice) {.data = (byte *)data, .len = length}).err == OSE_None;
+}
+
+void spall_close_callback(SpallProfile *self) {
+  file_close((Fd)self->data);
 }
 
 i32 main() {
   context.allocator = panic_allocator();
   context.logger    = create_file_logger(FD_STDERR);
 
-  struct Time start = time_now();
+  Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
+  spall_ctx   = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
+	Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 4, context.temp_allocator);
+	spall_buffer = (SpallBuffer){
+		.length = spall_buffer_backing.len,
+		.data   = spall_buffer_backing.data,
+	};
+	spall_buffer_init(&spall_ctx, &spall_buffer);
 
   // context.temp_allocator.proc = printing_allocator_proc;
 
@@ -2422,21 +2453,23 @@ i32 main() {
   isize allocated = 0;
 
   slice_iter_v(slice_start(os_args, 1), path, _i, {
+    spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_entire_file_path"), get_time_in_micros());
     Byte_Slice file_data = or_do_err(read_entire_file_path(path, context.temp_allocator), err, {
       fmt_eprintflnc("Failed to read file '%S': '%S'", path, enum_to_string(OS_Error, err));
       continue;
     });
+    spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
     Token_Vector tokens = vector_make(Token_Vector, 0, 8, context.temp_allocator);
     if (!tokenize_file(bytes_to_string(file_data), path, &tokens)) {
       fmt_eprintflnc("Failed to tokenize file '%S'", path);
       continue;
     }
 
-    allocated = 0;
-    slice_iter_v(__default_temp_allocator_arena.blocks, block, i, {
-      allocated += block.used;
-    })
-    fmt_printflnc("Bytes allocated: %M", allocated);
+    // allocated = 0;
+    // slice_iter_v(__default_temp_allocator_arena.blocks, block, i, {
+    //   allocated += block.used;
+    // })
+    // fmt_printflnc("Bytes allocated: %M", allocated);
 
     Parser parser    = {0};
     parser.tokens    = vector_to_slice(type_of(parser.tokens), tokens);
@@ -2445,11 +2478,11 @@ i32 main() {
 
     parse_file(&parser, context.temp_allocator);
 
-    allocated = 0;
-    slice_iter_v(__default_temp_allocator_arena.blocks, block, i, {
-      allocated += block.used;
-    })
-    fmt_printflnc("Bytes allocated: %M", allocated);
+    // allocated = 0;
+    // slice_iter_v(__default_temp_allocator_arena.blocks, block, i, {
+    //   allocated += block.used;
+    // })
+    // fmt_printflnc("Bytes allocated: %M", allocated);
 
     // slice_iter_v(parser.file.decls, d, _i, print_decl(d));
 
@@ -2458,14 +2491,15 @@ i32 main() {
       continue;
     }
 
-    allocated = 0;
-    slice_iter_v(__default_temp_allocator_arena.blocks, block, i, {
-      allocated += block.used;
-    })
-    fmt_printflnc("Bytes allocated: %M", allocated);
+    // allocated = 0;
+    // slice_iter_v(__default_temp_allocator_arena.blocks, block, i, {
+    //   allocated += block.used;
+    // })
+    // fmt_printflnc("Bytes allocated: %M", allocated);
   });
 
-  log_infof(LIT("time: %fms"), (f32)time_since(start) / Millisecond);
+	spall_buffer_quit(&spall_ctx, &spall_buffer);
+	spall_quit(&spall_ctx);
 
   return 0;
 }
