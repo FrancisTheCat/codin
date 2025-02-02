@@ -2,12 +2,19 @@
 
 #include "spall.h"
 
-thread_local SpallBuffer  spall_buffer;
-thread_local SpallProfile spall_ctx;
+#define SPALL_PROFILING
 
-internal f64 get_time_in_micros() {
-  return (f64)(time_now().nsec) / Microsecond;
-}
+#ifdef SPALL_PROFILING
+  thread_local SpallBuffer  spall_buffer;
+  thread_local SpallProfile spall_ctx;
+
+  internal f64 get_time_in_micros() {
+    return time_now().nsec / (f64)Microsecond;
+  }
+#else
+  #define spall_buffer_begin(...)
+  #define spall_buffer_end(...)
+#endif
 
 #define TOKENS(X)                                                              \
   X(Token_Type_String       )                                                  \
@@ -1141,7 +1148,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
   unreachable();
 }
 
-internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
+internal Ast_Expr *_parse_type(Parser *parser, Allocator allocator) {
   Token t = parser_advance(parser);
   switch (t.type) {
   case Token_Type_Open_Square: {
@@ -1252,6 +1259,13 @@ internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
   return nil;
 }
 
+internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  Ast_Expr *e = _parse_type(parser, allocator);
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  return e;
+}
+
 internal b8 parse_fields(Parser *parser, Token_Type terminator, Field_Vector *fields, b8 allow_defaults, Allocator allocator) {
   for (Token t = parser_peek(parser); t.type != terminator; t = parser_peek(parser)) {
     Token ident;
@@ -1301,15 +1315,18 @@ internal b8 parse_fields(Parser *parser, Token_Type terminator, Field_Vector *fi
 }
 
 internal Ast_Decl_Function *parse_function_decl(Parser *parser, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   Token t;
   parser_expect(parser, Token_Type_Fn, &t);
 
   Token ident;
   if (!parser_expect(parser, Token_Type_Ident, &ident)) {
+    spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
     return false;
   }
 
   if (!parser_expect(parser, Token_Type_Open_Paren, nil)) {
+    spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
     return false;
   }
 
@@ -1335,10 +1352,11 @@ internal Ast_Decl_Function *parse_function_decl(Parser *parser, Allocator alloca
   parse_block(parser, &fn->body, allocator);
   parser_expect(parser, Token_Type_Close_Squirly, nil);
 
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
   return fn;
 }
 
-internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
+internal Ast_Decl *_parse_decl(Parser *parser, Allocator allocator) {
   Token t = parser_peek(parser);
 
   switch (t.type) {
@@ -1405,6 +1423,13 @@ internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
   }
 
   unreachable();
+}
+
+internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  Ast_Decl *d = _parse_decl(parser, allocator);
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  return d;
 }
 
 internal void parse_file(Parser *parser, Allocator allocator) {
@@ -2252,8 +2277,12 @@ internal void           type_check_scope(Ast_Stmt_Block body, Checker_Scope *cs,
 
 
 internal void type_check_decl_type(Ast_Decl_Type *type_decl, Checker_Scope *cs, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+
   Type *t = resolve_ast_type(type_decl->type, cs, allocator);
   hash_map_insert(&cs->types, type_decl->name, t);
+
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void print_type(Type *type);
@@ -2289,6 +2318,7 @@ internal b8 type_is_integer(Type *type, Checker_Scope *cs) {
 }
 
 internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   switch (s->ast_type) {
   CASE ANT_Expr_Call:
     type_check_expr(s, cs, allocator);
@@ -2429,23 +2459,27 @@ internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocato
   DEFAULT: 
     unimplemented();
   }
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal void type_check_scope(Ast_Stmt_Block body, Checker_Scope *cs, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   slice_iter_v(body, stmt, _i, {
     type_check_stmt(stmt, cs, allocator);
   });
-  fmt_printlnc("{");
-  hash_map_iter(cs->types, name, type, {
-    fmt_printflnc("\tType: %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
-  });
-  hash_map_iter(cs->variables, name, type, {
-    fmt_printflnc("\tVar:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
-  });
-  fmt_printlnc("}");
+  // fmt_printlnc("{");
+  // hash_map_iter(cs->types, name, type, {
+  //   fmt_printflnc("\tType: %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
+  // });
+  // hash_map_iter(cs->variables, name, type, {
+  //   fmt_printflnc("\tVar:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
+  // });
+  // fmt_printlnc("}");
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Checker_Scope *cs, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   Type_Function *f = type_new(Function, allocator);
   slice_init(&f->args, function->args.len, allocator);
 
@@ -2476,6 +2510,7 @@ internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Ch
 
   type_check_scope(function->body, &scope, allocator);
 
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
   return f;
 }
 
@@ -2525,18 +2560,26 @@ internal void print_type(Type *type) {
 }
 
 internal void type_check_decl_variable(Ast_Decl_Variable *variable, Checker_Scope *cs, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
   Type *type = resolve_ast_type(variable->type, cs, allocator);
   if (variable->constant) {
+    if (!types_equal(type, type_check_expr(variable->value, cs, allocator), cs)) {
+      errorc(Error_Type_Type, variable->value->location, "variable initializer has incorrect type");
+    }
     Constant c;
     c.value = evaluate_constant_expression(variable->value, cs);
     c.type  = type;
     hash_map_insert(&cs->constants, variable->name, c);
+    spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
     return;
   }
   if (variable->value) {
-    type_check_expr(variable->value, cs, allocator);
+    if (!types_equal(type, type_check_expr(variable->value, cs, allocator), cs)) {
+      errorc(Error_Type_Type, variable->value->location, "variable initializer has incorrect type");
+    }
   }
   hash_map_insert(&cs->variables, variable->name, type);
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
 internal Type *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator) {
@@ -2865,6 +2908,7 @@ i32 main() {
   context.allocator = panic_allocator();
   context.logger    = create_file_logger(FD_STDERR);
 
+#ifdef SPALL_PROFILING
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
   spall_ctx   = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
 	Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 4, context.temp_allocator);
@@ -2873,6 +2917,7 @@ i32 main() {
 		.data   = spall_buffer_backing.data,
 	};
 	spall_buffer_init(&spall_ctx, &spall_buffer);
+#endif
 
   // context.temp_allocator.proc = printing_allocator_proc;
 
@@ -2913,8 +2958,10 @@ i32 main() {
     code_gen_file(parser.file, context.temp_allocator);
   });
 
+#ifdef SPALL_PROFILING
 	spall_buffer_quit(&spall_ctx, &spall_buffer);
 	spall_quit(&spall_ctx);
+#endif
 
   return 0;
 }
