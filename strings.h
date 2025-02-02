@@ -253,3 +253,9 @@ internal String_Slice string_split(String str, String split, Allocator allocator
   
   return vector_to_slice(String_Slice, splits);
 }
+
+#define STRING_CASE_C(s) STRING_CASE(LIT(s))
+#define STRING_CASE(s) \
+  } if (string_equal(_string_switch_string, s)) {
+
+#define STRING_SWITCH(s) { String _string_switch_string = s;
