@@ -2,7 +2,7 @@
 
 #include "spall.h"
 
-#define SPALL_PROFILING
+// #define SPALL_PROFILING
 
 #ifdef SPALL_PROFILING
   thread_local SpallBuffer  spall_buffer;
@@ -2487,9 +2487,12 @@ internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Ch
   checker_scope_init(&scope, get_global_scope(cs), allocator);
 
   slice_iter_v(function->args, arg, i, {
-    f->args.data[i].type = resolve_ast_type(arg->type, cs, allocator);
+    Type *t = resolve_ast_type(arg->type, cs, allocator);
+
+    f->args.data[i].type = t;
     f->args.data[i].name = arg->name;
 
+    ast_base(arg)->type = t;
     hash_map_insert(&scope.variables, f->args.data[i].name, f->args.data[i].type);
   });
   if (function->returns.len > 1) {
@@ -2582,7 +2585,7 @@ internal void type_check_decl_variable(Ast_Decl_Variable *variable, Checker_Scop
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-internal Type *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator) {
+internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator) {
   assert(expr);
   assert(cs);
 
@@ -2857,17 +2860,151 @@ internal b8 type_check_file(Ast_File file, Allocator allocator) {
   return ok;
 }
 
+internal Type *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator) {
+  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+
+  Type *t = _type_check_expr(expr, cs, allocator);
+  expr->type = t;
+
+  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+
+  return t;
+}
+
 typedef struct {
-  Builder b;
+  Hash_Map(String, i32) offsets;
+  i32                   offset;
+} Stack_Frame;
+
+typedef struct {
+  Builder             b;
+  Vector(Stack_Frame) stack;
 } Code_Gen_Context;
 
-internal void code_gen_function(Code_Gen_Context *ctx, Ast_Decl_Function f) {
+#define cg_printfc(format, ...) fmt_sbprintf(&ctx->b, LIT(format), __VA_ARGS__)
+#define cg_printf( format, ...) fmt_sbprintf(&ctx->b,    (format), __VA_ARGS__)
+
+#define cg_printc(str) fmt_sbprintf(&ctx->b, LIT("%s"), (str))
+#define cg_print( str) fmt_sbprintf(&ctx->b, LIT("%S"), (str))
+
+#define cg_printflnc(format, ...) fmt_sbprintf(&ctx->b, LIT(format), __VA_ARGS__); fmt_sbprintf(&ctx->b, LIT("\n"), 0)
+#define cg_printfln( format, ...) fmt_sbprintf(&ctx->b,    (format), __VA_ARGS__); fmt_sbprintf(&ctx->b, LIT("\n"), 0)
+
+#define cg_printlnc(str) fmt_sbprintf(&ctx->b, LIT("%s"), (str)); fmt_sbprintf(&ctx->b, LIT("\n"), 0)
+#define cg_println( str) fmt_sbprintf(&ctx->b, LIT("%S"), (str)); fmt_sbprintf(&ctx->b, LIT("\n"), 0)
+
+internal void cg_push(String ident) {
   
 }
 
+internal String integer_regs[] = {
+  LIT("rdi"),
+  LIT("rsi"),
+  LIT("rdx"),
+  LIT("rcx"),
+  LIT("r8" ),
+  LIT("r9" ),
+};
+
+internal void code_gen_push_args(Code_Gen_Context *ctx, Stack_Frame *f, Field_Vector args) {
+  isize register_index = 0;
+  for (int i = 0; i < args.len; i += 1) {
+    Ast_Field *arg = *IDX(args, i);
+    if (ast_base(arg)->type->size <= 8) {
+      cg_printflnc("\tpush %S", integer_regs[register_index]);
+      hash_map_insert(&f->offsets, arg->name, f->offset);
+      f->offset += 8;
+      register_index += 1;
+    } else if (ast_base(arg)->type->size <= 16) {
+      cg_printflnc("\tpush %S", integer_regs[register_index    ]);
+      cg_printflnc("\tpush %S", integer_regs[register_index + 1]);
+      hash_map_insert(&f->offsets, arg->name, f->offset);
+      f->offset += 16;
+      register_index += 2;
+    } else {
+      unimplemented();
+    }
+  }
+}
+
+internal void code_gen_pop_args(Code_Gen_Context *ctx, Stack_Frame *f, Field_Vector args) {
+  isize register_index = 0;
+  slice_iter_v(args, arg, i, {
+    if (ast_base(arg)->type->size <= 8) {
+      cg_printflnc("\tpop %s", integer_regs[register_index]);
+      hash_map_insert(&f->offsets, arg->name, f->offset);
+      f->offset += 8;
+      register_index += 1;
+    } else if (ast_base(arg)->type->size <= 16) {
+      cg_printflnc("\tpop %s", integer_regs[register_index    ]);
+      cg_printflnc("\tpop %s", integer_regs[register_index + 1]);
+      hash_map_insert(&f->offsets, arg->name, f->offset);
+      f->offset += 16;
+      register_index += 2;
+    } else {
+      unimplemented();
+    }
+  });
+}
+
+internal void code_gen_function(Code_Gen_Context *ctx, Ast_Decl_Function *f, Allocator allocator) {
+  cg_printflnc("%S:", f->name);
+  cg_printlnc("\tmov rbp, rsp");
+
+  Stack_Frame frame = {0};
+  hash_map_init(&frame.offsets, 32, string_equal, string_hash, allocator);
+
+  code_gen_push_args(ctx, &frame, f->args);
+
+  vector_append(&ctx->stack, frame);
+
+  cg_printlnc("\tmov rsp, rbp");
+  cg_printlnc("\tret");
+}
+
 internal void code_gen_file(Ast_File file, Allocator allocator) {
-  Code_Gen_Context ctx;
-  ctx.b.allocator = allocator;
+  Code_Gen_Context _ctx;
+  vector_init(&_ctx.b,     0, 8, allocator);
+  vector_init(&_ctx.stack, 0, 8, allocator);
+  Code_Gen_Context *ctx = &_ctx;
+
+  cg_printlnc(".intel_syntax noprefix");
+  cg_printlnc(".text");
+
+  cg_printc(".globl _start, ");
+  b8 first = true;
+  slice_iter_v(file.decls, decl, i, {
+    if (decl->ast_type != ANT_Decl_Function) { continue; }
+    if (!first) {
+      cg_printc(", ");
+    }
+    cg_print(decl->decl_function->name);
+    if (first) { first = false; }
+  });
+
+  cg_printlnc("\n");
+
+  cg_printlnc("_start:");
+  cg_printlnc("\txor rbp, rbp");
+  cg_printlnc("\tpop rdi");
+  cg_printlnc("\tmov rsi, rsp");
+  cg_printlnc("\tand rsp, -16");
+
+  cg_printlnc("\tcall main");
+  
+  cg_printlnc("\tmov rdi, rax");
+  cg_printlnc("\tmov rax,  60");
+  cg_printlnc("\tsyscall");
+  cg_printlnc("\tret");
+
+  cg_printlnc("");
+
+  slice_iter_v(file.decls, decl, i, {
+    if (decl->ast_type != ANT_Decl_Function) { continue; }
+    code_gen_function(ctx, decl->decl_function, allocator);
+  });
+
+  fmt_printfc("%S", builder_to_string(ctx->b));
 }
 
 internal Allocator_Result printing_allocator_proc(
@@ -2929,8 +3066,12 @@ i32 main() {
   isize allocated = 0;
 
   slice_iter_v(slice_start(os_args, 1), path, _i, {
-    spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_entire_file_path"), get_time_in_micros());
-    Byte_Slice file_data = or_do_err(read_entire_file_path(path, context.temp_allocator), err, {
+    spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("map_entire_file"), get_time_in_micros());
+    Fd file = or_do_err(file_open(path, FP_Read), err, {
+      fmt_eprintflnc("Failed to open file '%S': '%S'", path, enum_to_string(OS_Error, err));
+      continue;
+    });
+    Byte_Slice file_data = or_do_err(map_entire_file(file), err, {
       fmt_eprintflnc("Failed to read file '%S': '%S'", path, enum_to_string(OS_Error, err));
       continue;
     });

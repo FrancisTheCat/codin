@@ -345,6 +345,8 @@ internal void __runtime_cleanup();
 
 #include "os.h"
 
+#include "mem_virtual.h"
+
 #include "thread.h"
 
 #include "fmt.h"
