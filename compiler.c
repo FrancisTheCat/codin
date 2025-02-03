@@ -2,7 +2,7 @@
 
 #include "spall.h"
 
-// #define SPALL_PROFILING
+#define SPALL_PROFILING
 
 #ifdef SPALL_PROFILING
   thread_local SpallBuffer  spall_buffer;
@@ -15,6 +15,9 @@
   #define spall_buffer_begin(...)
   #define spall_buffer_end(...)
 #endif
+
+#define spall_begin_fn() spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros())
+#define spall_end_fn()   spall_buffer_end(&spall_ctx, &spall_buffer,                      get_time_in_micros())
 
 #define TOKENS(X)                                                              \
   X(Token_Type_String       )                                                  \
@@ -195,7 +198,7 @@ internal void error(Error_Type type, Token_Location location, String msg) {
 }
 
 internal b8 tokenize_file(String file, String path, Token_Vector *tokens) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
   b8 ok = true;
   isize start = 0, current = 0, line = 1, column = 1;
 
@@ -408,7 +411,7 @@ append_token:
     continue;
   }
   
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
   return ok;
 }
 
@@ -1260,9 +1263,9 @@ internal Ast_Expr *_parse_type(Parser *parser, Allocator allocator) {
 }
 
 internal Ast_Expr *parse_type(Parser *parser, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
   Ast_Expr *e = _parse_type(parser, allocator);
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
   return e;
 }
 
@@ -1315,18 +1318,18 @@ internal b8 parse_fields(Parser *parser, Token_Type terminator, Field_Vector *fi
 }
 
 internal Ast_Decl_Function *parse_function_decl(Parser *parser, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
   Token t;
   parser_expect(parser, Token_Type_Fn, &t);
 
   Token ident;
   if (!parser_expect(parser, Token_Type_Ident, &ident)) {
-    spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+    spall_end_fn();
     return false;
   }
 
   if (!parser_expect(parser, Token_Type_Open_Paren, nil)) {
-    spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+    spall_end_fn();
     return false;
   }
 
@@ -1352,7 +1355,7 @@ internal Ast_Decl_Function *parse_function_decl(Parser *parser, Allocator alloca
   parse_block(parser, &fn->body, allocator);
   parser_expect(parser, Token_Type_Close_Squirly, nil);
 
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
   return fn;
 }
 
@@ -1426,19 +1429,19 @@ internal Ast_Decl *_parse_decl(Parser *parser, Allocator allocator) {
 }
 
 internal Ast_Decl *parse_decl(Parser *parser, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
   Ast_Decl *d = _parse_decl(parser, allocator);
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
   return d;
 }
 
 internal void parse_file(Parser *parser, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
   while (parser->current < parser->tokens.len) {
     Ast_Decl *decl = parse_decl(parser, allocator);
     vector_append(&parser->file.decls, decl);
   }
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
 }
 
 internal void print_fields(Field_Vector fields) {
@@ -2268,6 +2271,12 @@ Type *type_untyped_rune   = nil;
 Type *type_untyped_float  = nil;
 Type *type_untyped_string = nil;
 
+Type *type_isize  = nil;
+Type *type_bool   = nil;
+Type *type_rune   = nil;
+Type *type_float  = nil;
+Type *type_string = nil;
+
 Type *type_invalid        = nil;
 
 internal Type          *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator);
@@ -2277,12 +2286,12 @@ internal void           type_check_scope(Ast_Stmt_Block body, Checker_Scope *cs,
 
 
 internal void type_check_decl_type(Ast_Decl_Type *type_decl, Checker_Scope *cs, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
 
   Type *t = resolve_ast_type(type_decl->type, cs, allocator);
   hash_map_insert(&cs->types, type_decl->name, t);
 
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
 }
 
 internal void print_type(Type *type);
@@ -2290,6 +2299,10 @@ internal void print_type(Type *type);
 internal void type_check_stmt_assign(Ast_Stmt_Assign *assign, Checker_Scope *cs, Allocator allocator) {
   Type *lhs = type_check_expr(assign->lhs, cs, allocator);
   Type *rhs = type_check_expr(assign->rhs, cs, allocator);
+
+  if (!types_equal(lhs, rhs, cs)) {
+    errorc(Error_Type_Type, ast_base(assign)->location, "Left and right types of assignment do not match");
+  }
 
   // print_type(lhs);
   // fmt_printc(" == ");
@@ -2318,7 +2331,7 @@ internal b8 type_is_integer(Type *type, Checker_Scope *cs) {
 }
 
 internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
   switch (s->ast_type) {
   CASE ANT_Expr_Call:
     type_check_expr(s, cs, allocator);
@@ -2459,11 +2472,11 @@ internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocato
   DEFAULT: 
     unimplemented();
   }
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
 }
 
 internal void type_check_scope(Ast_Stmt_Block body, Checker_Scope *cs, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
   slice_iter_v(body, stmt, _i, {
     type_check_stmt(stmt, cs, allocator);
   });
@@ -2475,11 +2488,11 @@ internal void type_check_scope(Ast_Stmt_Block body, Checker_Scope *cs, Allocator
   //   fmt_printflnc("\tVar:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
   // });
   // fmt_printlnc("}");
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
 }
 
 internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Checker_Scope *cs, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
   Type_Function *f = type_new(Function, allocator);
   slice_init(&f->args, function->args.len, allocator);
 
@@ -2513,7 +2526,7 @@ internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Ch
 
   type_check_scope(function->body, &scope, allocator);
 
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
   return f;
 }
 
@@ -2563,8 +2576,9 @@ internal void print_type(Type *type) {
 }
 
 internal void type_check_decl_variable(Ast_Decl_Variable *variable, Checker_Scope *cs, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
   Type *type = resolve_ast_type(variable->type, cs, allocator);
+  ast_base(variable)->type = type;
   if (variable->constant) {
     if (!types_equal(type, type_check_expr(variable->value, cs, allocator), cs)) {
       errorc(Error_Type_Type, variable->value->location, "variable initializer has incorrect type");
@@ -2573,7 +2587,7 @@ internal void type_check_decl_variable(Ast_Decl_Variable *variable, Checker_Scop
     c.value = evaluate_constant_expression(variable->value, cs);
     c.type  = type;
     hash_map_insert(&cs->constants, variable->name, c);
-    spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+    spall_end_fn();
     return;
   }
   if (variable->value) {
@@ -2582,7 +2596,7 @@ internal void type_check_decl_variable(Ast_Decl_Variable *variable, Checker_Scop
     }
   }
   hash_map_insert(&cs->variables, variable->name, type);
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
 }
 
 internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator) {
@@ -2779,7 +2793,7 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
 }
 
 internal b8 type_check_file(Ast_File file, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
   b8 ok = true;
 
   Checker_Scope cs;
@@ -2829,6 +2843,12 @@ internal b8 type_check_file(Ast_File file, Allocator allocator) {
   type_untyped_string = new_untyped_type(Untyped_Type_String, allocator);
 
   type_invalid = type_base(type_new(Invalid, allocator), 0, 0);
+
+  type_bool = new_basic_type(Basic_Type_Bool,      1, 1, allocator);
+  type_rune = new_basic_type(Basic_Type_Rune,      4, 4, allocator);
+  type_isize = new_basic_type(Basic_Type_Int,      8, 8, allocator);
+  type_float = new_basic_type(Basic_Type_Float,    8, 8, allocator);
+  type_string = new_basic_type(Basic_Type_String, 16, 8, allocator);
   
   #undef BASIC_TYPE
   
@@ -2856,30 +2876,48 @@ internal b8 type_check_file(Ast_File file, Allocator allocator) {
   //   fmt_printflnc("Var:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
   // });
 
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  spall_end_fn();
   return ok;
 }
 
 internal Type *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
+  spall_begin_fn();
 
   Type *t = _type_check_expr(expr, cs, allocator);
-  expr->type = t;
+  expr->type = type_base_type(t, cs);
 
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
-
+  spall_end_fn();
   return t;
 }
 
 typedef struct {
   Hash_Map(String, i32) offsets;
   i32                   offset;
+  Builder               prev_builder;
 } Stack_Frame;
 
 typedef struct {
-  Builder             b;
-  Vector(Stack_Frame) stack;
+  Builder               b;
+  Vector(Stack_Frame)   stack;
+  i32                   label_id, string_id;
+  Hash_Map(String, i32) strings;
 } Code_Gen_Context;
+
+internal void begin_stack_frame(Code_Gen_Context *ctx, Allocator allocator) {
+  Stack_Frame f = {0};
+  hash_map_init(&f.offsets, 32, string_equal, string_hash, allocator);
+  f.prev_builder = ctx->b;
+  vector_append(&ctx->stack, f);
+  builder_init(&ctx->b, 0, 8, allocator);
+}
+
+internal void end_stack_frame(Code_Gen_Context *ctx) {
+  Builder     b = ctx->b;
+  Stack_Frame f = vector_pop(&ctx->stack);
+  ctx->b        = f.prev_builder;
+  f.offset = (f.offset + 15) & ~15;
+  fmt_sbprintf(&ctx->b, LIT("\tadd rsp, -%d\n%S"), f.offset, builder_to_string(b));
+}
 
 #define cg_printfc(format, ...) fmt_sbprintf(&ctx->b, LIT(format), __VA_ARGS__)
 #define cg_printf( format, ...) fmt_sbprintf(&ctx->b,    (format), __VA_ARGS__)
@@ -2893,79 +2931,268 @@ typedef struct {
 #define cg_printlnc(str) fmt_sbprintf(&ctx->b, LIT("%s"), (str)); fmt_sbprintf(&ctx->b, LIT("\n"), 0)
 #define cg_println( str) fmt_sbprintf(&ctx->b, LIT("%S"), (str)); fmt_sbprintf(&ctx->b, LIT("\n"), 0)
 
-internal void cg_push(String ident) {
-  
+#define ARGUMENT_CLASSES(X) \
+  X(Argument_Class_Integer) \
+  X(Argument_Class_Memory)  \
+  X(Argument_Class_SSE)     \
+
+X_ENUM(Argument_Class, ARGUMENT_CLASSES);
+
+internal Type *specialize_untyped_type(Type *type) {
+  assert(type->type_kind == Type_Kind_Untyped);
+
+  switch (type->untyped->kind) {
+  case Untyped_Type_Int:
+    return type_isize;
+  case Untyped_Type_Bool:
+    return type_bool;
+  case Untyped_Type_Float:
+    return type_float;
+  case Untyped_Type_String:
+    return type_string;
+  case Untyped_Type_Rune:
+    return type_rune;
+  default:
+    unreachable();
+  }
 }
 
-internal String integer_regs[] = {
+internal Argument_Class get_type_argument_class(Type *type) {
+  if (type->size > 16)  {
+    return Argument_Class_Memory;
+  }
+  switch (type->type_kind) {
+  case Type_Kind_Array:
+    return get_type_argument_class(type->array->elem);
+  case Type_Kind_Slice:
+    return Argument_Class_Integer;
+  case Type_Kind_Struct:
+    unimplemented();
+  case Type_Kind_Union:
+    unimplemented();
+  case Type_Kind_Enum:
+    return Argument_Class_Integer;
+  case Type_Kind_Pointer:
+    return Argument_Class_Integer;
+  case Type_Kind_Basic:
+    switch (type->basic->kind) {
+    case Basic_Type_Int:
+    case Basic_Type_Uint:
+    case Basic_Type_Bool:
+    case Basic_Type_String:
+    case Basic_Type_Rune:
+      return Argument_Class_Integer;
+    case Basic_Type_Float:
+      return Argument_Class_SSE;
+    default:
+      unreachable();
+    }
+  case Type_Kind_Function:
+      return Argument_Class_Integer;
+  case Type_Kind_Untyped:
+    return get_type_argument_class(specialize_untyped_type(type));
+  default:
+    unreachable();
+  }
+}
+
+internal String int_arg_registers[] = {
   LIT("rdi"),
   LIT("rsi"),
   LIT("rdx"),
   LIT("rcx"),
   LIT("r8" ),
   LIT("r9" ),
+  LIT("TODO(Franz): Proper handling of calling convention"),
 };
 
-internal void code_gen_push_args(Code_Gen_Context *ctx, Stack_Frame *f, Field_Vector args) {
-  isize register_index = 0;
-  for (int i = 0; i < args.len; i += 1) {
-    Ast_Field *arg = *IDX(args, i);
-    if (ast_base(arg)->type->size <= 8) {
-      cg_printflnc("\tpush %S", integer_regs[register_index]);
-      hash_map_insert(&f->offsets, arg->name, f->offset);
-      f->offset += 8;
-      register_index += 1;
-    } else if (ast_base(arg)->type->size <= 16) {
-      cg_printflnc("\tpush %S", integer_regs[register_index    ]);
-      cg_printflnc("\tpush %S", integer_regs[register_index + 1]);
-      hash_map_insert(&f->offsets, arg->name, f->offset);
-      f->offset += 16;
-      register_index += 2;
-    } else {
-      unimplemented();
+internal String float_arg_registers[] = {
+  LIT("xmm0"),
+  LIT("xmm1"),
+  LIT("xmm2"),
+  LIT("xmm3"),
+  LIT("xmm4"),
+  LIT("xmm5"),
+  LIT("xmm6"),
+  LIT("xmm7"),
+  LIT("TODO(Franz): Proper handling of calling convention"),
+};
+
+internal String_Slice registers[enum_len(Argument_Class)] = {
+  [Argument_Class_Integer] = c_array_to_slice_t(String_Slice, int_arg_registers  ),
+  [Argument_Class_SSE    ] = c_array_to_slice_t(String_Slice, float_arg_registers),
+};
+
+internal void code_gen_expr(Code_Gen_Context *ctx, Ast_Expr *e) {
+  assert(e->type);
+
+  switch (e->ast_type) {
+  CASE ANT_Expr_Ident:
+  CASE ANT_Expr_Literal:
+    switch (e->expr_literal->type) {
+    CASE Token_Type_String: {
+      i32 *_id = hash_map_get(ctx->strings, e->expr_literal->value.string);
+      i32 id = 0;
+      if (_id) {
+        id = *_id;
+      } else {
+        id = ctx->string_id;
+        ctx->string_id += 1;
+      }
+      cg_printflnc("\tmov  rax, __$string_%d + 8", id);
+      cg_printlnc ("\tpush rax");
+      cg_printflnc("\tmov  rax, [__$string_%d]", id);
+      cg_printlnc ("\tpush rax");
     }
+    CASE Token_Type_Int:
+      cg_printflnc("\tpush QWORD %d", e->expr_literal->value.integer);
+    CASE Token_Type_Float:
+    CASE Token_Type_Rune:
+      cg_printflnc("\tpush QWORD %d", e->expr_literal->value.rune);
+    CASE Token_Type_True:
+      cg_printlnc ("\tpush QWORD 1");
+    CASE Token_Type_False:
+      cg_printlnc ("\tpush QWORD 0");
+    DEFAULT:
+      unreachable();
+    }
+  CASE ANT_Expr_Unary:
+  CASE ANT_Expr_Binary:
+  CASE ANT_Expr_Ternary:
+  CASE ANT_Expr_Call:
+  CASE ANT_Expr_Selector:
+  CASE ANT_Expr_Deref:
+  CASE ANT_Expr_Cast:
+  CASE ANT_Expr_Index:
+  CASE ANT_Expr_Address:
+  DEFAULT:
+    unreachable();
   }
 }
 
-internal void code_gen_pop_args(Code_Gen_Context *ctx, Stack_Frame *f, Field_Vector args) {
-  isize register_index = 0;
+internal void code_gen_variable(Code_Gen_Context *ctx, Ast_Decl_Variable *var) {
+  assert(ast_base(var)->type);
+  Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
+  hash_map_insert(&f->offsets, var->name, f->offset);
+  if (var->value) {
+    code_gen_expr(ctx, var->value);
+    cg_printlnc ("\tpop rax");
+    cg_printflnc("\tmov QWORD [rbp-%d], rax", f->offset);
+  } else {
+    cg_printflnc("\tmov QWORD [rbp-%d], 0", f->offset);
+  }
+
+  f->offset += ast_base(var)->type->size;
+}
+
+internal void code_gen_push_args(Code_Gen_Context *ctx, Field_Vector args) {
+  spall_begin_fn();
+  Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
+
+  isize register_index[enum_len(Argument_Class)] = {0};
   slice_iter_v(args, arg, i, {
+    Ast_Field       *arg = *IDX(args, i);
+    Argument_Class class = get_type_argument_class(ast_base(arg)->type);
+
     if (ast_base(arg)->type->size <= 8) {
-      cg_printflnc("\tpop %s", integer_regs[register_index]);
+      if (class == Argument_Class_Integer) {
+        cg_printflnc("\tpush %S", *IDX(registers[class], register_index[class]));
+      } else {
+        cg_printflnc("\tmovq rax, %S", *IDX(registers[class], register_index[class]));
+        cg_printlnc ("\tpush rax");
+      }
       hash_map_insert(&f->offsets, arg->name, f->offset);
       f->offset += 8;
-      register_index += 1;
+      register_index[class] += 1;
     } else if (ast_base(arg)->type->size <= 16) {
-      cg_printflnc("\tpop %s", integer_regs[register_index    ]);
-      cg_printflnc("\tpop %s", integer_regs[register_index + 1]);
+      assert(class == Argument_Class_Integer);
+      cg_printflnc("\tpush %S", *IDX(registers[class], register_index[class]    ));
+      cg_printflnc("\tpush %S", *IDX(registers[class], register_index[class] + 1));
       hash_map_insert(&f->offsets, arg->name, f->offset);
       f->offset += 16;
-      register_index += 2;
+      register_index[class] += 2;
     } else {
       unimplemented();
     }
   });
+  spall_end_fn();
+}
+
+internal void code_gen_load_args(Code_Gen_Context *ctx, Field_Vector args) {
+  spall_begin_fn();
+  Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
+
+  isize register_index[enum_len(Argument_Class)] = {0};
+  slice_iter_v(args, arg, i, {
+    i32 *offset = hash_map_get(f->offsets, arg->name);
+    assert(offset);
+    Ast_Field *arg = *IDX(args, i);
+    Argument_Class class = get_type_argument_class(ast_base(arg)->type);
+
+    if (ast_base(arg)->type->size <= 8) {
+      if (class == Argument_Class_Integer) {
+        cg_printflnc("\tmov    %S, [rbp-%d-8]", *IDX(registers[class], register_index[class]), *offset);
+
+  // slice_iter_v(f->returns, ret, i, {
+  //   Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
+  //   hash_map_insert(&f->offsets, ret->name, f->offset);
+  //   f->offset += ast_base(ret)->type->size;
+  // });
+      } else {
+        cg_printflnc("\tmovdqu %S, [rbp-%d-8]", *IDX(registers[class], register_index[class]), *offset);
+      }
+      register_index[class] += 1;
+    } else if (ast_base(arg)->type->size <= 16) {
+      assert(class == Argument_Class_Integer);
+      cg_printflnc("\tmov %S, [rbp-%d-8]", *IDX(registers[class], register_index[class]    ), *offset);
+      cg_printflnc("\tmov %S, [rbp-%d-8]", *IDX(registers[class], register_index[class] + 1), *offset + 8);
+      register_index[class] += 2;
+    } else {
+      unimplemented();
+    }
+  });
+  spall_end_fn();
 }
 
 internal void code_gen_function(Code_Gen_Context *ctx, Ast_Decl_Function *f, Allocator allocator) {
+  spall_begin_fn();
+
   cg_printflnc("%S:", f->name);
   cg_printlnc("\tmov rbp, rsp");
 
-  Stack_Frame frame = {0};
-  hash_map_init(&frame.offsets, 32, string_equal, string_hash, allocator);
+  begin_stack_frame(ctx, allocator);
 
-  code_gen_push_args(ctx, &frame, f->args);
+  code_gen_push_args(ctx, f->args);
 
-  vector_append(&ctx->stack, frame);
+  // slice_iter_v(f->returns, ret, i, {
+  //   Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
+  //   hash_map_insert(&f->offsets, ret->name, f->offset);
+  //   f->offset += ast_base(ret)->type->size;
+  // });
 
+  slice_iter_v(f->body, stmt, i, {
+    switch (stmt->ast_type) {
+    CASE ANT_Decl_Variable:
+      code_gen_variable(ctx, stmt->decl_variable);
+    DEFAULT:
+      continue;
+    }
+  });
+  
   cg_printlnc("\tmov rsp, rbp");
   cg_printlnc("\tret");
+
+  end_stack_frame(ctx);
+
+  spall_end_fn();
 }
 
 internal void code_gen_file(Ast_File file, Allocator allocator) {
-  Code_Gen_Context _ctx;
+  spall_begin_fn();
+  Code_Gen_Context _ctx = {0};
   vector_init(&_ctx.b,     0, 8, allocator);
   vector_init(&_ctx.stack, 0, 8, allocator);
+  hash_map_init(&_ctx.strings, 256, string_equal, string_hash, allocator);
   Code_Gen_Context *ctx = &_ctx;
 
   cg_printlnc(".intel_syntax noprefix");
@@ -3000,9 +3227,17 @@ internal void code_gen_file(Ast_File file, Allocator allocator) {
   cg_printlnc("");
 
   slice_iter_v(file.decls, decl, i, {
-    if (decl->ast_type != ANT_Decl_Function) { continue; }
-    code_gen_function(ctx, decl->decl_function, allocator);
+    switch (decl->ast_type) {
+    CASE ANT_Decl_Function:
+      code_gen_function(ctx, decl->decl_function, allocator);
+    CASE ANT_Decl_Variable:
+      // code_gen_variable(ctx, decl->decl_variable);
+    DEFAULT:
+      continue;
+    }
   });
+
+  spall_end_fn();
 
   fmt_printfc("%S", builder_to_string(ctx->b));
 }
@@ -3075,7 +3310,7 @@ i32 main() {
       fmt_eprintflnc("Failed to read file '%S': '%S'", path, enum_to_string(OS_Error, err));
       continue;
     });
-    spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+    spall_end_fn();
     Token_Vector tokens = vector_make(Token_Vector, 0, 8, context.temp_allocator);
     if (!tokenize_file(bytes_to_string(file_data), path, &tokens)) {
       fmt_eprintflnc("Failed to tokenize file '%S'", path);
