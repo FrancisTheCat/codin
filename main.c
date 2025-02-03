@@ -248,11 +248,11 @@ i32 main() {
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
   spall_ctx   = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
 
-  File_Info fi;
-  file_stat(spall_fd, &fi);
-  assert(fi.readable);
-  assert(fi.writeable);
-  assert(!fi.executable);
+ //  File_Info fi;
+ //  file_stat(spall_fd, &fi);
+ //  assert(fi.readable);
+ //  assert(fi.writeable);
+ //  assert(!fi.executable);
 
 	Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 1024, context.allocator);
 	spall_buffer = (SpallBuffer){
@@ -263,89 +263,89 @@ i32 main() {
 	spall_buffer_init(&spall_ctx, &spall_buffer);
 
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_directory"), get_time_in_micros());
-  Directory directory = unwrap_err(read_directory_path(LIT("."), context.allocator));
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+ //  Directory directory = unwrap_err(read_directory_path(LIT("."), context.allocator));
+ //  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
-  isize max_name_len = 0;
-  isize max_size_len = LIT("<dir>").len;
+ //  isize max_name_len = 0;
+ //  isize max_size_len = LIT("<dir>").len;
 
-  slice_iter(directory, file, i, {
-    max_name_len = max(file->name.len, max_name_len);
-    max_size_len = max(fmt_file_size_w(nil, file->size), max_size_len);
-  });
+ //  slice_iter(directory, file, i, {
+ //    max_name_len = max(file->name.len, max_name_len);
+ //    max_size_len = max(fmt_file_size_w(nil, file->size), max_size_len);
+ //  });
 
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("sort"), get_time_in_micros());
-  // sort_slice_by(directory, i, j, string_compare_lexicographic(directory.data[i].name, directory.data[j].name));
-  sort_slice_by(
-    directory,
-    i,
-    j,
-    (directory.data[i].is_dir != directory.data[j].is_dir)
-     ? directory.data[i].is_dir
-     : string_compare_lexicographic(directory.data[i].name, directory.data[j].name)
-  );
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+ //  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("sort"), get_time_in_micros());
+ //  // sort_slice_by(directory, i, j, string_compare_lexicographic(directory.data[i].name, directory.data[j].name));
+ //  sort_slice_by(
+ //    directory,
+ //    i,
+ //    j,
+ //    (directory.data[i].is_dir != directory.data[j].is_dir)
+ //     ? directory.data[i].is_dir
+ //     : string_compare_lexicographic(directory.data[i].name, directory.data[j].name)
+ //  );
+ //  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
-  String cwd = unwrap_err(_get_current_directory(context.temp_allocator));
-  fmt_printfln(LIT("Directory: %S\n"), cwd);
+ //  String cwd = unwrap_err(_get_current_directory(context.temp_allocator));
+ //  fmt_printfln(LIT("Directory: %S\n"), cwd);
 
-  String spaces = slice_make(String, max_size_len, context.temp_allocator);
-  slice_iter(spaces, s, _i, {
-    *(char *)s = ' ';
-  });
+ //  String spaces = slice_make(String, max_size_len, context.temp_allocator);
+ //  slice_iter(spaces, s, _i, {
+ //    *(char *)s = ' ';
+ //  });
 
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("print_directory"), get_time_in_micros());
+ //  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("print_directory"), get_time_in_micros());
 
-  String name_format = fmt_tprintf(LIT("%%-%dS | "), max_name_len);
+ //  String name_format = fmt_tprintf(LIT("%%-%dS | "), max_name_len);
 
-  Builder b = builder_make(0, 1024, context.temp_allocator);
+ //  Builder b = builder_make(0, 1024, context.temp_allocator);
   
-  slice_iter(directory, file, i, {
-    fmt_sbprintf(&b, name_format, file->name);
+ //  slice_iter(directory, file, i, {
+ //    fmt_sbprintf(&b, name_format, file->name);
 
-    String str;
-    if (file->is_dir) {
-      str = fmt_tprintf(LIT("<dir>"), 0);
-    } else {
-      str = fmt_tprintf(LIT("%M"), file->size);
-    }
+ //    String str;
+ //    if (file->is_dir) {
+ //      str = fmt_tprintf(LIT("<dir>"), 0);
+ //    } else {
+ //      str = fmt_tprintf(LIT("%M"), file->size);
+ //    }
 
-    fmt_sbprintf(
-      &b,
-      LIT("%S%S | %T | %T | %T\n"),
-      slice_range(spaces, 0, max_size_len - str.len),
-      str,
-      file->creation_time,
-      file->modification_time,
-      file->acces_time
-    );
-  });
+ //    fmt_sbprintf(
+ //      &b,
+ //      LIT("%S%S | %T | %T | %T\n"),
+ //      slice_range(spaces, 0, max_size_len - str.len),
+ //      str,
+ //      file->creation_time,
+ //      file->modification_time,
+ //      file->acces_time
+ //    );
+ //  });
   
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+ //  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("write_directory"), get_time_in_micros());
-  write_bytes(&stdout, builder_to_bytes(b));
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+ //  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("write_directory"), get_time_in_micros());
+ //  write_bytes(&stdout, builder_to_bytes(b));
+ //  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
-  fmt_println(LIT(""));
+ //  fmt_println(LIT(""));
 
-  fmt_printfln(LIT("Args: %[S]"), os_args);
+ //  fmt_printfln(LIT("Args: %[S]"), os_args);
 
-  fmt_printfln(LIT("PI: %.8f"), 3.14159265359);
-  fmt_printfln(LIT("E:  %.8f"), 2.71828182846);
+ //  fmt_printfln(LIT("PI: %.8f"), 3.14159265359);
+ //  fmt_printfln(LIT("E:  %.8f"), 2.71828182846);
 
-  Test_Context tc;
-  test_context_init(&tc, context.allocator);
+ //  Test_Context tc;
+ //  test_context_init(&tc, context.allocator);
 
   // test_add(&tc, test_growing_arena_allocator);
   // test_add(&tc, test_pool_allocator);
   // test_add(&tc, test_heap_allocator);
-  test_add(&tc, test_hash_map);
+  // test_add(&tc, test_hash_map);
   // test_add(&tc, test_vector);
   // test_add(&tc, test_sort);
 
-  test_context_execute(&tc);
-  test_context_destroy(tc);
+  // test_context_execute(&tc);
+  // test_context_destroy(tc);
 
   // Image image;
   // Byte_Slice png_data = unwrap_err(read_entire_file_path(LIT("wallpaper.png"), context.temp_allocator));
@@ -563,6 +563,7 @@ i32 main() {
         renderer_init(&ui_context, &state, 8);
       }
 
+      Directory directory = {0};
       wayland_render(&wl_connection, &state, &directory);
 
       wayland_wl_surface_attach(&wl_connection, state.wl_surface, state.wl_buffer, 0, 0);
@@ -579,7 +580,7 @@ i32 main() {
 
   growing_arena_allocator_destroy(font_arena);
 
-  directory_delete(directory, context.allocator);
+  // directory_delete(directory, context.allocator);
   ui_context_destroy(&ui_context, context.allocator);
 
   if (state.keymap_data.data) {

@@ -177,7 +177,7 @@ typedef Slice(void) Void_Slice;
 #define LIT(str)                                                               \
   (String) {                                                                   \
     .data = str,                                                               \
-    .len  = (sizeof str) - 1,                                                  \
+    .len  = size_of(str) - 1,                                                  \
   }
 
 typedef Slice(const char) String;
@@ -345,7 +345,7 @@ internal void __runtime_cleanup();
 
 #include "os.h"
 
-#include "mem_virtual.h"
+// #include "mem_virtual.h"
 
 #include "thread.h"
 

@@ -229,8 +229,9 @@ internal b8 tokenize_file(String file, String path, Token_Vector *tokens) {
         token.type = Token_Type_Arrow;
         current   += 2;
       } else if (c == '=') {
-        token.type = Token_Type_Assign_Op;
-        current   += 2;
+        token.assign_op = Token_Type_Minus;
+        token.type      = Token_Type_Assign_Op;
+        current        += 2;
       } else {
         token.type = Token_Type_Minus;
         current   += 1;
@@ -1871,12 +1872,14 @@ typedef struct {
   Untyped_Type_Kind kind;
 } Type_Untyped;
 
+typedef struct  {
+  String name;
+  Type  *type;
+} Type_Argument;
+
 typedef struct {
-  Slice(struct {
-    String name;
-    Type  *type;
-  })       args;
-  Type    *ret;
+  Slice(Type_Argument) args;
+  Type                *ret;
 } Type_Function;
 
 typedef struct {} Type_Invalid;
@@ -2301,19 +2304,12 @@ internal void type_check_stmt_assign(Ast_Stmt_Assign *assign, Checker_Scope *cs,
   Type *rhs = type_check_expr(assign->rhs, cs, allocator);
 
   if (!types_equal(lhs, rhs, cs)) {
+    print_type(lhs);
+    fmt_printc(" == ");
+    print_type(rhs);
+    fmt_printlnc("");
     errorc(Error_Type_Type, ast_base(assign)->location, "Left and right types of assignment do not match");
   }
-
-  // print_type(lhs);
-  // fmt_printc(" == ");
-  // print_type(rhs);
-  // fmt_printlnc("");
-
-  // if (lhs) { log_infof(LIT("lhs: %S(%x) at %d"), enum_to_string(Type_Kind, lhs->type_kind), lhs, assign->lhs->location.line); }
-  // if (rhs) { log_infof(LIT("rhs: %S(%x) at %d"), enum_to_string(Type_Kind, rhs->type_kind), rhs, assign->rhs->location.line); }
-  // if (lhs) {
-  //   log_infof(LIT("lhs == rhs -> %B"), lhs == rhs);
-  // }
 }
 
 internal b8 type_is_boolean(Type *type, Checker_Scope *cs) {
@@ -2405,14 +2401,26 @@ internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocato
 
     assert(l->decl->ast_type == ANT_Decl_Variable);
 
-    if (!types_equal(end, resolve_ast_type(l->decl->decl_type->type, cs, allocator), cs)) {
+    Type *lhs_type = resolve_ast_type(l->decl->decl_variable->type, cs, allocator);
+
+    if (!types_equal(end, lhs_type, cs)) {
       errorc(Error_Type_Type, s->location, "Range type and declaration type of range loop are not the same type");
       return;
     }
 
-    Checker_Scope scope;
+    Checker_Scope scope = {0};
     checker_scope_init(&scope, cs, allocator);
-    type_check_decl_variable(l->decl->decl_variable, &scope, allocator);
+
+    Ast_Decl_Variable *variable = l->decl->decl_variable;
+    ast_base(variable)->type = lhs_type;
+    if (variable->constant) {
+      panic("Fuck you");
+    }
+    if (variable->value) {
+      panic("Fuck you");
+    }
+    hash_map_insert(&cs->variables, variable->name, lhs_type);
+
     type_check_scope(s->stmt_loop->body, &scope, allocator);
   }
   CASE ANT_Stmt_Iterator: {
@@ -2444,7 +2452,6 @@ internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocato
 
     slice_iter_v(s->stmt_iterator->decls, decl, i, {
       Type *lhs_type = *IDX(iterator_type->tuple->fields, i);
-      lhs_type = type_base_type(lhs_type, cs);
 
       if (types_equal(lhs_type, resolve_ast_type(decl->type, cs, allocator), cs)) {
         hash_map_insert(&scope.variables, decl->name, lhs_type);
@@ -2567,10 +2574,8 @@ internal void print_type(Type *type) {
   CASE Type_Kind_Untyped: {
     
   }
-  CASE Type_Kind_Tuple: {
-    
-  }
   DEFAULT:
+    fmt_printflnc("Wtf: %S", enum_to_string(Type_Kind, type->type_kind));
     unreachable();
   }
 }
@@ -3037,11 +3042,12 @@ internal void code_gen_expr(Code_Gen_Context *ctx, Ast_Expr *e) {
         id = *_id;
       } else {
         id = ctx->string_id;
+        hash_map_insert(&ctx->strings, e->expr_literal->value.string, id);
         ctx->string_id += 1;
       }
-      cg_printflnc("\tmov  rax, __$string_%d + 8", id);
+      cg_printflnc("\tlea  rax, [rip+__string_%d + 8]", id);
       cg_printlnc ("\tpush rax");
-      cg_printflnc("\tmov  rax, [__$string_%d]", id);
+      cg_printflnc("\tmov  rax, [rip+__string_%d]", id);
       cg_printlnc ("\tpush rax");
     }
     CASE Token_Type_Int:
@@ -3077,10 +3083,10 @@ internal void code_gen_variable(Code_Gen_Context *ctx, Ast_Decl_Variable *var) {
   if (var->value) {
     code_gen_expr(ctx, var->value);
     cg_printlnc ("\tpop rax");
-    cg_printflnc("\tmov QWORD [rbp-%d], rax", f->offset);
   } else {
-    cg_printflnc("\tmov QWORD [rbp-%d], 0", f->offset);
+    cg_printlnc ("\tmov rax, 0");
   }
+  cg_printflnc("\tmov [rbp-%d], rax", f->offset);
 
   f->offset += ast_base(var)->type->size;
 }
@@ -3118,40 +3124,40 @@ internal void code_gen_push_args(Code_Gen_Context *ctx, Field_Vector args) {
   spall_end_fn();
 }
 
-internal void code_gen_load_args(Code_Gen_Context *ctx, Field_Vector args) {
+internal void code_gen_pop_args(Code_Gen_Context *ctx, Type_Function *fn) {
   spall_begin_fn();
   Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
 
+  isize offset = 0;
+
   isize register_index[enum_len(Argument_Class)] = {0};
-  slice_iter_v(args, arg, i, {
-    i32 *offset = hash_map_get(f->offsets, arg->name);
-    assert(offset);
-    Ast_Field *arg = *IDX(args, i);
-    Argument_Class class = get_type_argument_class(ast_base(arg)->type);
+  slice_iter_v(fn->args, arg, i, {
+    Type_Argument  arg   = *IDX(fn->args, i);
+    Argument_Class class = get_type_argument_class(arg.type);
 
-    if (ast_base(arg)->type->size <= 8) {
+    if (arg.type->size <= 8) {
       if (class == Argument_Class_Integer) {
-        cg_printflnc("\tmov    %S, [rbp-%d-8]", *IDX(registers[class], register_index[class]), *offset);
-
-  // slice_iter_v(f->returns, ret, i, {
-  //   Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
-  //   hash_map_insert(&f->offsets, ret->name, f->offset);
-  //   f->offset += ast_base(ret)->type->size;
-  // });
+        cg_printflnc("\tmov    %S, [rbp-%d-8]", *IDX(registers[class], register_index[class]), offset);
       } else {
-        cg_printflnc("\tmovdqu %S, [rbp-%d-8]", *IDX(registers[class], register_index[class]), *offset);
+        cg_printflnc("\tmovdqu %S, [rbp-%d-8]", *IDX(registers[class], register_index[class]), offset);
       }
       register_index[class] += 1;
-    } else if (ast_base(arg)->type->size <= 16) {
+      offset += 8;
+    } else if (arg.type->size <= 16) {
       assert(class == Argument_Class_Integer);
-      cg_printflnc("\tmov %S, [rbp-%d-8]", *IDX(registers[class], register_index[class]    ), *offset);
-      cg_printflnc("\tmov %S, [rbp-%d-8]", *IDX(registers[class], register_index[class] + 1), *offset + 8);
+      cg_printflnc("\tmov %S, [rsp-%d]", *IDX(registers[class], register_index[class]    ), offset);
+      cg_printflnc("\tmov %S, [rsp-%d]", *IDX(registers[class], register_index[class] + 1), offset + 8);
       register_index[class] += 2;
+      offset += 16;
     } else {
       unimplemented();
     }
   });
   spall_end_fn();
+}
+
+internal void code_gen_expr_call(Code_Gen_Context *ctx, Ast_Expr_Call call) {
+  
 }
 
 internal void code_gen_function(Code_Gen_Context *ctx, Ast_Decl_Function *f, Allocator allocator) {
@@ -3174,6 +3180,11 @@ internal void code_gen_function(Code_Gen_Context *ctx, Ast_Decl_Function *f, All
     switch (stmt->ast_type) {
     CASE ANT_Decl_Variable:
       code_gen_variable(ctx, stmt->decl_variable);
+    CASE ANT_Expr_Call:
+      slice_iter_v(stmt->expr_call->args, arg, i, {
+        code_gen_expr(ctx, arg);
+      });
+      code_gen_pop_args(ctx, stmt->expr_call->lhs->type->function);
     DEFAULT:
       continue;
     }
@@ -3235,6 +3246,12 @@ internal void code_gen_file(Ast_File file, Allocator allocator) {
     DEFAULT:
       continue;
     }
+  });
+
+  cg_printlnc("\n.data");
+
+  hash_map_iter(ctx->strings, str, id, {
+    cg_printflnc("__string_%d:\n\t.quad %d\n\t.asciz \"%S\"", *id, str.len, str);
   });
 
   spall_end_fn();
@@ -3301,12 +3318,16 @@ i32 main() {
   isize allocated = 0;
 
   slice_iter_v(slice_start(os_args, 1), path, _i, {
-    spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("map_entire_file"), get_time_in_micros());
-    Fd file = or_do_err(file_open(path, FP_Read), err, {
-      fmt_eprintflnc("Failed to open file '%S': '%S'", path, enum_to_string(OS_Error, err));
-      continue;
-    });
-    Byte_Slice file_data = or_do_err(map_entire_file(file), err, {
+    spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_entire_file"), get_time_in_micros());
+    // Fd file = or_do_err(file_open(path, FP_Read), err, {
+    //   fmt_eprintflnc("Failed to open file '%S': '%S'", path, enum_to_string(OS_Error, err));
+    //   continue;
+    // });
+    // Byte_Slice file_data = or_do_err(map_entire_file(file), err, {
+    //   fmt_eprintflnc("Failed to read file '%S': '%S'", path, enum_to_string(OS_Error, err));
+    //   continue;
+    // });
+    Byte_Slice file_data = or_do_err(read_entire_file_path(path, context.temp_allocator), err, {
       fmt_eprintflnc("Failed to read file '%S': '%S'", path, enum_to_string(OS_Error, err));
       continue;
     });
