@@ -3219,6 +3219,7 @@ internal void code_gen_stmt(Code_Gen_Context *ctx, Ast_Stmt *stmt) {
     });
     cg_printlnc("\tpop rax");
     cg_printlnc("\tmov rsp, rbp");
+    cg_printlnc("\tpop rbp");
     cg_printlnc("\tret");
   }
   CASE ANT_Stmt_Break:
@@ -3238,6 +3239,7 @@ internal void code_gen_function(Code_Gen_Context *ctx, Ast_Decl_Function *f, All
   spall_begin_fn();
 
   cg_printflnc("%S:", f->name);
+  cg_printlnc("\tpush rbp");
   cg_printlnc("\tmov rbp, rsp");
 
   begin_stack_frame(ctx, allocator);
@@ -3262,6 +3264,7 @@ internal void code_gen_function(Code_Gen_Context *ctx, Ast_Decl_Function *f, All
   });
   
   cg_printlnc("\tmov rsp, rbp");
+  cg_printlnc("\tpop rbp");
   cg_printlnc("\tret");
 
   end_stack_frame(ctx);
