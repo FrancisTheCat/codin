@@ -8,16 +8,16 @@
   thread_local SpallBuffer  spall_buffer;
   thread_local SpallProfile spall_ctx;
 
-  internal f64 get_time_in_micros() {
-    return time_now().nsec / (f64)Microsecond;
+  internal f64 get_time_in_nanos() {
+    return time_now().nsec;
   }
 #else
   #define spall_buffer_begin(...)
   #define spall_buffer_end(...)
 #endif
 
-#define spall_begin_fn() spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros())
-#define spall_end_fn()   spall_buffer_end(&spall_ctx, &spall_buffer,                      get_time_in_micros())
+#define spall_begin_fn() spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_nanos())
+#define spall_end_fn()   spall_buffer_end(&spall_ctx, &spall_buffer,                      get_time_in_nanos())
 
 #define TOKENS(X)                                                              \
   X(Token_Type_String       )                                                  \
@@ -2274,6 +2274,7 @@ Type *type_untyped_rune   = nil;
 Type *type_untyped_float  = nil;
 Type *type_untyped_string = nil;
 
+Type *type_byte   = nil;
 Type *type_isize  = nil;
 Type *type_bool   = nil;
 Type *type_rune   = nil;
@@ -2360,6 +2361,10 @@ internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocato
       } else {
         if (s->stmt_return->values.len > 1) {
           errorfc(Error_Type_Type, s->location, "Return statement has %d values, but function only returns one value", s->stmt_return->values.len);
+        }
+        Type *return_type = type_check_expr(s->stmt_return->values.data[0], cs, allocator);
+        if (!types_equal(ret, return_type, cs)) {
+          errorc(Error_Type_Type, s->location, "Return type has incorrect type");
         }
       }
     } else {
@@ -2744,10 +2749,30 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
       ) {
         return t->array->elem;
       }
+      if (string_equal(expr->expr_selector->selector, LIT("data"))) {
+        Type_Pointer *ptr = type_new(Pointer, allocator);
+        ptr->pointee = t->slice->elem;
+        return type_base(ptr, 8, 8);
+      }
     }
     if (t->type_kind == Type_Kind_Slice) {
       if (string_equal(expr->expr_selector->selector, LIT("len"))) {
         return type_untyped_int;
+      }
+      if (string_equal(expr->expr_selector->selector, LIT("data"))) {
+        Type_Pointer *ptr = type_new(Pointer, allocator);
+        ptr->pointee = t->slice->elem;
+        return type_base(ptr, 8, 8);
+      }
+    }
+    if (t->type_kind == Type_Kind_Basic && t->basic->kind == Basic_Type_String) {
+      if (string_equal(expr->expr_selector->selector, LIT("len"))) {
+        return type_untyped_int;
+      }
+      if (string_equal(expr->expr_selector->selector, LIT("data"))) {
+        Type_Pointer *ptr = type_new(Pointer, allocator);
+        ptr->pointee      = type_byte;
+        return type_base(ptr, 8, 8);
       }
     }
     errorc(Error_Type_Type, expr->location, "selector operator can only be used on structs, unions, enums, slices and arrays, or pointers to those");
@@ -2849,6 +2874,7 @@ internal b8 type_check_file(Ast_File file, Allocator allocator) {
 
   type_invalid = type_base(type_new(Invalid, allocator), 0, 0);
 
+  type_byte = new_basic_type(Basic_Type_Uint,      1, 1, allocator);
   type_bool = new_basic_type(Basic_Type_Bool,      1, 1, allocator);
   type_rune = new_basic_type(Basic_Type_Rune,      4, 4, allocator);
   type_isize = new_basic_type(Basic_Type_Int,      8, 8, allocator);
@@ -2920,8 +2946,7 @@ internal void end_stack_frame(Code_Gen_Context *ctx) {
   Builder     b = ctx->b;
   Stack_Frame f = vector_pop(&ctx->stack);
   ctx->b        = f.prev_builder;
-  f.offset = (f.offset + 15) & ~15;
-  fmt_sbprintf(&ctx->b, LIT("\tadd rsp, -%d\n%S"), f.offset, builder_to_string(b));
+  fmt_sbprintf(&ctx->b, LIT("%S"), builder_to_string(b));
 }
 
 #define cg_printfc(format, ...) fmt_sbprintf(&ctx->b, LIT(format), __VA_ARGS__)
@@ -3028,11 +3053,23 @@ internal String_Slice registers[enum_len(Argument_Class)] = {
   [Argument_Class_SSE    ] = c_array_to_slice_t(String_Slice, float_arg_registers),
 };
 
+internal i32 *cg_get_ident_offset(Code_Gen_Context *ctx, String ident) {
+  return hash_map_get(IDX(ctx->stack, ctx->stack.len - 1)->offsets, ident);
+}
+
 internal void code_gen_expr(Code_Gen_Context *ctx, Ast_Expr *e) {
   assert(e->type);
 
   switch (e->ast_type) {
-  CASE ANT_Expr_Ident:
+  CASE ANT_Expr_Ident: {
+    i32 *offset = cg_get_ident_offset(ctx, e->expr_ident->name);
+    if (offset) {
+      cg_printflnc("\tmov rax, [rbp + %d - 8]", (isize)*offset);
+    } else {
+      cg_printflnc("\tlea rax, [rip + %S]", e->expr_ident->name);
+    }
+    cg_printlnc("\tpush rax");
+  }
   CASE ANT_Expr_Literal:
     switch (e->expr_literal->type) {
     CASE Token_Type_String: {
@@ -3045,20 +3082,25 @@ internal void code_gen_expr(Code_Gen_Context *ctx, Ast_Expr *e) {
         hash_map_insert(&ctx->strings, e->expr_literal->value.string, id);
         ctx->string_id += 1;
       }
-      cg_printflnc("\tlea  rax, [rip+__string_%d + 8]", id);
+      cg_printflnc("\tlea rax, [rip+__string_%d + 8]", id);
       cg_printlnc ("\tpush rax");
-      cg_printflnc("\tmov  rax, [rip+__string_%d]", id);
+      cg_printflnc("\tmov rax, [rip+__string_%d]", id);
       cg_printlnc ("\tpush rax");
     }
     CASE Token_Type_Int:
-      cg_printflnc("\tpush QWORD %d", e->expr_literal->value.integer);
+      cg_printflnc("\tmov rax, %d", e->expr_literal->value.integer);
+      cg_printlnc("\tpush rax");
     CASE Token_Type_Float:
+      unimplemented();
     CASE Token_Type_Rune:
-      cg_printflnc("\tpush QWORD %d", e->expr_literal->value.rune);
+      cg_printflnc("\tmov rax, %d", e->expr_literal->value.rune);
+      cg_printlnc("\tpush rax");
     CASE Token_Type_True:
-      cg_printlnc ("\tpush QWORD 1");
+      cg_printlnc ("\tmov rax, 1");
+      cg_printlnc("\tpush rax");
     CASE Token_Type_False:
-      cg_printlnc ("\tpush QWORD 0");
+      cg_printlnc ("\tmov rax, 0");
+      cg_printlnc("\tpush rax");
     DEFAULT:
       unreachable();
     }
@@ -3124,7 +3166,7 @@ internal void code_gen_push_args(Code_Gen_Context *ctx, Field_Vector args) {
   spall_end_fn();
 }
 
-internal void code_gen_pop_args(Code_Gen_Context *ctx, Type_Function *fn) {
+internal void code_gen_load_args(Code_Gen_Context *ctx, Type_Function *fn) {
   spall_begin_fn();
   Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
 
@@ -3137,16 +3179,16 @@ internal void code_gen_pop_args(Code_Gen_Context *ctx, Type_Function *fn) {
 
     if (arg.type->size <= 8) {
       if (class == Argument_Class_Integer) {
-        cg_printflnc("\tmov    %S, [rbp-%d-8]", *IDX(registers[class], register_index[class]), offset);
+        cg_printflnc("\tmov %S, [rsp+%d]",    *IDX(registers[class], register_index[class]), offset);
       } else {
-        cg_printflnc("\tmovdqu %S, [rbp-%d-8]", *IDX(registers[class], register_index[class]), offset);
+        cg_printflnc("\tmovdqu %S, [rsp+%d]", *IDX(registers[class], register_index[class]), offset);
       }
       register_index[class] += 1;
       offset += 8;
     } else if (arg.type->size <= 16) {
       assert(class == Argument_Class_Integer);
-      cg_printflnc("\tmov %S, [rsp-%d]", *IDX(registers[class], register_index[class]    ), offset);
-      cg_printflnc("\tmov %S, [rsp-%d]", *IDX(registers[class], register_index[class] + 1), offset + 8);
+      cg_printflnc("\tmov %S, [rsp+%d]", *IDX(registers[class], register_index[class]    ), offset + 8);
+      cg_printflnc("\tmov %S, [rsp+%d]", *IDX(registers[class], register_index[class] + 1), offset    );
       register_index[class] += 2;
       offset += 16;
     } else {
@@ -3156,8 +3198,40 @@ internal void code_gen_pop_args(Code_Gen_Context *ctx, Type_Function *fn) {
   spall_end_fn();
 }
 
-internal void code_gen_expr_call(Code_Gen_Context *ctx, Ast_Expr_Call call) {
-  
+internal void code_gen_expr_call(Code_Gen_Context *ctx, Ast_Expr_Call *call) {
+  slice_iter_v(call->args, arg, i, {
+    arg = call->args.data[call->args.len - 1 - i];
+    code_gen_expr(ctx, arg);
+  });
+  assert(call->lhs->type->type_kind = Type_Kind_Function);
+  code_gen_load_args(ctx, call->lhs->type->function);
+  code_gen_expr(ctx, call->lhs);
+  cg_printlnc("\tpop rax");
+  cg_printlnc("\tcall rax");
+}
+
+internal void code_gen_stmt(Code_Gen_Context *ctx, Ast_Stmt *stmt) {
+  switch (stmt->ast_type) {
+  CASE ANT_Stmt_Defer:
+  CASE ANT_Stmt_Return: {
+    slice_iter_v(stmt->stmt_return->values, value, i, {
+      code_gen_expr(ctx, value);
+    });
+    cg_printlnc("\tpop rax");
+    cg_printlnc("\tmov rsp, rbp");
+    cg_printlnc("\tret");
+  }
+  CASE ANT_Stmt_Break:
+  CASE ANT_Stmt_Continue:
+  CASE ANT_Stmt_Block:
+  CASE ANT_Stmt_If:
+  CASE ANT_Stmt_Loop:
+  CASE ANT_Stmt_Iterator:
+  CASE ANT_Stmt_Switch:
+  CASE ANT_Stmt_Assign:
+  DEFAULT:
+    unreachable();
+  }
 }
 
 internal void code_gen_function(Code_Gen_Context *ctx, Ast_Decl_Function *f, Allocator allocator) {
@@ -3181,12 +3255,9 @@ internal void code_gen_function(Code_Gen_Context *ctx, Ast_Decl_Function *f, All
     CASE ANT_Decl_Variable:
       code_gen_variable(ctx, stmt->decl_variable);
     CASE ANT_Expr_Call:
-      slice_iter_v(stmt->expr_call->args, arg, i, {
-        code_gen_expr(ctx, arg);
-      });
-      code_gen_pop_args(ctx, stmt->expr_call->lhs->type->function);
+      code_gen_expr_call(ctx, stmt->expr_call);
     DEFAULT:
-      continue;
+      code_gen_stmt(ctx, stmt);
     }
   });
   
@@ -3231,7 +3302,7 @@ internal void code_gen_file(Ast_File file, Allocator allocator) {
   cg_printlnc("\tcall main");
   
   cg_printlnc("\tmov rdi, rax");
-  cg_printlnc("\tmov rax,  60");
+  cg_printlnc("\tmov rax, 60");
   cg_printlnc("\tsyscall");
   cg_printlnc("\tret");
 
@@ -3299,7 +3370,7 @@ i32 main() {
 
 #ifdef SPALL_PROFILING
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
-  spall_ctx   = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
+  spall_ctx   = spall_init_callbacks(0.001, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
 	Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 4, context.temp_allocator);
 	spall_buffer = (SpallBuffer){
 		.length = spall_buffer_backing.len,
@@ -3318,16 +3389,12 @@ i32 main() {
   isize allocated = 0;
 
   slice_iter_v(slice_start(os_args, 1), path, _i, {
-    spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_entire_file"), get_time_in_micros());
-    // Fd file = or_do_err(file_open(path, FP_Read), err, {
-    //   fmt_eprintflnc("Failed to open file '%S': '%S'", path, enum_to_string(OS_Error, err));
-    //   continue;
-    // });
-    // Byte_Slice file_data = or_do_err(map_entire_file(file), err, {
-    //   fmt_eprintflnc("Failed to read file '%S': '%S'", path, enum_to_string(OS_Error, err));
-    //   continue;
-    // });
-    Byte_Slice file_data = or_do_err(read_entire_file_path(path, context.temp_allocator), err, {
+    spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_entire_file"), get_time_in_nanos());
+    Fd file = or_do_err(file_open(path, FP_Read), err, {
+      fmt_eprintflnc("Failed to open file '%S': '%S'", path, enum_to_string(OS_Error, err));
+      continue;
+    });
+    Byte_Slice file_data = or_do_err(map_entire_file(file), err, {
       fmt_eprintflnc("Failed to read file '%S': '%S'", path, enum_to_string(OS_Error, err));
       continue;
     });
