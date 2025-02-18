@@ -154,6 +154,20 @@
     result.value;                                                              \
   })
 
+#define unwrap_err_msg(_result, msg)                                           \
+  ({                                                                           \
+    type_of(_result) result = _result;                                         \
+    if (result.err) {                                                          \
+      __write_cstring(msg);                                                    \
+      __write_cstring("\n");                                                   \
+      __write_cstring("Unwrapped error: 0x");                                  \
+      __write_usize_hex((usize)result.err);                                    \
+      __write_cstring("\n");                                                   \
+      panic("");                                                               \
+    }                                                                          \
+    result.value;                                                              \
+  })
+
 #define or_return_bool(cond)                                                   \
   if (!(cond)) {                                                               \
     return false;                                                              \

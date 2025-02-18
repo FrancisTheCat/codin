@@ -82,7 +82,7 @@ internal Allocator_Result arena_allocator_proc(
     if (!size) {
       return result;
     }
-    align_offset = required_align_offset(a->data[a->used], align);
+    align_offset = required_align_offset((uintptr)&a->data[a->used], align);
     if (a->used + size + align_offset > a->allocated) {
       result.err = AE_Out_Of_Memory;
       return result;
@@ -159,7 +159,7 @@ internal Allocator_Result growing_arena_allocator_proc(
       return result;
     }
     b = &a->blocks.data[a->blocks.len - 1];
-    align_offset = required_align_offset(b->data[b->used], align);
+    align_offset = required_align_offset((uintptr)b->data[b->used], align);
     if (b->used + size + align_offset > a->block_size) {
       result.err = AE_None;
       if (size > a->block_size) {
@@ -208,15 +208,16 @@ internal void growing_arena_allocator_destroy(Growing_Arena_Allocator arena) {
 }
 
 [[nodiscard]]
-internal Allocator growing_arena_allocator_init(Growing_Arena_Allocator *ga,
-                                                isize block_size,
-                                                Allocator backing_allocator) {
+internal Allocator growing_arena_allocator_init(
+  Growing_Arena_Allocator *ga,
+  isize                    block_size,
+  Allocator                backing_allocator
+) {
   *ga = (Growing_Arena_Allocator){0};
   vector_init(&ga->blocks, 1, 8, backing_allocator);
-  ga->blocks.data[0].used = 0;
-  ga->blocks.data[0].data =
-      (byte *)unwrap_err(mem_alloc(block_size, backing_allocator));
-  ga->backing = backing_allocator;
+  IDX(ga->blocks, 0)->used = 0;
+  IDX(ga->blocks, 0)->data = (byte *)unwrap_err(mem_alloc(block_size, backing_allocator));
+  ga->backing    = backing_allocator;
   ga->block_size = block_size;
   return (Allocator) {
       .proc = growing_arena_allocator_proc,

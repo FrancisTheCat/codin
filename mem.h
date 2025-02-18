@@ -17,10 +17,14 @@ typedef Result(rawptr, Allocator_Error) Allocator_Result;
 
 X_ENUM(Allocator_Mode, ALLOCATOR_MODES)
 
-typedef Allocator_Result (*Allocator_Proc)(rawptr data, Allocator_Mode mode,
-                                           isize size, isize align,
-                                           rawptr old_memory,
-                                           Source_Code_Location loc);
+typedef Allocator_Result (*Allocator_Proc)(
+  rawptr               data,
+  Allocator_Mode       mode,
+  isize                size,
+  isize                align,
+  rawptr               old_memory,
+  Source_Code_Location loc
+);
 
 typedef struct {
   Allocator_Proc proc;
@@ -48,7 +52,7 @@ internal void mem_zero(rawptr data, isize len) {
 #define mem_tcopy(dst, src, len)                                               \
   ({                                                                           \
     assert(sizeof(dst[0]) == sizeof(src[0]));                                  \
-    mem_copy((rawptr)dst, (rawptr)src, len *size_of(dst[0]));                  \
+    mem_copy((rawptr)dst, (rawptr)src, len * size_of(dst[0]));                 \
   })
 
 internal void mem_copy(rawptr dst, rawptr src, isize len) {

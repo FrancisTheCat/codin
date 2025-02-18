@@ -1,6 +1,7 @@
 #include "codin.h"
 
-#define MSG_NOSIGNAL 0x4000
+#define SOCK_NONBLOCK 00004000
+#define MSG_NOSIGNAL  0x4000
 
 struct in_addr {
   u32 s_addr;
@@ -20,30 +21,17 @@ typedef struct {
   Socket   socket;
 } Connection;
 
-typedef enum {
-  NE_None = 0,
-  NE_Bad_Socket,
-  NE_Would_Block,
-  NE_Other,
-} Net_Error;
+#define NET_ERRORS(X) \
+  X(NE_None)          \
+  X(NE_Bad_Socket)    \
+  X(NE_Would_Block)   \
+  X(NE_Other)         \
 
-ENUM_TO_STRING_PROC_DECL(Net_Error, err) {
-  switch (err) {
-  case NE_None:
-    return LIT("NE_None");
-  case NE_Bad_Socket:
-    return LIT("NE_Bad_Socket");
-  case NE_Would_Block:
-    return LIT("NE_Would_Block");
-  case NE_Other:
-    return LIT("NE_Other");
-  }
-  return LIT("NE_INVALID");
-}
+X_ENUM(Net_Error, NET_ERRORS);
 
-typedef Result(isize, Net_Error) Net_Result_Int;
+typedef Result(isize,      Net_Error) Net_Result_Int;
 typedef Result(Connection, Net_Error) Net_Result_Connection;
-typedef Result(Socket, Net_Error) Net_Result_Socket;
+typedef Result(Socket,     Net_Error) Net_Result_Socket;
 
 [[nodiscard]]
 internal u16 htons(u16 x) {
@@ -51,26 +39,47 @@ internal u16 htons(u16 x) {
 }
 
 [[nodiscard]]
-internal Socket socket_create(u16 port) {
-  Socket s = syscall(SYS_socket, AF_INET, SOCK_STREAM, 0);
+internal Net_Result_Socket socket_create(u16 port, b8 blocking) {
+  Net_Result_Socket result = {0};
+  u64 type = SOCK_STREAM;
+  if (!blocking) {
+    type |= SOCK_NONBLOCK;
+  }
+  Socket s = syscall(SYS_socket, AF_INET, type, 0);
+  if (s < 0) {
+    result.err = NE_Other;
+    return result;
+  }
 
+  b8 ok;
   b32 reuse = true;
-  assert(syscall(SYS_setsockopt, s, SOL_SOCKET, SO_REUSEADDR, &reuse, size_of(reuse)) == 0);
-  assert(syscall(SYS_setsockopt, s, SOL_SOCKET, SO_REUSEPORT, &reuse, size_of(reuse)) == 0);
+  ok = syscall(SYS_setsockopt, s, SOL_SOCKET, SO_REUSEADDR, &reuse, size_of(reuse)) == 0;
+  if (!ok) {
+    result.err = NE_Other;
+    return result;
+  }
+  ok = syscall(SYS_setsockopt, s, SOL_SOCKET, SO_REUSEPORT, &reuse, size_of(reuse)) == 0;
+  if (!ok) {
+    result.err = NE_Other;
+    return result;
+  }
 
   struct sockaddr_in addr;
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(port);
+  addr.sin_family      = AF_INET;
+  addr.sin_port        = htons(port);
   addr.sin_addr.s_addr = 0;
 
   if (syscall(SYS_bind, s, (struct sockaddr *)&addr, size_of(addr)) < 0) {
-    panic("Failed to bind socket");
+    result.err = NE_Other;
+    return result;
   }
   if (syscall(SYS_listen, s, 1000) < 0) {
-    panic("Failed to listen on socket");
+    result.err = NE_Other;
+    return result;
   }
 
-  return s;
+  result.value = s;
+  return result;
 }
 
 [[nodiscard]]
@@ -79,6 +88,15 @@ internal Net_Result_Connection socket_accept(Socket socket) {
 
   isize addr_len = size_of(result.value.address);
   result.value.socket = syscall(SYS_accept, socket, (struct sockaddr *)&result.value.address, &addr_len);
+
+  if (result.value.socket < 0) {
+    OS_Error err = __errno_unwrap(result.value.socket);
+    if (err == OSE_Block) {
+      result.err = NE_Would_Block;
+    } else {
+      result.err = NE_Other;
+    }
+  }
 
   return result;
 }
@@ -132,7 +150,6 @@ internal Net_Result_Int socket_write(Socket socket, Byte_Slice buf) {
 
   result.value = syscall(SYS_sendmsg, socket, &socket_msg, MSG_NOSIGNAL | 0x40, 0, 0);
   if (result.value < 0) {
-    // log_errorf(LIT("Errno: 0x%x"), -result.value);
     result.err = NE_Other;
   }
   return result;

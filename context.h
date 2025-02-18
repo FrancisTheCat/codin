@@ -22,7 +22,7 @@ typedef struct {
   Logger    logger;
 } Context;
 
-internal _Thread_local Context context;
+internal thread_local Context context;
 
 #define CONTEXT_PUSH                                                           \
   {                                                                            \

@@ -79,6 +79,7 @@
   X(Token_Type_Ignore       )                                                  \
   X(Token_Type_Import       )                                                  \
   X(Token_Type_Dynamic      )                                                  \
+  X(Token_Type_Foreign      )                                                  \
                                                                                \
   X(Token_Type_EOF          )                                                  \
 
@@ -129,6 +130,7 @@ struct {
   { Token_Type_Ignore,    LIT("_"        ), },
   { Token_Type_Import,    LIT("import"   ), },
   { Token_Type_Dynamic,   LIT("dynamic"  ), },
+  { Token_Type_Foreign,   LIT("foreign"  ), },
 
   { Token_Type_Cast,      LIT("cast"     ), },
   { Token_Type_Transmute, LIT("transmute"), },
@@ -3064,7 +3066,7 @@ internal void code_gen_expr(Code_Gen_Context *ctx, Ast_Expr *e) {
   CASE ANT_Expr_Ident: {
     i32 *offset = cg_get_ident_offset(ctx, e->expr_ident->name);
     if (offset) {
-      cg_printflnc("\tmov rax, [rbp + %d - 8]", (isize)*offset);
+      cg_printflnc("\tmov rax, [rbp - %d - 8]", (isize)*offset);
     } else {
       cg_printflnc("\tlea rax, [rip + %S]", e->expr_ident->name);
     }
@@ -3105,7 +3107,34 @@ internal void code_gen_expr(Code_Gen_Context *ctx, Ast_Expr *e) {
       unreachable();
     }
   CASE ANT_Expr_Unary:
+    code_gen_expr(ctx, e->expr_unary->rhs);
+    switch (e->expr_unary->op) {
+    CASE Token_Type_Plus:
+    CASE Token_Type_Minus:
+      cg_printlnc("\tpop rax");
+      cg_printlnc("\tneg rax");
+      cg_printlnc("\tpush rax");
+    CASE Token_Type_Not:
+      cg_printlnc("\tpop rax");
+      cg_printlnc("\tnot rax");
+      cg_printlnc("\tpush rax");
+    DEFAULT:
+      unreachable();
+    }
   CASE ANT_Expr_Binary:
+    code_gen_expr(ctx, e->expr_binary->rhs);
+    code_gen_expr(ctx, e->expr_binary->lhs);
+    cg_printlnc("\tpop rax");
+    cg_printlnc("\tpop r11");
+    switch (e->expr_unary->op) {
+    CASE Token_Type_Plus:
+      cg_printlnc("\tadd rax, r11");
+    CASE Token_Type_Minus:
+      cg_printlnc("\tsub rax, r11");
+    DEFAULT:
+      unreachable();
+    }
+    cg_printlnc("\tpush rax");
   CASE ANT_Expr_Ternary:
   CASE ANT_Expr_Call:
   CASE ANT_Expr_Selector:

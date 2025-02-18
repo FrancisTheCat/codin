@@ -21,7 +21,7 @@
 #define local_persist static
 #define internal static
 
-#define thread_local __thread
+#define thread_local _Thread_local
 
 #define diverging void
 
@@ -359,14 +359,13 @@ internal void __runtime_cleanup();
 
 #include "dynlib.h"
 
-internal _Thread_local Growing_Arena_Allocator __default_temp_allocator_arena;
-internal _Thread_local Default_Allocator       __default_heap_allocator;
+internal thread_local Growing_Arena_Allocator __default_temp_allocator_arena;
+internal thread_local Default_Allocator       __default_heap_allocator;
 
 internal void __thread_init() {
-  context.allocator = default_allocator_init(&__default_heap_allocator);
-  context.temp_allocator = growing_arena_allocator_init(
-      &__default_temp_allocator_arena, 1 << 20, context.allocator);
-  context.logger = create_file_logger(FD_STDOUT);
+  context.allocator      = default_allocator_init(&__default_heap_allocator);
+  context.temp_allocator = growing_arena_allocator_init(&__default_temp_allocator_arena, 1 << 20, context.allocator);
+  context.logger         = create_file_logger(FD_STDOUT);
 }
 
 internal void __runtime_init() {
@@ -375,7 +374,7 @@ internal void __runtime_init() {
 }
 
 internal void __thread_cleanup() {
-  // growing_arena_allocator_destroy(__default_temp_allocator_arena);
+  growing_arena_allocator_destroy(__default_temp_allocator_arena);
 }
 
 internal void __runtime_cleanup() { __thread_cleanup(); }

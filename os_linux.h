@@ -126,6 +126,8 @@ internal OS_Error __errno_unwrap(i32 errno) {
     return OSE_Bad_Fd;
   case ENOENT:
     return OSE_No_File;
+  case EAGAIN:
+    return OSE_Block;
   }
   return OSE_Other;
 }

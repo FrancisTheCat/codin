@@ -26,7 +26,7 @@ internal void _log(Log_Level level, String string, Source_Code_Location location
 internal void _logf(Log_Level level, String string, Source_Code_Location location, ...) {
   va_list va_args;
   va_start(va_args, location);
-  String str = fmt_aprintf_va(context.temp_allocator, string, va_args);
+  String str = fmt_tprintf_va(string, va_args);
   va_end(va_args);
   _log(level, str, location);
 }
@@ -34,9 +34,9 @@ internal void _logf(Log_Level level, String string, Source_Code_Location locatio
 internal Mutex _log_mutex;
 
 internal void default_file_logger_proc(
-  rawptr data,
-  Log_Level level,
-  String string,
+  rawptr                      data,
+  Log_Level                   level,
+  String                      string,
   Source_Code_Location const *location
 ) {
   MUTEX_GUARD(&_log_mutex, {

@@ -3,6 +3,11 @@
 #define c_array_to_slice(arr) ((Slice(typeof(*arr))) { .data = arr, .len = count_of(arr) })
 #define c_array_to_slice_t(T, arr) ((T) { .data = arr, .len = count_of(arr) })
 
+#define alloca_slice(T, size) ((T) {                                           \
+  .data = (type_of(((T){0}).data))alloca(size * size_of(*(((T){0}).data))),    \
+  .len = size                                                                  \
+})
+
 #define IDX(arr, i) (({ assert((i) >= 0); assert((i) < (arr).len); }), &(arr).data[(i)])
 
 #define Array(T, N) struct {                                                   \
@@ -78,8 +83,8 @@
 #define slice_start(_full, _start)                                             \
   ({                                                                           \
     type_of(_start) start = _start;                                            \
-    type_of(_full) full = _full;                                               \
-    type_of(_full) range = full;                                               \
+    type_of(_full)  full  = _full;                                             \
+    type_of(_full)  range = full;                                              \
                                                                                \
     range.data = full.data + start;                                            \
     range.len -= start;                                                        \
@@ -88,7 +93,7 @@
 
 #define slice_end(_full, _end)                                                 \
   ({                                                                           \
-    type_of(_end) end = _end;                                                  \
+    type_of(_end)  end = _end;                                                 \
     type_of(_full) full = _full;                                               \
     type_of(_full) range = full;                                               \
                                                                                \

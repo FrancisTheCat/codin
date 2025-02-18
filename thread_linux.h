@@ -1,14 +1,14 @@
 #include "codin.h"
 
-extern isize __clone3(void*, isize, isize(*)(void*), void*);
-extern isize __go_unmap_urself(void*, isize, isize);
+extern isize __clone3(rawptr, isize, isize(*)(rawptr), rawptr);
+extern isize __go_unmap_urself(rawptr, isize, isize);
 
 typedef struct {
-  void       *stack;
-  void       *tls;
+  rawptr      stack;
+  rawptr      tls;
   isize       stack_size;
   isize       tls_size;
-  void       *arg;
+  rawptr      arg;
   Thread_Proc func;
   isize       _padding[2];
 } __Thread_Creation_Context;
@@ -32,33 +32,32 @@ internal isize __thread_start_proc(void *data) {
 
 internal OS_Result_Tid _create_thread(Thread_Proc func, void* arg, isize stack_size, isize tls_size) {
   OS_Result_Tid result = {0};
-  void *stack = (void *)syscall_or_return(SYS_mmap, 0, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-  void *tls   = (void *)syscall_or_return(SYS_mmap, 0, tls_size,   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  rawptr stack = (rawptr)syscall_or_return(SYS_mmap, 0, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  rawptr tls   = (rawptr)syscall_or_return(SYS_mmap, 0, tls_size,   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   
   struct clone_args {
-     u64 flags;        /* Flags bit mask */
-     u64 pidfd;        /* Where to store PID file descriptor (int *) */
-     u64 child_tid;    /* Where to store child TID, in child's memory (pid_t *) */
-     u64 parent_tid;   /* Where to store child TID, in parent's memory (pid_t *) */
-     u64 exit_signal;  /* Signal to deliver to parent on child termination */
-     u64 stack;        /* Pointer to lowest byte of stack */
-     u64 stack_size;   /* Size of stack */
-     u64 tls;          /* Location of new TLS */
-     u64 set_tid;      /* Pointer to a pid_t array (since Linux 5.5) */
-     u64 set_tid_size; /* Number of elements in set_tid (since Linux 5.5) */
-     u64 cgroup;       /* File descriptor for target cgroup of child (since Linux 5.7) */
+     u64    flags;        /* Flags bit mask */
+     u64    pidfd;        /* Where to store PID file descriptor (int *) */
+     u64    child_tid;    /* Where to store child TID, in child's memory (pid_t *) */
+     u64    parent_tid;   /* Where to store child TID, in parent's memory (pid_t *) */
+     u64    exit_signal;  /* Signal to deliver to parent on child termination */
+     rawptr stack;        /* Pointer to lowest byte of stack */
+     u64    stack_size;   /* Size of stack */
+     rawptr tls;          /* Location of new TLS */
+     u64    set_tid;      /* Pointer to a pid_t array (since Linux 5.5) */
+     u64    set_tid_size; /* Number of elements in set_tid (since Linux 5.5) */
+     u64    cgroup;       /* File descriptor for target cgroup of child (since Linux 5.7) */
   };
 
   struct clone_args args = {0};
   args.flags      = CLONE_THREAD | CLONE_VM | CLONE_SIGHAND | CLONE_FS | CLONE_SYSVSEM;
-  args.stack      = (long)stack;
+  args.stack      = stack;
   args.stack_size = stack_size;
 
-  __Thread_Creation_Context *ctx = (__Thread_Creation_Context *)((uintptr)(tls));
-  ctx->stack      = (void *)args.stack;
+  __Thread_Creation_Context *ctx = (__Thread_Creation_Context *)tls;
+  ctx->stack      = args.stack;
   ctx->stack_size = stack_size;
-  ctx->tls        = (void *)tls;
+  ctx->tls        = tls;
   ctx->tls_size   = tls_size;
   ctx->arg        = arg;
   ctx->func       = func;

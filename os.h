@@ -37,6 +37,7 @@ Writer __stderr;
   X(OSE_No_Mem)                                                                \
   X(OSE_Partial_Write)                                                         \
   X(OSE_Partial_Read)                                                          \
+  X(OSE_Block)                                                                 \
   X(OSE_Other)
 
 X_ENUM(OS_Error, OS_ERRORS)
