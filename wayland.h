@@ -26,7 +26,7 @@ thread_local SpallBuffer  spall_buffer;
 thread_local SpallProfile spall_ctx;
 
 internal f64 get_time_in_micros() {
-  return (f64)(time_now().nsec) / Microsecond;
+  return (f64)time_now() / Microsecond;
 }
 
 internal b8 wayland_peek_event_info(Wayland_Connection *conn, u32 *object, u16 *event) {
@@ -1721,6 +1721,17 @@ internal void renderer_destroy() {
 }
 
 internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Directory const *directory) {
+  static Timestamp last_render_time = {0};
+  if (false) {
+    Timestamp now  = time_now();
+    Duration  diff = now - last_render_time;
+    if (diff < Millisecond * 16) {
+      spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("wait"), get_time_in_micros());
+      time_sleep(Millisecond * 16 - diff);
+      spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+    }
+  }
+
   spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
 
   ui_context.mouse.x = state->mouse_x;
@@ -1739,9 +1750,9 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
   ui_layout_begin(&ui_context, 40, Rect_Cut_Side_Left);
     ui_label(&ui_context, fps_string);
 
-    local_persist struct Time last_time = {0};
-    struct Time curr_time = time_now();
-    isize diff = curr_time.nsec - last_time.nsec;
+    local_persist Timestamp last_time = {0};
+    Timestamp curr_time = time_now();
+    Duration  diff = curr_time- last_time;
     ui_label(&ui_context, fmt_tprintf(LIT("%07.4fms"), (f32)((f64)diff / Millisecond)));
 
     last_time = curr_time;
@@ -1760,8 +1771,8 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
     }
     ui_context.side = Rect_Cut_Side_Bottom;
     ui_layout_begin(&ui_context, 100, Rect_Cut_Side_Top);
-      ui_label(&ui_context, LIT("Label at the bottom"));
-      ui_label(&ui_context, LIT("Label at the bottom"));
+      ui_label(&ui_context, LIT("Label at the bottom."));
+      ui_label(&ui_context, LIT("Label at the bottom."));
     ui_layout_end(&ui_context);
   ui_layout_end(&ui_context);
 
@@ -1778,6 +1789,8 @@ internal void wayland_render(Wayland_Connection *conn, Wayland_State *state, Dir
   // ui_image(&ui_context, (UI_Image) {.index = 0});
 
   ui_state_render(&ui_context, state, conn);
+
+  last_render_time = time_now();
 
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }

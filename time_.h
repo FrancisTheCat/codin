@@ -41,9 +41,7 @@ X_ENUM(Weekday, WEEKDAYS)
 
 #undef WEEKDAYS
 
-struct Time {
-  i64 nsec;
-};
+typedef i64 Timestamp;
 
 typedef struct {
   isize year;
@@ -57,10 +55,10 @@ typedef struct {
   isize nanosecond;
 } Time_Value;
 
-internal void time_precise_clock(struct Time time, isize *hour, isize *min, isize *sec, isize *nanos);
-internal void time_date(struct Time t, b8 full, isize *year, isize *month, isize *day, isize *yday);
+internal void time_precise_clock(Timestamp time, isize *hour, isize *min, isize *sec, isize *nanos);
+internal void time_date(Timestamp t, b8 full, isize *year, isize *month, isize *day, isize *yday);
 
-internal void time_get_value(struct Time time, Time_Value *value) {
+internal void time_get_value(Timestamp time, Time_Value *value) {
   time_precise_clock(time, &value->hour, &value->minute, &value->second, &value->nanosecond);
   value->microsecond = (value->nanosecond / Microsecond) % 1000;
   value->millisecond = (value->nanosecond / Millisecond) % 1000;
@@ -69,14 +67,14 @@ internal void time_get_value(struct Time time, Time_Value *value) {
 }
 
 [[nodiscard]]
-internal struct Time time_now() {
+internal Timestamp time_now() {
   struct {
     i64 seconds;
     i64 nanoseconds;
   } _time = {0};
   u64 status = syscall(SYS_clock_gettime, 0, &_time);
   assert(status == 0);
-  return (struct Time){.nsec = _time.nanoseconds + Second * _time.seconds};
+  return _time.nanoseconds + Second * _time.seconds;
 }
 
 internal void time_sleep(Duration duration) {
@@ -139,9 +137,9 @@ Days in 4 years, with leap days.
 #define UNIX_TO_ABSOLUTE (UNIX_TO_INTERNAL + INTERNAL_TO_ABSOLUTE)
 #define ABSOLUTE_TO_UNIX (-UNIX_TO_ABSOLUTE)
 
-internal void time_precise_clock(struct Time time, isize *hour, isize *min, isize *sec, isize *nanos) {
-	isize _sec   = time.nsec / 1e9;
-  isize _nanos = time.nsec % (isize)1e9;
+internal void time_precise_clock(Timestamp time, isize *hour, isize *min, isize *sec, isize *nanos) {
+	isize _sec   = time / 1e9;
+  isize _nanos = time % (isize)1e9;
 	_sec  += INTERNAL_TO_ABSOLUTE;
 	*nanos = (isize)(_nanos);
 	*sec   = (isize)(_sec  % SECONDS_PER_DAY);
@@ -153,8 +151,8 @@ internal void time_precise_clock(struct Time time, isize *hour, isize *min, isiz
 }
 
 [[nodiscard]]
-internal u64 _time_abs(struct Time t) {
-	return (u64)(t.nsec/(isize)1e9 + UNIX_TO_ABSOLUTE);
+internal u64 _time_abs(Timestamp t) {
+	return (u64)(t / (isize)1e9 + UNIX_TO_ABSOLUTE);
 }
 
 [[nodiscard]]
@@ -235,14 +233,10 @@ internal void _abs_date (u64 abs, b8 full, isize *year, isize *month, isize *day
 	return;
 }
 
-internal void time_date(struct Time t, b8 full, isize *year, isize *month, isize *day, isize *yday)  {
+internal void time_date(Timestamp t, b8 full, isize *year, isize *month, isize *day, isize *yday)  {
 	 _abs_date(_time_abs(t), full, year, month, day, yday);
 }
 
-internal Duration time_diff(struct Time a, struct Time b) {
-	return (Duration)(a.nsec - b.nsec);
-}
-
-internal Duration time_since(struct Time t) {
-	return time_diff(time_now(), t);
+internal Duration time_since(Timestamp t) {
+	return time_now() - t;
 }

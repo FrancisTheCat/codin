@@ -9,7 +9,7 @@
   thread_local SpallProfile spall_ctx;
 
   internal f64 get_time_in_nanos() {
-    return time_now().nsec;
+    return time_now();
   }
 #else
   #define spall_buffer_begin(...)
@@ -191,9 +191,14 @@ internal String binary_op_strings[] = {
 
 X_ENUM(Error_Type, ERROR_TYPES);
 
-#define errorc( type, location, msg)         error( (type), (location), (LIT(msg)))
-#define errorf( type, location, format, ...) error( (type), (location), (fmt_tprintf(format, __VA_ARGS__)))
-#define errorfc(type, location, format, ...) errorf((type), (location), LIT(format), __VA_ARGS__)
+#define errorc( type, location, msg)         error((type), (location), (LIT(msg)))
+#define errorf( type, location, format, ...) error((type), (location), (fmt_tprintf(format, __VA_ARGS__)))
+#define errorfc(type, location, format, ...) error((type), (location), (fmt_tprintf(LIT(format), __VA_ARGS__)))
+
+#define parser_error(  location, msg)         parser->errors += 1; error(Error_Type_Syntax, (location), msg)
+#define parser_errorc( location, msg)         parser->errors += 1; error(Error_Type_Syntax, (location), (LIT(msg)))
+#define parser_errorf( location, format, ...) parser->errors += 1; error(Error_Type_Syntax, (location), (fmt_tprintf(format, __VA_ARGS__)))
+#define parser_errorfc(location, format, ...) parser->errors += 1; error(Error_Type_Syntax, (location), (fmt_tprintf(LIT(format), __VA_ARGS__)))
 
 internal void error(Error_Type type, Token_Location location, String msg) {
   fmt_eprintflnc("\033[1;31m%S(%d:%d):\033[0m %S", location.file, location.line, location.column, msg);
@@ -758,7 +763,7 @@ internal b8 parser_peek_expect(Parser *parser, Token_Type type) {
 internal b8 parser_expect(Parser *parser, Token_Type type, Token *t) {
   Token tok = parser_advance(parser);
   if (tok.type != type) {
-    errorfc(Error_Type_Syntax, tok.location, "Expected %S but got '%S' (type: %S)", enum_to_string(Token_Type, type), tok.lexeme, enum_to_string(Token_Type, tok.type));
+    parser_errorfc(tok.location, "Expected %S but got '%S' (type: %S)", enum_to_string(Token_Type, type), tok.lexeme, enum_to_string(Token_Type, tok.type));
     return false;
   }
   if (t) {
@@ -841,7 +846,7 @@ internal Ast_Expr *parse_atom_expr(Parser *parser, Allocator allocator) {
       return ast_base(unary);
     }
   default:
-    errorfc(Error_Type_Syntax, t.location, "Failed to parse atomic expression: unexpected token: '%S'", t.lexeme);
+    parser_errorfc(t.location, "Failed to parse atomic expression: unexpected token: '%S'", t.lexeme);
     return nil;
   }
 
@@ -1146,7 +1151,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
 
   default: {
       parser_skip(parser);
-      errorfc(Error_Type_Syntax, t.location, "Unexpected token at beginning of statement: '%S'", t.lexeme);
+      parser_errorfc(t.location, "Unexpected token at beginning of statement: '%S'", t.lexeme);
       return nil;
     }
   }
@@ -1258,7 +1263,7 @@ internal Ast_Expr *_parse_type(Parser *parser, Allocator allocator) {
     return ast_base(fn);
   }
   default:
-    errorc(Error_Type_Syntax, t.location, "Expect type");
+    parser_errorc(t.location, "Expect type");
     return nil;
   }
 
@@ -1424,7 +1429,7 @@ internal Ast_Decl *_parse_decl(Parser *parser, Allocator allocator) {
 
   default:
     parser_skip(parser);
-    errorfc(Error_Type_Syntax, t.location, "Unexpected token in declaration: '%S'", t.lexeme);
+    parser_errorfc(t.location, "Unexpected token in declaration: '%S'", t.lexeme);
     return nil;
   }
 
@@ -2778,6 +2783,7 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
       }
     }
     errorc(Error_Type_Type, expr->location, "selector operator can only be used on structs, unions, enums, slices and arrays, or pointers to those");
+    return type_invalid;
   }
   CASE ANT_Expr_Deref: {
     Type *lhs = type_check_expr(expr->expr_deref->lhs, cs, allocator);
@@ -3423,11 +3429,11 @@ i32 main() {
   slice_iter_v(slice_start(os_args, 1), path, _i, {
     spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_entire_file"), get_time_in_nanos());
     Fd file = or_do_err(file_open(path, FP_Read), err, {
-      fmt_eprintflnc("Failed to open file '%S': '%S'", path, enum_to_string(OS_Error, err));
+      fmt_eprintflnc("Failed to open source file '%S'", path);
       continue;
     });
     Byte_Slice file_data = or_do_err(map_entire_file(file), err, {
-      fmt_eprintflnc("Failed to read file '%S': '%S'", path, enum_to_string(OS_Error, err));
+      fmt_eprintflnc("Failed to read file '%S'", path);
       continue;
     });
     spall_end_fn();
@@ -3443,6 +3449,11 @@ i32 main() {
     vector_init(&parser.file.decls, 0, 8, context.temp_allocator);
 
     parse_file(&parser, context.temp_allocator);
+
+    if (parser.errors) {
+      fmt_eprintflnc("Parsing failed for file: '%S'", path);
+      continue;
+    }
 
     // slice_iter_v(parser.file.decls, decl, i, print_ast_decl(decl));
 

@@ -112,28 +112,22 @@ int main() {
 
   if (os_args.len > 1) {
     content_dir = *IDX(os_args, 1);
-    if_let_err(file_open(content_dir, FP_Read), dir, {
-      File_Info info;
-      OS_Error err = file_stat(dir, &info);
-      if (err) {
-        log_errorf(
-          LIT("Invalid content dir: %S (Error: %S)"),
-          content_dir,
-          enum_to_string(OS_Error, err)
-        );
-        return 1;
-      } else if (!info.is_dir) {
-        log_errorf(LIT("Invalid content dir: %S (Not a directory)"), content_dir);
-        return 1;
-      }
-    }, err, {
-      log_errorf(
-        LIT("Invalid content dir: %S (Error: %S)"),
-        content_dir,
-        enum_to_string(OS_Error, err)
-      );
-    });
   }
+
+  if_let_err(file_open(content_dir, FP_Read), dir, {
+    File_Info info;
+    OS_Error err = file_stat(dir, &info);
+    if (err) {
+      log_errorf(LIT("Invalid content dir: '%S'"), content_dir);
+      return 1;
+    } else if (!info.is_dir) {
+      log_errorf(LIT("Invalid content dir: '%S' (Not a directory)"), content_dir);
+      return 1;
+    }
+  }, err, {
+    log_errorf(LIT("Invalid content dir: '%S'"), content_dir);
+    return 1;
+  });
 
   isize port = 25566;
 

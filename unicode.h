@@ -10,7 +10,7 @@ internal rune utf8_first_rune(String str, isize *n) {
   u8 first = *IDX(str, 0);
   if ((first & 0x80) == 0) {
     if (n) {
-    *n = 1;
+      *n = 1;
     }
     return first;
   }

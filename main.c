@@ -1,6 +1,5 @@
 #include "codin.h"
 #include "image.h"
-#include "iter.h"
 #include "xml.h"
 
 #define ttf_alloc(U, size) (unwrap_err(mem_alloc(size, *(Allocator *)U)))
@@ -24,22 +23,7 @@ f32 ttf_absf(f32 x) {
   return x > 0 ? x : -x;
 }
 
-// #define ttf_sqrtf ttf_sqrtf
-// f32 ttf_sqrtf(f32 x) {
-//     f32 xhalf = 0.5f * x;
-//     union {
-//         f32 x;
-//         i32 i;
-//     } u;
-//     u.x = x;
-//     u.i = 0x5f375a86 - (u.i >> 1);
-//     for_range(i, 0, 1000) {
-//       u.x = u.x * (1.5f - xhalf * u.x * u.x);
-//     }
-//     return 1.0 / u.x;
-// }
-
-#define ttf_sqrtf(x) sqrt(x)
+#define ttf_sqrtf(x) (f32)sqrt((f32)x)
 
 #define TTF_IMPLEMENTATION
 #include "ttf.h"
@@ -248,11 +232,11 @@ i32 main() {
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
   spall_ctx   = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
 
- //  File_Info fi;
- //  file_stat(spall_fd, &fi);
- //  assert(fi.readable);
- //  assert(fi.writeable);
- //  assert(!fi.executable);
+  // File_Info fi;
+  // file_stat(spall_fd, &fi);
+  // assert(fi.readable);
+  // assert(fi.writeable);
+  // assert(!fi.executable);
 
 	Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 1024, context.allocator);
 	spall_buffer = (SpallBuffer){
@@ -262,80 +246,80 @@ i32 main() {
 
 	spall_buffer_init(&spall_ctx, &spall_buffer);
 
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_directory"), get_time_in_micros());
+ // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_directory"), get_time_in_micros());
  //  Directory directory = unwrap_err(read_directory_path(LIT("."), context.allocator));
  //  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
- //  isize max_name_len = 0;
- //  isize max_size_len = LIT("<dir>").len;
+  // isize max_name_len = 0;
+  // isize max_size_len = LIT("<dir>").len;
 
- //  slice_iter(directory, file, i, {
- //    max_name_len = max(file->name.len, max_name_len);
- //    max_size_len = max(fmt_file_size_w(nil, file->size), max_size_len);
- //  });
+  // slice_iter(directory, file, i, {
+  //   max_name_len = max(file->name.len, max_name_len);
+  //   max_size_len = max(fmt_file_size_w(nil, file->size), max_size_len);
+  // });
 
- //  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("sort"), get_time_in_micros());
- //  // sort_slice_by(directory, i, j, string_compare_lexicographic(directory.data[i].name, directory.data[j].name));
- //  sort_slice_by(
- //    directory,
- //    i,
- //    j,
- //    (directory.data[i].is_dir != directory.data[j].is_dir)
- //     ? directory.data[i].is_dir
- //     : string_compare_lexicographic(directory.data[i].name, directory.data[j].name)
- //  );
- //  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("sort"), get_time_in_micros());
+  // // sort_slice_by(directory, i, j, string_compare_lexicographic(directory.data[i].name, directory.data[j].name));
+  // sort_slice_by(
+  //   directory,
+  //   i,
+  //   j,
+  //   (directory.data[i].is_dir != directory.data[j].is_dir)
+  //    ? directory.data[i].is_dir
+  //    : string_compare_lexicographic(directory.data[i].name, directory.data[j].name)
+  // );
+  // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
- //  String cwd = unwrap_err(_get_current_directory(context.temp_allocator));
- //  fmt_printfln(LIT("Directory: %S\n"), cwd);
+  // String cwd = unwrap_err(_get_current_directory(context.temp_allocator));
+  // fmt_printfln(LIT("Directory: %S\n"), cwd);
 
- //  String spaces = slice_make(String, max_size_len, context.temp_allocator);
- //  slice_iter(spaces, s, _i, {
- //    *(char *)s = ' ';
- //  });
+  // String spaces = slice_make(String, max_size_len, context.temp_allocator);
+  // slice_iter(spaces, s, _i, {
+  //   *(char *)s = ' ';
+  // });
 
- //  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("print_directory"), get_time_in_micros());
+  // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("print_directory"), get_time_in_micros());
 
- //  String name_format = fmt_tprintf(LIT("%%-%dS | "), max_name_len);
+  // String name_format = fmt_tprintf(LIT("%%-%dS | "), max_name_len);
 
- //  Builder b = builder_make(0, 1024, context.temp_allocator);
+  // Builder b = builder_make(0, 1024, context.temp_allocator);
   
- //  slice_iter(directory, file, i, {
- //    fmt_sbprintf(&b, name_format, file->name);
+  // slice_iter(directory, file, i, {
+  //   fmt_sbprintf(&b, name_format, file->name);
 
- //    String str;
- //    if (file->is_dir) {
- //      str = fmt_tprintf(LIT("<dir>"), 0);
- //    } else {
- //      str = fmt_tprintf(LIT("%M"), file->size);
- //    }
+  //   String str;
+  //   if (file->is_dir) {
+  //     str = fmt_tprintf(LIT("<dir>"), 0);
+  //   } else {
+  //     str = fmt_tprintf(LIT("%M"), file->size);
+  //   }
 
- //    fmt_sbprintf(
- //      &b,
- //      LIT("%S%S | %T | %T | %T\n"),
- //      slice_range(spaces, 0, max_size_len - str.len),
- //      str,
- //      file->creation_time,
- //      file->modification_time,
- //      file->acces_time
- //    );
- //  });
+  //   fmt_sbprintf(
+  //     &b,
+  //     LIT("%S%S | %T | %T | %T\n"),
+  //     slice_range(spaces, 0, max_size_len - str.len),
+  //     str,
+  //     file->creation_time,
+  //     file->modification_time,
+  //     file->acces_time
+  //   );
+  // });
   
- //  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
- //  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("write_directory"), get_time_in_micros());
- //  write_bytes(&stdout, builder_to_bytes(b));
- //  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("write_directory"), get_time_in_micros());
+  // write_bytes(&stdout, builder_to_bytes(b));
+  // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
- //  fmt_println(LIT(""));
+  // fmt_println(LIT(""));
 
- //  fmt_printfln(LIT("Args: %[S]"), os_args);
+  // fmt_printfln(LIT("Args: %[S]"), os_args);
 
- //  fmt_printfln(LIT("PI: %.8f"), 3.14159265359);
- //  fmt_printfln(LIT("E:  %.8f"), 2.71828182846);
+  // fmt_printfln(LIT("PI: %.8f"), 3.14159265359);
+  // fmt_printfln(LIT("E:  %.8f"), 2.71828182846);
 
- //  Test_Context tc;
- //  test_context_init(&tc, context.allocator);
+  // Test_Context tc;
+  // test_context_init(&tc, context.allocator);
 
   // test_add(&tc, test_growing_arena_allocator);
   // test_add(&tc, test_pool_allocator);
@@ -373,14 +357,6 @@ i32 main() {
   // ok = ppm_load_bytes(ppm_data, &image);
   // assert(ok);
   
-  // Byte_Slice _data = unwrap_err(read_entire_file_path(LIT("main.c"), context.temp_allocator));
-  // String data = transmute(String, _data);
-  // Strings_Iterator iter = string_lines_iterator(data);
-
-  // iterate(iter, line, i, {
-  //   fmt_printfln(LIT("%03d:\t%S"), i, line);
-  // });
-
   // Dynlib lib = unwrap(dynlib_load(LIT("./dynlib_test/dynlib_test.so"), context.allocator));
   // // Dynlib lib = unwrap(dynlib_load(LIT("/lib/libm.so.6"), context.allocator));
   // // Dynlib lib = unwrap(dynlib_load(LIT("/lib/libOpenGL.so"), context.allocator));
@@ -467,7 +443,7 @@ i32 main() {
   UI_Image image = ui_create_image(&ui_context, rgba8_image);
   assert(image.index == 0);
 
-  struct Time last_fps_print = time_now();
+  Timestamp last_fps_print = time_now();
   isize frames_since_print = 0;
 
   while (!state.should_close) {
@@ -547,9 +523,9 @@ i32 main() {
     if (state.surface_state == Surface_State_Attached && state.buffer_state == Buffer_State_Released) {
       frames_since_print += 1;
 
-      struct Time current_time = time_now();
+      Timestamp current_time = time_now();
 
-      if (time_diff(current_time, last_fps_print) > Second) {
+      if (current_time - last_fps_print > Second) {
         if (fps_string.data) {
           string_delete(fps_string, context.allocator);
         }

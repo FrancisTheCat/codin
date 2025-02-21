@@ -226,15 +226,15 @@ internal String string_to_lower(String str, Allocator allocator) {
   return transmute(String, out);
 }
 
-#define string_iter(string, elem, i, BLOCK)                                    \
-  {                                                                            \
-    isize __string_iter_n = 0;                                                 \
-    for (isize i = 0; i < (string).len; i += __string_iter_n) {                \
-      rune elem = utf8_rune_at((string), i, &__string_iter_n);                 \
-      if (__string_iter_n <= 0) { break; }                                     \
-      { BLOCK }                                                                \
-    }                                                                          \
-  }
+#define string_iter(string, elem, i, BLOCK) {                                  \
+  isize  _string_iter_n      = 0;                                              \
+  String _string_iter_string = string;                                         \
+  for (isize i = 0; i < _string_iter_string.len; i += _string_iter_n) {        \
+    rune elem = utf8_rune_at(_string_iter_string, i, &_string_iter_n);         \
+    if (_string_iter_n <= 0) { break; }                                        \
+    { BLOCK }                                                                  \
+  }                                                                            \
+}
 
 [[nodiscard]]
 internal String_Slice string_split(String str, String split, Allocator allocator) {
@@ -259,3 +259,23 @@ internal String_Slice string_split(String str, String split, Allocator allocator
   } if (string_equal(_string_switch_string, s)) {
 
 #define STRING_SWITCH(s) { String _string_switch_string = s;
+
+#define string_lines_iterator(string, line, i, BLOCK) {                          \
+  String _string_lines_iterator_data = string;                                   \
+  String line;                                                                   \
+  isize i = 0;                                                                   \
+  loop {                                                                         \
+    if (_string_lines_iterator_data.len <= 0) {                                  \
+      break;                                                                     \
+    }                                                                            \
+    line.data = _string_lines_iterator_data.data;                                \
+    line.len  = string_index_byte(_string_lines_iterator_data, '\n');            \
+    if (line.len < 0) {                                                          \
+      line.len = _string_lines_iterator_data.len;                                \
+    }                                                                            \
+    _string_lines_iterator_data.len  -= line.len + 1;                            \
+    _string_lines_iterator_data.data += line.len + 1;                            \
+    i += 1;                                                                      \
+    { BLOCK; }                                                                   \
+  }                                                                              \
+}

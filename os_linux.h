@@ -192,9 +192,9 @@ internal OS_Error _file_stat(Fd fd, File_Info *fi) {
   syscall_or_return_err(SYS_fstat, fd, &s);
 
   fi->size = s.st_size;
-  fi->acces_time.nsec        = s.st_atimensec + s.st_atime * Second;
-  fi->creation_time.nsec     = s.st_ctimensec + s.st_ctime * Second;
-  fi->modification_time.nsec = s.st_mtimensec + s.st_mtime * Second;
+  fi->acces_time        = s.st_atimensec + s.st_atime * Second;
+  fi->creation_time     = s.st_ctimensec + s.st_ctime * Second;
+  fi->modification_time = s.st_mtimensec + s.st_mtime * Second;
   fi->is_dir = !!(s.st_mode & S_IFDIR);
 
   fi->readable   = !!(s.st_mode & 00400);

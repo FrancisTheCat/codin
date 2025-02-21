@@ -92,10 +92,10 @@ typedef struct {
   ttf_i32                    line_height;
   ttf_i32                    font_height;
   ttf_bool                   bmp;
-  void                      *allocator;
+  void                      *allocator_data;
 } TTF_Font;
 
-TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *allocator);
+TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *allocator_data);
 TTF_DEF void     ttf_destroy_font(TTF_Font const *font);
 
 TTF_DEF ttf_u32 ttf_get_codepoint_glyph(
@@ -651,7 +651,7 @@ TTF_DEF void ttf_get_glyph_v_metrics(
   metrics->height  =  font_size * ( gh.yMax - gh.yMin) / font->units_per_em;
 }
 
-TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *allocator) {
+TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *allocator_data) {
   *font = (TTF_Font) {0};
 
   if ((ttf_uintptr)data & 3) {
@@ -667,7 +667,7 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *a
   font->data = data;
   font->len  = n;
 
-  font->allocator = allocator;
+  font->allocator_data = allocator_data;
 
   if (sizeof(_TTF_File_Header) + sizeof(_TTF_Table_Record) * header.numTables > n) {
     return ttf_false;
@@ -796,7 +796,7 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *a
 
           ttf_u16 segment_count = subtable.segCountX2 / 2;
           _TTF_Sequential_Map_Group *segments =
-            (_TTF_Sequential_Map_Group *)ttf_alloc(font->allocator, sizeof(_TTF_Sequential_Map_Group) * segment_count);
+            (_TTF_Sequential_Map_Group *)ttf_alloc(font->allocator_data, sizeof(_TTF_Sequential_Map_Group) * segment_count);
 
           ttf_u16 *p = (ttf_u16 *)&data[font->cmap + record.offset + sizeof(subtable)];
 
@@ -846,7 +846,7 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *a
           _ttf_convert_cmap_subtable_format_12(&subtable);
 
           _TTF_Sequential_Map_Group *segments =
-            (_TTF_Sequential_Map_Group *)ttf_alloc(font->allocator, sizeof(_TTF_Sequential_Map_Group) * subtable.num_groups);
+            (_TTF_Sequential_Map_Group *)ttf_alloc(font->allocator_data, sizeof(_TTF_Sequential_Map_Group) * subtable.num_groups);
 
           if (!segments) {
             return ttf_false;
@@ -887,7 +887,7 @@ TTF_DEF ttf_bool ttf_load_bytes(ttf_u8 *data, ttf_i32 n, TTF_Font *font, void *a
 }
 
 TTF_DEF void ttf_destroy_font(TTF_Font const *font) {
-  ttf_free(font->allocator, font->groups);
+  ttf_free(font->allocator_data, font->groups);
 }
 
 TTF_DEF ttf_bool _ttf_bezier_curve_intersection(
@@ -1616,12 +1616,10 @@ TTF_DEF void ttf_get_shape_bitmap(
   ttf_u32               *h,
   ttf_u8               **pixels
 ) {
-  ttf_u32 W;
-  ttf_u32 H;
-
+  ttf_u32 W, H;
   ttf_get_shape_bitmap_size(font, shape, font_size, &W, &H);
 
-  *pixels = (ttf_u8 *)ttf_alloc(font->allocator, W * H);
+  *pixels = (ttf_u8 *)ttf_alloc(font->allocator_data, W * H);
   if (!*pixels) {
     *w = 0;
     *h = 0;
@@ -1632,7 +1630,6 @@ TTF_DEF void ttf_get_shape_bitmap(
   *h = H;
 
   ttf_render_shape_bitmap(font, shape, font_size, 0, *pixels);
-  // ttf_render_shape_sdf(font, shape, font_size, 0.1, 0, *pixels);
 }
 
 #undef ttf_max

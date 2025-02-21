@@ -46,9 +46,9 @@ typedef struct {
   String full_path;
   String name;
   isize size;
-  struct Time acces_time;
-  struct Time creation_time;
-  struct Time modification_time;
+  Timestamp acces_time;
+  Timestamp creation_time;
+  Timestamp modification_time;
   b8 is_dir;
   b8 readable;
   b8 writeable;

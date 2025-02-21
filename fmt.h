@@ -149,7 +149,7 @@ internal String format_usize_to_buffer_bin(usize x, Byte_Slice buffer) {
 
 internal isize fmt_file_size_w(const Writer *w, isize size);
 internal isize fmt_location_w(const Writer *w, Source_Code_Location const *location);
-internal isize fmt_time_w(const Writer *w, struct Time time);
+internal isize fmt_time_w(const Writer *w, Timestamp time);
 
 internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
   _Formatter_Context ctx;
@@ -157,7 +157,7 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
     b32 b32;
     f64 f64;
     i32 character;
-    struct Time time;
+    Timestamp time;
     isize isize;
     String string;
     rawptr pointer;
@@ -339,7 +339,7 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
 
           // Time
           case 'T':
-            tp.time = ((struct Time *)slice.data)[j];
+            tp.time = ((Timestamp *)slice.data)[j];
             n += fmt_time_w(w, tp.time);
             break;
 
@@ -455,7 +455,7 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
 
         // Time
         case 'T':
-          tp.time = va_arg(va_args, struct Time);
+          tp.time = va_arg(va_args, Timestamp);
           n += fmt_time_w(w, tp.time);
           break;
 
@@ -655,7 +655,7 @@ internal isize fmt_file_size_w(const Writer *w, isize size) {
   return fmt_wprintf(w, LIT("%.1f%S"), size_f / size_s, file_size_prefixes[i]);
 }
 
-internal isize fmt_time_w(const Writer *w, struct Time time) {
+internal isize fmt_time_w(const Writer *w, Timestamp time) {
   Time_Value tv;
   time_get_value(time, &tv);
   return fmt_wprintf(w, LIT("%02d.%02d.%02d %02d:%02d:%02d"),
