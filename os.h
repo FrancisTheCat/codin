@@ -15,7 +15,7 @@ internal String get_env(String key) {
     }
     return slice_range(*str, key.len + 1, str->len);
   })
-  return (String) {.len = 0};
+  return (String) {0};
 }
 
 #define stdin  __stdin
@@ -258,4 +258,8 @@ internal rawptr os_allocate_pages(isize n) {
 
 internal b8 os_deallocate_pages(rawptr p, isize n) {
   return syscall(SYS_munmap, p, n * OS_PAGE_SIZE) == 0;
+}
+
+internal void processor_yield() {
+  _processor_yield();
 }

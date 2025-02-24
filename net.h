@@ -18,13 +18,14 @@ typedef i64 Socket;
 
 typedef struct {
   struct sockaddr_in address;
-  Socket   socket;
+  Socket             socket;
 } Connection;
 
 #define NET_ERRORS(X) \
   X(NE_None)          \
   X(NE_Bad_Socket)    \
   X(NE_Would_Block)   \
+  X(NE_Hung_Up)       \
   X(NE_Other)         \
 
 X_ENUM(Net_Error, NET_ERRORS);
@@ -169,6 +170,37 @@ internal Writer writer_from_socket(Socket socket) {
 
 internal Net_Error socket_close(Socket socket) {
   return file_close(socket) != OSE_None ? NE_Other : NE_None;
+}
+
+#define POLL_EVENTS(X)                                                         \
+  X(Poll_Event_Read,  1)                                                       \
+  X(Poll_Event_Write, 2)                                                       \
+
+X_ENUM_EXPLICIT(Poll_Event, POLL_EVENTS)
+
+internal Net_Error socket_poll(Socket socket, isize events, Duration timeout) {
+  i16 _events = 0;
+  if (events & Poll_Event_Read) {
+    _events |= 1;
+  }
+  if (events & Poll_Event_Read) {
+    _events |= 4;
+  }
+  struct {
+    i32 fd;
+    i16 events, revents;
+  } pollfd = {
+    .fd     = (i32)socket,
+    .events = _events,
+  };
+  isize result = syscall(SYS_poll, &pollfd, 1, timeout > 0 ? timeout / Millisecond : -1);
+  if (pollfd.revents & 0x10) {
+    return NE_Hung_Up;
+  }
+  if (result < 0) {
+    return NE_Other;
+  }
+  return nil;
 }
 
 typedef enum {

@@ -11,7 +11,7 @@
 //   'T': time
 //   'D': duration
 //   'L': location
-//   'U': user callback
+//   'Cv': where v is a character thats used to decide which formatter is used. (use `register_user_formatter`)
 //   '%' '%'
 #include "codin.h"
 
@@ -31,7 +31,24 @@ typedef struct {
   b8    complete;
 } _Formatter_Context;
 
-typedef isize (*Format_User_Callback)(Writer const *w, rawptr);
+typedef isize (*User_Formatter_Proc)(Writer const *w, va_list va_args);
+
+internal Hash_Map(rune, User_Formatter_Proc) _fmt_user_formatters = {0};
+
+internal User_Formatter_Proc register_user_formatter(rune verb, User_Formatter_Proc proc) {
+  if (!_fmt_user_formatters.cap) {
+    hash_map_init(&_fmt_user_formatters, 8, nil, nil, context.allocator);
+  }
+  User_Formatter_Proc *old = hash_map_get(_fmt_user_formatters, verb);
+  User_Formatter_Proc  ret = nil;
+  if (old) {
+    ret  = *old;
+    *old = proc;
+  } else {
+    hash_map_insert(&_fmt_user_formatters, verb, proc);
+  }
+  return ret;
+}
 
 [[nodiscard]]
 internal String __format_float_to_buffer(f64 value, Byte_Slice buffer, isize precision) {
@@ -187,8 +204,7 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
         return n;
       }
 
-      for (ctx = (_Formatter_Context){.precision = 4};
-           i < format.len && !ctx.complete;) {
+      for (ctx = (_Formatter_Context){.precision = 4}; i < format.len && !ctx.complete;) {
         switch (format.data[i]) {
         case '.':
           i += 1;
@@ -243,7 +259,7 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
         case 'T':
         case 'D':
         case 'L':
-        case 'U':
+        case 'C':
         case '%':
           ctx.verb = format.data[i];
           i += 1;
@@ -354,13 +370,9 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
             n += fmt_location_w(w, &tp.location);
             break;
 
-          // User callback (advanced)
-          case 'U':
-            Format_User_Callback proc_to_print =
-                ((Format_User_Callback *)slice.data)[j];
-            rawptr arg = va_arg(va_args, rawptr);
-            n += proc_to_print(w, arg);
-            break;
+          // Custom formatter
+          case 'C':
+            panic("Custom formatters are not supported for printing slices");
           }
 
           if (j != slice.len - 1) {
@@ -469,11 +481,12 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
           n += fmt_location_w(w, &tp.location);
           break;
 
-        // User callback (advanced)
-        case 'U':
-          Format_User_Callback proc_to_print = va_arg(va_args, Format_User_Callback);
-          rawptr arg = va_arg(va_args, rawptr);
-          n += proc_to_print(w, arg);
+        // Custom Formatter
+        case 'C':
+          User_Formatter_Proc *proc = hash_map_get(_fmt_user_formatters, (rune)format.data[i]);
+          assert_msg(proc, "Custom formatter not found!");
+          i += 1;
+          n += (*proc)(w, va_args);
           break;
         }
       }
@@ -493,6 +506,9 @@ internal isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
 
   return n;
 }
+
+#define fmt_wprintfc(w, format, ...) fmt_wprintf(w, LIT(format), __VA_ARGS__)
+#define fmt_wprintc( w, str        ) fmt_wprintf(w, LIT("%s"  ), str        )
 
 internal isize fmt_wprintf(const Writer *w, String format, ...) {
   isize result;

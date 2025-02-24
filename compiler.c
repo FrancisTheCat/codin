@@ -17,7 +17,7 @@
 #endif
 
 #define spall_begin_fn() spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_nanos())
-#define spall_end_fn()   spall_buffer_end(&spall_ctx, &spall_buffer,                      get_time_in_nanos())
+#define spall_end_fn()   spall_buffer_end(  &spall_ctx, &spall_buffer,                    get_time_in_nanos())
 
 #define TOKENS(X)                                                              \
   X(Token_Type_String       )                                                  \
@@ -91,9 +91,9 @@ typedef struct {
 } Token_Location;
 
 typedef struct {
-  Token_Type     type;
-  Token_Location location;
-  String         lexeme;
+  Token_Type      type;
+  Token_Location *location;
+  String          lexeme;
   union {
     union {
       String string;
@@ -200,14 +200,22 @@ X_ENUM(Error_Type, ERROR_TYPES);
 #define parser_errorf( location, format, ...) parser->errors += 1; error(Error_Type_Syntax, (location), (fmt_tprintf(format, __VA_ARGS__)))
 #define parser_errorfc(location, format, ...) parser->errors += 1; error(Error_Type_Syntax, (location), (fmt_tprintf(LIT(format), __VA_ARGS__)))
 
-internal void error(Error_Type type, Token_Location location, String msg) {
-  fmt_eprintflnc("\033[1;31m%S(%d:%d):\033[0m %S", location.file, location.line, location.column, msg);
+#define type_error(  location, msg)         ctx->errors += 1; error(Error_Type_Syntax, (location), msg)
+#define type_errorc( location, msg)         ctx->errors += 1; error(Error_Type_Syntax, (location), (LIT(msg)))
+#define type_errorf( location, format, ...) ctx->errors += 1; error(Error_Type_Syntax, (location), (fmt_tprintf(format, __VA_ARGS__)))
+#define type_errorfc(location, format, ...) ctx->errors += 1; error(Error_Type_Syntax, (location), (fmt_tprintf(LIT(format), __VA_ARGS__)))
+
+internal void error(Error_Type type, Token_Location *location, String msg) {
+  fmt_eprintflnc("\033[1;31m%S(%d:%d):\033[0m %S", location->file, location->line, location->column, msg);
 }
 
 internal b8 tokenize_file(String file, String path, Token_Vector *tokens) {
   spall_begin_fn();
   b8 ok = true;
   isize start = 0, current = 0, line = 1, column = 1;
+
+  Growing_Arena_Allocator location_arena = {0};
+  Allocator location_allocator = growing_arena_allocator_init(&location_arena, 1 << 12, context.temp_allocator);
 
   while (current < file.len) {
     column += current - start;
@@ -315,7 +323,7 @@ internal b8 tokenize_file(String file, String path, Token_Vector *tokens) {
         }
         current += 1;
         if (utf8_rune_at(file, current, nil) != '\'') {
-          errorc(Error_Type_Tokenizer, ((Token_Location) {.file = path, .line = line, .column = column}), "Unterminated rune literal");
+          errorc(Error_Type_Tokenizer, &((Token_Location) {.file = path, .line = line, .column = column}), "Unterminated rune literal");
           ok = false;
         }
         token.literal.rune = c;
@@ -409,7 +417,8 @@ internal b8 tokenize_file(String file, String path, Token_Vector *tokens) {
     continue;
 
 append_token:
-    token.location = (Token_Location) {
+    token.location = mem_tnew(Token_Location, location_allocator);
+    *token.location = (Token_Location) {
       .line   = line,
       .file   = path,
       .column = column,
@@ -531,8 +540,7 @@ typedef struct {
 } Ast_Stmt_For;
 
 typedef struct {
-  Ast_Expr      *begin;
-  Ast_Expr      *end;
+  Ast_Expr      *begin, *end, *step;
   Ast_Decl      *decl;
   Ast_Stmt_Block body;
 } Ast_Stmt_Loop;
@@ -661,8 +669,8 @@ typedef struct {
 } Ast_File;
 
 struct _Ast_Node {
-  Token_Location location;
-  Ast_Node_Type  ast_type;
+  Token_Location *location;
+  Ast_Node_Type   ast_type;
   struct _Type   *type;
 
   union {
@@ -868,7 +876,7 @@ internal isize op_binding_powers[enum_len(Token_Type)] = {
 };
 
 internal Ast_Expr *_parse_expr(Parser *parser, isize min_bp, Allocator allocator) {
-  Token_Location start_location = parser_peek(parser).location;
+  Token_Location *start_location = parser_peek(parser).location;
   Ast_Expr *lhs = parse_atom_expr(parser, allocator);
 
   loop {
@@ -996,8 +1004,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
           c->label = t.literal.string;
         }
       default:
-        errorfc(
-          Error_Type_Syntax,
+        parser_errorfc(
           ast_base(c)->location,
           "Expected 'continue' keyword to be followed by label or semicolon, but got '%S'",
           t.lexeme
@@ -1016,8 +1023,7 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
           c->label = t.literal.string;
         }
       default:
-        errorfc(
-          Error_Type_Syntax,
+        parser_errorfc(
           ast_base(c)->location,
           "Expected 'break' keyword to be followed by label or semicolon, but got '%S'",
           t.lexeme
@@ -1114,6 +1120,10 @@ internal Ast_Stmt *parse_stmt(Parser *parser, Allocator allocator) {
           l->end   = parse_expr(parser, allocator);
         } else {
           l->end = e;
+        }
+        if (parser_peek(parser).type == Token_Type_Semicolon) {
+          parser_advance(parser);
+          l->step = parse_expr(parser, allocator);
         }
         parser_expect(parser, Token_Type_Close_Square, nil);
         parser_expect(parser, Token_Type_Arrow, nil);
@@ -1940,48 +1950,93 @@ typedef struct _Checker_Scope {
   struct _Checker_Scope     *parent;
 } Checker_Scope;
 
-internal void checker_scope_init(Checker_Scope *cs, Checker_Scope *parent, Allocator allocator) {
-  cs->parent = parent;
-  hash_map_init(&cs->variables, 16, string_equal, string_hash, allocator);
-  hash_map_init(&cs->types    , 16, string_equal, string_hash, allocator);
-  hash_map_init(&cs->constants, 16, string_equal, string_hash, allocator);
+typedef struct {
+  Checker_Scope *scope, *global_scope;
+  isize          errors;
+  Allocator      allocator;
+  Ast_File       file;
+} Checker_Context;
+
+internal void checker_scope_begin(Checker_Context *ctx, Checker_Scope *cs) {
+  cs->parent = ctx->scope;
+  hash_map_init(&cs->variables, 16, string_equal, string_hash, ctx->allocator);
+  hash_map_init(&cs->types    , 16, string_equal, string_hash, ctx->allocator);
+  hash_map_init(&cs->constants, 16, string_equal, string_hash, ctx->allocator);
   cs->return_value = nil;
+  ctx->scope = cs;
 }
 
-internal Type *resolve_named_type(Checker_Scope *scope, String name) {
+internal void checker_scope_end(Checker_Context *ctx) {
+  ctx->scope = ctx->scope->parent;
+}
+
+internal Type *resolve_named_type(Checker_Context *ctx, String name) {
+  Checker_Scope *scope = ctx->scope;
   while (scope) {
     Type **t = hash_map_get(scope->types, name);
     if (t) {
       return *t;
     }
+    if (scope->return_value) {
+      t = hash_map_get(ctx->global_scope->types, name);
+      if (t) {
+        return *t;
+      }
+      return nil;
+    }
     scope = scope->parent;
+  }
+  Type **t = hash_map_get(ctx->global_scope->types, name);
+  if (t) {
+    return *t;
   }
   return nil;
 }
 
-internal Type *resolve_ident(Checker_Scope *scope, String name) {
+internal Type *resolve_ident(Checker_Context *ctx, String name) {
+  Checker_Scope *scope = ctx->scope;
   while (scope) {
     Type **t = hash_map_get(scope->variables, name);
     if (t) {
       return *t;
     }
+    if (scope->return_value) {
+      t = hash_map_get(ctx->global_scope->variables, name);
+      if (t) {
+        return *t;
+      }
+      return nil;
+    }
     scope = scope->parent;
+  }
+  Type **t = hash_map_get(ctx->global_scope->variables, name);
+  if (t) {
+    return *t;
   }
   return nil;
 }
 
-internal Constant *resolve_constant(Checker_Scope *scope, String name) {
+internal Constant *resolve_constant(Checker_Context *ctx, String name) {
+  Checker_Scope *scope = ctx->scope;
   while (scope) {
     Constant *c = hash_map_get(scope->constants, name);
     if (c) {
       return c;
     }
+    if (scope->return_value) {
+      return nil;
+    }
     scope = scope->parent;
+  }
+  Constant *c = hash_map_get(ctx->global_scope->constants, name);
+  if (c) {
+    return c;
   }
   return nil;
 }
 
-internal Type *get_return_type(Checker_Scope *scope) {
+internal Type *get_return_type(Checker_Context *ctx) {
+  Checker_Scope *scope = ctx->scope;
   while (scope) {
     if (scope->return_value) {
       return scope->return_value;
@@ -1991,15 +2046,7 @@ internal Type *get_return_type(Checker_Scope *scope) {
   return nil;
 }
 
-// TODO: REMOVE THIS!!! ITS VERY FUCKING STUPID!!!
-internal Checker_Scope *get_global_scope(Checker_Scope *scope) {
-  while (scope->parent) {
-    scope = scope->parent;
-  }
-  return scope;
-}
-
-internal Type *type_base_type(Type *type, Checker_Scope *cs) {
+internal Type *type_base_type(Checker_Context *ctx, Type *type) {
   if (!type) {
     return nil;
   }
@@ -2008,12 +2055,12 @@ internal Type *type_base_type(Type *type, Checker_Scope *cs) {
       type = type->named->type;
       continue;
     }
-    type = resolve_named_type(cs, type->named->name);
+    type = resolve_named_type(ctx, type->named->name);
   }
   return type;
 }
 
-internal b8 types_equal(Type *a, Type *b, Checker_Scope *cs) {
+internal b8 types_equal(Checker_Context *ctx, Type *a, Type *b) {
   if (!a || !b) {
     return false;
   }
@@ -2027,7 +2074,7 @@ internal b8 types_equal(Type *a, Type *b, Checker_Scope *cs) {
     b = t;
   }
   if (b->type_kind == Type_Kind_Untyped) {
-    a = type_base_type(a, cs);
+    a = type_base_type(ctx, a);
     switch (a->type_kind) {
     case Type_Kind_Basic:
       switch (a->basic->kind) {
@@ -2057,9 +2104,9 @@ internal b8 types_equal(Type *a, Type *b, Checker_Scope *cs) {
   }
   switch (a->type_kind) {
   case Type_Kind_Array:
-    return (a->array->count == b->array->count) && types_equal(a->array->elem, b->array->elem, cs);
+    return (a->array->count == b->array->count) && types_equal(ctx, a->array->elem, b->array->elem);
   case Type_Kind_Slice:
-    return types_equal(a->slice->elem, b->slice->elem, cs);
+    return types_equal(ctx, a->slice->elem, b->slice->elem);
   case Type_Kind_Struct:
     return false;
   case Type_Kind_Union:
@@ -2069,7 +2116,7 @@ internal b8 types_equal(Type *a, Type *b, Checker_Scope *cs) {
   case Type_Kind_Named:
     return a == b;
   case Type_Kind_Pointer:
-    return types_equal(a->pointer->pointee, a->pointer->pointee, cs);
+    return types_equal(ctx, a->pointer->pointee, a->pointer->pointee);
   case Type_Kind_Basic:
     return mem_compare(a, b, size_of(Type) + size_of(Type_Basic));
   case Type_Kind_Function:
@@ -2081,10 +2128,10 @@ internal b8 types_equal(Type *a, Type *b, Checker_Scope *cs) {
   }
 }
 
-internal isize evaluate_constant_expression(Ast_Expr *e, Checker_Scope *scope) {
+internal isize evaluate_constant_expression(Checker_Context *ctx, Ast_Expr *e) {
   switch (e->ast_type) {
   CASE ANT_Expr_Ident: {
-    Constant *constant = resolve_constant(scope, e->expr_ident->name);
+    Constant *constant = resolve_constant(ctx, e->expr_ident->name);
     if (constant) {
       return constant->value;
     }
@@ -2105,7 +2152,7 @@ internal isize evaluate_constant_expression(Ast_Expr *e, Checker_Scope *scope) {
       unimplemented();
   }
   CASE ANT_Expr_Unary: {
-    isize rhs = evaluate_constant_expression(e->expr_unary->rhs, scope);
+    isize rhs = evaluate_constant_expression(ctx, e->expr_unary->rhs);
     switch (e->expr_binary->op) {
     CASE Token_Type_Plus:
       return rhs;
@@ -2118,8 +2165,8 @@ internal isize evaluate_constant_expression(Ast_Expr *e, Checker_Scope *scope) {
     }
   }
   CASE ANT_Expr_Binary: {
-    isize lhs = evaluate_constant_expression(e->expr_binary->lhs, scope);
-    isize rhs = evaluate_constant_expression(e->expr_binary->rhs, scope);
+    isize lhs = evaluate_constant_expression(ctx, e->expr_binary->lhs);
+    isize rhs = evaluate_constant_expression(ctx, e->expr_binary->rhs);
 
     switch (e->expr_binary->op) {
     CASE Token_Type_Plus:
@@ -2175,7 +2222,10 @@ internal isize evaluate_constant_expression(Ast_Expr *e, Checker_Scope *scope) {
   unreachable();
 }
 
-internal Type *resolve_ast_type(Ast_Expr *t, Checker_Scope *scope, Allocator allocator) {
+internal Type *resolve_ast_type(Checker_Context *ctx, Ast_Expr *t) {
+  Allocator allocator = ctx->allocator;
+  Checker_Scope *scope = ctx->scope;
+
   SWITCH (t->ast_type) {
   CASE ANT_Type_Function: {
     Type_Function *f = type_new(Function, allocator);
@@ -2183,35 +2233,37 @@ internal Type *resolve_ast_type(Ast_Expr *t, Checker_Scope *scope, Allocator all
     slice_init(&f->args, function->args.len, allocator);
 
     slice_iter_v(function->args, arg, i, {
-      f->args.data[i].type = resolve_ast_type(arg->type, scope, allocator);
+      f->args.data[i].type = resolve_ast_type(ctx, arg->type);
       f->args.data[i].name = arg->name;
     });
     if (function->returns.len > 1) {
       Type_Tuple *tuple = type_new(Tuple, allocator);
       slice_init(&tuple->fields, function->returns.len, allocator);
       slice_iter_v(function->returns, ret, i, {
-        tuple->fields.data[i] = resolve_ast_type(ret->type, scope, allocator);
+        tuple->fields.data[i] = resolve_ast_type(ctx, ret->type);
       });
       f->ret = type_base(tuple, 0, 0);
     } else if (function->returns.len) {
-      f->ret = resolve_ast_type(function->returns.data[0]->type, scope, allocator);
+      f->ret = resolve_ast_type(ctx, function->returns.data[0]->type);
     }
     return type_base(f, 8, 8);
   }
   CASE ANT_Type_Pointer: {
     Type_Pointer *p = type_new(Pointer, allocator);
-    p->pointee = resolve_ast_type(t->type_pointer->pointee, scope, allocator);
+    p->pointee = resolve_ast_type(ctx, t->type_pointer->pointee);
     return type_base(p, 8, 8);
   }
   CASE ANT_Type_Array: {
-    Type_Array *a = type_new(Array, allocator);
-    a->elem = resolve_ast_type(t->type_array->elem, scope, allocator);
+    Type *elem = resolve_ast_type(ctx, t->type_array->elem);
     if (t->type_array->count) {
-      a->count = evaluate_constant_expression(t->type_array->count, scope);
+      Type_Array *a = type_new(Array, allocator);
+      a->elem  = elem;
+      a->count = evaluate_constant_expression(ctx, t->type_array->count);
       return type_base(a, a->elem->size * a->count, a->elem->align);
     } else {
-      a->count = nil;
-      return type_base(a, 16, 8);
+      Type_Slice *s = type_new(Slice, allocator);
+      s->elem = elem;
+      return type_base(s, 16, 8);
     }
   }
   CASE ANT_Type_Enum: {
@@ -2229,7 +2281,7 @@ internal Type *resolve_ast_type(Ast_Expr *t, Checker_Scope *scope, Allocator all
     isize offset    = 0;
     isize max_align = 0;
     slice_iter_v(t->type_struct->fields, field, i, {
-      Type *field_type = resolve_ast_type(field->type, scope, allocator);
+      Type *field_type = resolve_ast_type(ctx, field->type);
       offset = (offset + field_type->align - 1) & ~(field_type->align - 1);
 
       IDX(s->fields, i)->name   = field->name;
@@ -2248,7 +2300,7 @@ internal Type *resolve_ast_type(Ast_Expr *t, Checker_Scope *scope, Allocator all
     isize max_align = 0, max_size = 0;
     slice_iter_v(t->type_union->variants, variant, i, {
       IDX(u->variants, i)->name = variant->name;
-      IDX(u->variants, i)->type = resolve_ast_type(variant->type, scope, allocator);
+      IDX(u->variants, i)->type = resolve_ast_type(ctx, variant->type);
 
       max_align = max(max_align, IDX(u->variants, i)->type->align);
       max_size  = max(max_size,  IDX(u->variants, i)->type->size );
@@ -2256,7 +2308,7 @@ internal Type *resolve_ast_type(Ast_Expr *t, Checker_Scope *scope, Allocator all
     return type_base(u, max_size, max_align);
   }
   CASE ANT_Type_Named:
-    return resolve_named_type(scope, t->type_named->name);
+    return resolve_named_type(ctx, t->type_named->name);
   DEFAULT:
     unreachable();
   }
@@ -2285,43 +2337,47 @@ Type *type_byte   = nil;
 Type *type_isize  = nil;
 Type *type_bool   = nil;
 Type *type_rune   = nil;
-Type *type_float  = nil;
+Type *type_f32    = nil;
 Type *type_string = nil;
 
 Type *type_invalid        = nil;
 
-internal Type          *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator);
-internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Checker_Scope *cs, Allocator allocator);
-internal void           type_check_decl_variable(Ast_Decl_Variable *variable, Checker_Scope *cs, Allocator allocator);
-internal void           type_check_scope(Ast_Stmt_Block body, Checker_Scope *cs, Allocator allocator);
+internal Type          *type_check_expr         (Checker_Context *ctx, Ast_Expr *expr);
+internal Type_Function *type_check_decl_function(Checker_Context *ctx, Ast_Decl_Function *function);
+internal void           type_check_decl_variable(Checker_Context *ctx, Ast_Decl_Variable *variable);
+internal void           type_check_scope        (Checker_Context *ctx, Ast_Stmt_Block body);
 
-
-internal void type_check_decl_type(Ast_Decl_Type *type_decl, Checker_Scope *cs, Allocator allocator) {
+internal void type_check_decl_type(Checker_Context *ctx, Ast_Decl_Type *type_decl) {
   spall_begin_fn();
 
-  Type *t = resolve_ast_type(type_decl->type, cs, allocator);
-  hash_map_insert(&cs->types, type_decl->name, t);
+  Type *t = resolve_ast_type(ctx, type_decl->type);
+  hash_map_insert(&ctx->scope->types, type_decl->name, t);
 
   spall_end_fn();
 }
 
 internal void print_type(Type *type);
 
-internal void type_check_stmt_assign(Ast_Stmt_Assign *assign, Checker_Scope *cs, Allocator allocator) {
-  Type *lhs = type_check_expr(assign->lhs, cs, allocator);
-  Type *rhs = type_check_expr(assign->rhs, cs, allocator);
+internal void type_check_stmt_assign(Checker_Context *ctx, Ast_Stmt_Assign *assign) {
+  Type *lhs = type_check_expr(ctx, assign->lhs);
+  Type *rhs = type_check_expr(ctx, assign->rhs);
 
-  if (!types_equal(lhs, rhs, cs)) {
-    print_type(lhs);
-    fmt_printc(" == ");
-    print_type(rhs);
-    fmt_printlnc("");
-    errorc(Error_Type_Type, ast_base(assign)->location, "Left and right types of assignment do not match");
+  // if (!expr_is_addressable(lhs)) {
+  //   type_error(...);
+  // }
+
+  if (!types_equal(ctx, lhs, rhs)) {
+    type_errorfc(
+      ast_base(assign)->location,
+      "Can not assign expression of type '%CT' to r-value of type '%CT'",
+      lhs,
+      rhs
+    );
   }
 }
 
-internal b8 type_is_boolean(Type *type, Checker_Scope *cs) {
-  type = type_base_type(type, cs);
+internal b8 type_is_boolean(Checker_Context *ctx, Type *type) {
+  type = type_base_type(ctx, type);
   if (!type) {
     return false;
   }
@@ -2329,54 +2385,56 @@ internal b8 type_is_boolean(Type *type, Checker_Scope *cs) {
          (type->type_kind == Type_Kind_Untyped && type->untyped->kind == Untyped_Type_Bool);
 }
 
-internal b8 type_is_integer(Type *type, Checker_Scope *cs) {
-  type = type_base_type(type, cs);
+internal b8 type_is_integer(Checker_Context *ctx, Type *type) {
+  type = type_base_type(ctx, type);
   return (type->type_kind == Type_Kind_Basic) && (type->basic->kind == Basic_Type_Int || type->basic->kind == Basic_Type_Uint);
 }
 
-internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocator) {
+internal void type_check_stmt(Checker_Context *ctx, Ast_Stmt *s) {
   spall_begin_fn();
   switch (s->ast_type) {
   CASE ANT_Expr_Call:
-    type_check_expr(s, cs, allocator);
+    type_check_expr(ctx, s);
   CASE ANT_Decl_Function:
-    type_check_decl_function(s->decl_function, cs, allocator);
+    type_check_decl_function(ctx, s->decl_function);
   CASE ANT_Decl_Type:
-    type_check_decl_type(s->decl_type, cs, allocator);
+    type_check_decl_type(ctx, s->decl_type);
   CASE ANT_Decl_Variable:
-    type_check_decl_variable(s->decl_variable, cs, allocator);
+    type_check_decl_variable(ctx, s->decl_variable);
   CASE ANT_Stmt_Defer:
-    type_check_stmt(s->stmt_defer->rhs, cs, allocator);
+    type_check_stmt(ctx, s->stmt_defer->rhs);
   CASE ANT_Stmt_Return: {
     if (!s->stmt_return->values.len) {
-      return;
+      break;
     }
-    Type *ret = get_return_type(cs);
+    Type *ret = get_return_type(ctx);
     if (ret) {
       if (ret->type_kind == Type_Kind_Tuple) {
         if (s->stmt_return->values.len != ret->tuple->fields.len) {
-          errorfc(Error_Type_Type, s->location, "Return statement has %d values, but function returns %d values", s->stmt_return->values.len, ret->tuple->fields.len);
-          return;
+          type_errorfc(s->location, "Return statement has %d values, but function returns %d values", s->stmt_return->values.len, ret->tuple->fields.len);
+          break;
         }
         slice_iter_v(s->stmt_return->values, value, i, {
-          Type *return_type = type_check_expr(value, cs, allocator);
+          Type *return_type = type_check_expr(ctx, value);
           Type *expected    = *IDX(ret->tuple->fields, i);
-          if (!types_equal(return_type, expected, cs)) {
-            errorfc(Error_Type_Type, value->location, "Type of return value differs from function signature at return value %d", i);
+          if (!types_equal(ctx, return_type, expected)) {
+            type_errorfc(value->location, "Type of return value differs from function signature at return value %d", i);
+            break;
           }
         });
       } else {
         if (s->stmt_return->values.len > 1) {
-          errorfc(Error_Type_Type, s->location, "Return statement has %d values, but function only returns one value", s->stmt_return->values.len);
+          type_errorfc(s->location, "Return statement has %d values, but function only returns one value", s->stmt_return->values.len);
+          break;
         }
-        Type *return_type = type_check_expr(s->stmt_return->values.data[0], cs, allocator);
-        if (!types_equal(ret, return_type, cs)) {
-          errorc(Error_Type_Type, s->location, "Return type has incorrect type");
+        Type *return_type = type_check_expr(ctx, s->stmt_return->values.data[0]);
+        if (!types_equal(ctx, ret, return_type)) {
+          type_errorc(s->location, "Return type has incorrect type");
         }
       }
     } else {
       if (s->stmt_return->values.len > 0) {
-        errorfc(Error_Type_Type, s->location, "Return statement has %d values, but function does not return any values", s->stmt_return->values.len);
+        type_errorfc(s->location, "Return statement has %d values, but function does not return any values", s->stmt_return->values.len);
       }
     }
   }
@@ -2385,141 +2443,173 @@ internal void type_check_stmt(Ast_Stmt *s, Checker_Scope *cs, Allocator allocato
   CASE ANT_Stmt_Continue:
     unimplemented();
   CASE ANT_Stmt_Block: {
-    Checker_Scope scope;
-    checker_scope_init(&scope, cs, allocator);
-    type_check_scope(*s->stmt_block, &scope, allocator);
+    type_check_scope(ctx, *s->stmt_block);
   }
   CASE ANT_Stmt_If: {
-    Checker_Scope scope;
-    checker_scope_init(&scope, cs, allocator);
-    Type *cond_type = type_check_expr(s->stmt_if->cond, cs, allocator);
-    if (!type_is_boolean(cond_type, cs)) {
-      error(Error_Type_Type, s->stmt_if->cond->location, LIT("Expected a boolean expression for if statement condition"));
+    Type *cond_type = type_check_expr(ctx, s->stmt_if->cond);
+    if (!type_is_boolean(ctx, cond_type)) {
+      type_error(s->stmt_if->cond->location, LIT("Expected a boolean expression for if statement condition"));
     }
-    type_check_scope(s->stmt_if->body, &scope, allocator);
+    type_check_scope(ctx, s->stmt_if->body);
   }
   CASE ANT_Stmt_Loop: {
     Ast_Stmt_Loop *l = s->stmt_loop;
     Type *begin = nil;
     if (l->begin) {
-      begin = type_check_expr(l->begin, cs, allocator);
+      begin = type_check_expr(ctx, l->begin);
     }
-    Type *end = type_check_expr(l->end, cs, allocator);
+    Type *end = type_check_expr(ctx, l->end);
 
-    if (begin && !types_equal(begin, end, cs)) {
-      errorc(Error_Type_Type, s->location, "Begin and end values of range loop do not have the same type");
-      return;
+    if (begin && !types_equal(ctx, begin, end)) {
+      type_errorfc(
+        s->location,
+        "Begin and end values of range loop do not have the same type: '%CT' != '%CT'",
+        begin,
+        end
+      );
+    }
+
+    if (l->step) {
+      Type *step = type_check_expr(ctx, l->step);
+      if (step && !types_equal(ctx, step, end)) {
+        type_errorfc(
+          s->location,
+          "End and step values of range loop do not have the same type: '%CT' != '%CT'",
+          end,
+          step
+        );
+      }
     }
 
     assert(l->decl->ast_type == ANT_Decl_Variable);
 
-    Type *lhs_type = resolve_ast_type(l->decl->decl_variable->type, cs, allocator);
+    Type *rhs_type = resolve_ast_type(ctx, l->decl->decl_variable->type);
 
-    if (!types_equal(end, lhs_type, cs)) {
-      errorc(Error_Type_Type, s->location, "Range type and declaration type of range loop are not the same type");
-      return;
+    if (!types_equal(ctx, end, rhs_type)) {
+      type_errorfc(
+        s->location,
+        "Range type and declaration type of range loop are not the same type: '%CT' != '%CT'",
+        end,
+        rhs_type
+      );
     }
 
     Checker_Scope scope = {0};
-    checker_scope_init(&scope, cs, allocator);
+    checker_scope_begin(ctx, &scope);
 
     Ast_Decl_Variable *variable = l->decl->decl_variable;
-    ast_base(variable)->type = lhs_type;
+    ast_base(variable)->type = rhs_type;
     if (variable->constant) {
       panic("Fuck you");
     }
     if (variable->value) {
       panic("Fuck you");
     }
-    hash_map_insert(&cs->variables, variable->name, lhs_type);
+    hash_map_insert(&scope.variables, variable->name, rhs_type);
 
-    type_check_scope(s->stmt_loop->body, &scope, allocator);
+    type_check_scope(ctx, s->stmt_loop->body);
+
+    checker_scope_end(ctx);
   }
   CASE ANT_Stmt_Iterator: {
-    Type *iterator_type = type_check_expr(s->stmt_iterator->lhs, cs, allocator);
+    Type *iterator_type = type_check_expr(ctx, s->stmt_iterator->lhs);
 
     Checker_Scope scope;
-    checker_scope_init(&scope, cs, allocator);
+    checker_scope_begin(ctx, &scope);
 
     if (iterator_type->type_kind != Type_Kind_Tuple) {
-      errorc(Error_Type_Type, s->stmt_iterator->lhs->location, "Iterator has to be a function with multiple return values");
-      return;
+      type_errorc(
+        s->stmt_iterator->lhs->location,
+        "Iterator has to be a function with multiple return values"
+      );
+      goto skip_iterator_type_checking;
     }
 
-    if (!type_is_boolean(*IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1), cs)) {
-      errorc(Error_Type_Type, s->stmt_iterator->lhs->location, "Last return value of an iterator has to be a boolean");
-      return;
+    if (!type_is_boolean(ctx, *IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1))) {
+      type_errorfc(
+        s->stmt_iterator->lhs->location,
+        "Expected last return value of an iterator to be a boolean, but got: '%CT'",
+        *IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1)
+      );
     }
 
     if (iterator_type->tuple->fields.len - 1 < s->stmt_iterator->decls.len) {
-      errorfc(
-        Error_Type_Type,
+      type_errorfc(
         ast_base(s->stmt_iterator->decls.data[0])->location,
         "Too many declarations on right side of iterator, expected up to %d but got %d",
         iterator_type->tuple->fields.len - 1,
         s->stmt_iterator->decls.len
       );
-      return;
+      goto skip_iterator_type_checking;
     }
 
     slice_iter_v(s->stmt_iterator->decls, decl, i, {
       Type *lhs_type = *IDX(iterator_type->tuple->fields, i);
+      Type *rhs_type = resolve_ast_type(ctx, decl->type);
 
-      if (types_equal(lhs_type, resolve_ast_type(decl->type, cs, allocator), cs)) {
+      if (types_equal(ctx, lhs_type, rhs_type)) {
         hash_map_insert(&scope.variables, decl->name, lhs_type);
         continue;
       }
 
       if (lhs_type->type_kind == Type_Kind_Pointer) {
         lhs_type = lhs_type->pointer->pointee;
-        type_base_type(lhs_type, cs);
-        if (types_equal(lhs_type, resolve_ast_type(decl->type, cs, allocator), cs)) {
+        if (types_equal(ctx, lhs_type, rhs_type)) {
           hash_map_insert(&scope.variables, decl->name, lhs_type);
           continue;
         }
       }
 
-      errorfc(Error_Type_Type, ast_base(decl)->location, "Iterator return types and declaration types do not match at index %d", i);
+      type_errorfc(
+        ast_base(decl)->location,
+        "Iterator return types and declaration types do not match at index %d: '%CT' != '%CT'",
+        i,
+        lhs_type,
+        rhs_type
+      );
     });
+
+skip_iterator_type_checking:
     
-    type_check_scope(s->stmt_iterator->body, &scope, allocator);
+    type_check_scope(ctx, s->stmt_iterator->body);
+
+    checker_scope_end(ctx);
   }
   CASE ANT_Stmt_Switch:
     unimplemented();
   CASE ANT_Stmt_Assign:
-    type_check_stmt_assign(s->stmt_assign, cs, allocator);
+    type_check_stmt_assign(ctx, s->stmt_assign);
   DEFAULT: 
     unimplemented();
   }
   spall_end_fn();
 }
 
-internal void type_check_scope(Ast_Stmt_Block body, Checker_Scope *cs, Allocator allocator) {
+internal void type_check_scope(Checker_Context *ctx, Ast_Stmt_Block body) {
   spall_begin_fn();
+
+  Checker_Scope scope;
+  checker_scope_begin(ctx, &scope);
+  
   slice_iter_v(body, stmt, _i, {
-    type_check_stmt(stmt, cs, allocator);
+    type_check_stmt(ctx, stmt);
   });
-  // fmt_printlnc("{");
-  // hash_map_iter(cs->types, name, type, {
-  //   fmt_printflnc("\tType: %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
-  // });
-  // hash_map_iter(cs->variables, name, type, {
-  //   fmt_printflnc("\tVar:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
-  // });
-  // fmt_printlnc("}");
+
+  checker_scope_end(ctx);
+
   spall_end_fn();
 }
 
-internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Checker_Scope *cs, Allocator allocator) {
+internal Type_Function *type_check_decl_function(Checker_Context *ctx, Ast_Decl_Function *function) {
   spall_begin_fn();
-  Type_Function *f = type_new(Function, allocator);
-  slice_init(&f->args, function->args.len, allocator);
+  Type_Function *f = type_new(Function, ctx->allocator);
+  slice_init(&f->args, function->args.len, ctx->allocator);
 
   Checker_Scope scope;
-  checker_scope_init(&scope, get_global_scope(cs), allocator);
+  checker_scope_begin(ctx, &scope);
 
   slice_iter_v(function->args, arg, i, {
-    Type *t = resolve_ast_type(arg->type, cs, allocator);
+    Type *t = resolve_ast_type(ctx, arg->type);
 
     f->args.data[i].type = t;
     f->args.data[i].name = arg->name;
@@ -2528,108 +2618,77 @@ internal Type_Function *type_check_decl_function(Ast_Decl_Function *function, Ch
     hash_map_insert(&scope.variables, f->args.data[i].name, f->args.data[i].type);
   });
   if (function->returns.len > 1) {
-    Type_Tuple *tuple = type_new(Tuple, allocator);
-    slice_init(&tuple->fields, function->returns.len, allocator);
+    Type_Tuple *tuple = type_new(Tuple, ctx->allocator);
+    slice_init(&tuple->fields, function->returns.len, ctx->allocator);
 
     slice_iter_v(function->returns, ret, i, {
-      tuple->fields.data[i] = resolve_ast_type(ret->type, cs, allocator);
+      tuple->fields.data[i] = resolve_ast_type(ctx, ret->type);
       hash_map_insert(&scope.variables, ret->name, tuple->fields.data[i]);
     });
     f->ret = type_base(tuple, 0, 0);
   } else if (function->returns.len) {
-    f->ret = resolve_ast_type(function->returns.data[0]->type, cs, allocator);
+    f->ret = resolve_ast_type(ctx, function->returns.data[0]->type);
     hash_map_insert(&scope.variables, function->returns.data[0]->name, f->ret);
   }
 
   scope.return_value = f->ret;
 
-  type_check_scope(function->body, &scope, allocator);
+  type_check_scope(ctx, function->body);
+
+  checker_scope_end(ctx);
 
   spall_end_fn();
   return f;
 }
 
-internal void print_type(Type *type) {
-  if (type == nil) {
-    fmt_printc("<nil>");
-    return;
-  }
-  switch (type->type_kind) {
-  CASE Type_Kind_Array: {
-    fmt_printfc("[%d]", type->array->count);
-    print_type(type->array->elem);
-  }
-  CASE Type_Kind_Struct: {
-    
-  }
-  CASE Type_Kind_Union: {
-    
-  }
-  CASE Type_Kind_Enum: {
-    
-  }
-  CASE Type_Kind_Named: {
-    fmt_printfc("%S (aka ", type->named->name);
-    print_type(type->named->type);
-    fmt_printc(")");
-  }
-  CASE Type_Kind_Pointer: {
-    fmt_printc("^");
-    print_type(type->pointer->pointee);
-  }
-  CASE Type_Kind_Basic: {
-    fmt_printfc("%S", enum_to_string(Basic_Type_Kind, type->basic->kind));
-  }
-  CASE Type_Kind_Function: {
-    
-  }
-  CASE Type_Kind_Untyped: {
-    
-  }
-  DEFAULT:
-    fmt_printflnc("Wtf: %S", enum_to_string(Type_Kind, type->type_kind));
-    unreachable();
-  }
-}
-
-internal void type_check_decl_variable(Ast_Decl_Variable *variable, Checker_Scope *cs, Allocator allocator) {
+internal void type_check_decl_variable(Checker_Context *ctx, Ast_Decl_Variable *variable) {
   spall_begin_fn();
-  Type *type = resolve_ast_type(variable->type, cs, allocator);
+  Type *type = resolve_ast_type(ctx, variable->type);
   ast_base(variable)->type = type;
   if (variable->constant) {
-    if (!types_equal(type, type_check_expr(variable->value, cs, allocator), cs)) {
-      errorc(Error_Type_Type, variable->value->location, "variable initializer has incorrect type");
+    if (!types_equal(ctx, type, type_check_expr(ctx, variable->value))) {
+      type_errorfc(
+        variable->value->location,
+        "Constant value has incompatible type: '%CT' vs '%CT'",
+        type,
+        variable->value->type
+      );
     }
     Constant c;
-    c.value = evaluate_constant_expression(variable->value, cs);
+    c.value = evaluate_constant_expression(ctx, variable->value);
     c.type  = type;
-    hash_map_insert(&cs->constants, variable->name, c);
+    hash_map_insert(&ctx->scope->constants, variable->name, c);
     spall_end_fn();
     return;
   }
   if (variable->value) {
-    if (!types_equal(type, type_check_expr(variable->value, cs, allocator), cs)) {
-      errorc(Error_Type_Type, variable->value->location, "variable initializer has incorrect type");
+    if (!types_equal(ctx, type, type_check_expr(ctx, variable->value))) {
+      type_errorfc(
+        variable->value->location,
+        "Variable initializer has incompatible type: '%CT' vs '%CT'",
+        type,
+        variable->value->type
+      );
     }
   }
-  hash_map_insert(&cs->variables, variable->name, type);
+  hash_map_insert(&ctx->scope->variables, variable->name, type);
   spall_end_fn();
 }
 
-internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator) {
+internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
   assert(expr);
-  assert(cs);
+  assert(ctx);
 
   switch (expr->ast_type) {
   CASE ANT_Expr_Ident: {
-    Type *i = resolve_ident(cs, expr->expr_ident->name);
+    Type *i = resolve_ident(ctx, expr->expr_ident->name);
     if (!i) {
-      errorfc(Error_Type_Type, expr->location, "Unresolved identifier: '%S'", expr->expr_ident->name);
+      type_errorfc(expr->location, "Unresolved identifier: '%S'", expr->expr_ident->name);
     }
     return i;
   }
   CASE ANT_Expr_Literal: { 
-    Type_Untyped *u = type_new(Untyped, allocator);
+    Type_Untyped *u = type_new(Untyped, ctx->allocator);
     switch (expr->expr_literal->type) {
     CASE Token_Type_String:
       u->kind = Untyped_Type_String;
@@ -2649,17 +2708,18 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
     return type_base(u, 0, 0);
   }
   CASE ANT_Expr_Unary:
-    return type_check_expr(expr->expr_unary->rhs, cs, allocator);
+    return type_check_expr(ctx, expr->expr_unary->rhs);
   CASE ANT_Expr_Binary: {
-    Type *lhs = type_check_expr(expr->expr_binary->lhs, cs, allocator);
-    Type *rhs = type_check_expr(expr->expr_binary->rhs, cs, allocator);
+    Type *lhs = type_check_expr(ctx, expr->expr_binary->lhs);
+    Type *rhs = type_check_expr(ctx, expr->expr_binary->rhs);
 
-    if (!types_equal(lhs, rhs, cs)) {
-      error(Error_Type_Type, expr->location, LIT("perands for binary operation have to be of the same type: "));
-      print_type(lhs);
-      fmt_printc(" != ");
-      print_type(rhs);
-      fmt_printlnc(";");
+    if (!types_equal(ctx, lhs, rhs)) {
+      type_errorf(
+        expr->location,
+        LIT("Operands for binary operation are of incompatible types: '%CT' vs '%CT'"),
+        lhs,
+        rhs
+      );
     }
 
     switch (expr->expr_binary->op) {
@@ -2699,26 +2759,26 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
   }
   CASE ANT_Expr_Ternary:
   CASE ANT_Expr_Call: {
-    Type *t = type_check_expr(expr->expr_call->lhs, cs, allocator);
+    Type *t = type_check_expr(ctx, expr->expr_call->lhs);
     if (!t) {
       return nil;
     }
-    t = type_base_type(t, cs);
+    t = type_base_type(ctx, t);
     if (t->type_kind != Type_Kind_Function) {
       panic("call operator can only be used on functions");
     }
     Type_Function *fn = t->function;
 
     if (fn->args.len < expr->expr_call->args.len) {
-      errorfc(Error_Type_Type, expr->location, "Too many arguments in function call (%d > %d)", expr->expr_call->args.len, fn->args.len);
+      type_errorfc(expr->location, "Too many arguments in function call (%d > %d)", expr->expr_call->args.len, fn->args.len);
     }
 
     slice_iter_v(expr->expr_call->args, arg, i, {
-      Type *arg_type = type_check_expr(arg, cs, allocator);
+      Type *arg_type = type_check_expr(ctx, arg);
       Type *expected = IDX(fn->args, i)->type;
 
-      if (!types_equal(arg_type, expected, cs)) {
-        errorfc(Error_Type_Type, arg->location, "Argument type missmatch, at argument %d", i);
+      if (!types_equal(ctx, arg_type, expected)) {
+        type_errorfc(arg->location, "Argument type missmatch, at argument %d: '%CT' != '%CT'", i, arg_type, expected);
       }
     });
 
@@ -2728,11 +2788,11 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
     return t->function->ret;
   }
   CASE ANT_Expr_Selector: {
-    Type *t = type_check_expr(expr->expr_selector->lhs, cs, allocator);
+    Type *t = type_check_expr(ctx, expr->expr_selector->lhs);
     if (!t) {
       return nil;
     }
-    t = type_base_type(t, cs);
+    t = type_base_type(ctx, t);
     if (t->type_kind == Type_Kind_Pointer) {
       t = t->pointer->pointee;
     }
@@ -2741,7 +2801,7 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
         if (string_equal(field.name, expr->expr_selector->selector)) {
           return field.type;
         }
-        errorfc(Error_Type_Type, expr->location, "Struct has no field named '%S'", expr->expr_selector->selector);
+        type_errorfc(expr->location, "Struct has no field named '%S'", expr->expr_selector->selector);
         return nil;
       });
     }
@@ -2757,7 +2817,7 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
         return t->array->elem;
       }
       if (string_equal(expr->expr_selector->selector, LIT("data"))) {
-        Type_Pointer *ptr = type_new(Pointer, allocator);
+        Type_Pointer *ptr = type_new(Pointer, ctx->allocator);
         ptr->pointee = t->slice->elem;
         return type_base(ptr, 8, 8);
       }
@@ -2767,7 +2827,7 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
         return type_untyped_int;
       }
       if (string_equal(expr->expr_selector->selector, LIT("data"))) {
-        Type_Pointer *ptr = type_new(Pointer, allocator);
+        Type_Pointer *ptr = type_new(Pointer, ctx->allocator);
         ptr->pointee = t->slice->elem;
         return type_base(ptr, 8, 8);
       }
@@ -2777,41 +2837,41 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
         return type_untyped_int;
       }
       if (string_equal(expr->expr_selector->selector, LIT("data"))) {
-        Type_Pointer *ptr = type_new(Pointer, allocator);
+        Type_Pointer *ptr = type_new(Pointer, ctx->allocator);
         ptr->pointee      = type_byte;
         return type_base(ptr, 8, 8);
       }
     }
-    errorc(Error_Type_Type, expr->location, "selector operator can only be used on structs, unions, enums, slices and arrays, or pointers to those");
+    type_errorc(expr->location, "selector operator can only be used on structs, unions, enums, slices and arrays, or pointers to those");
     return type_invalid;
   }
   CASE ANT_Expr_Deref: {
-    Type *lhs = type_check_expr(expr->expr_deref->lhs, cs, allocator);
-    lhs = type_base_type(lhs, cs);
+    Type *lhs = type_check_expr(ctx, expr->expr_deref->lhs);
+    lhs = type_base_type(ctx, lhs);
     if (lhs->type_kind != Type_Kind_Pointer) {
-      errorc(Error_Type_Type, expr->expr_deref->lhs->location, "Only pointer types can be dereferenced");
+      type_errorc(expr->expr_deref->lhs->location, "Only pointer types can be dereferenced");
       return type_invalid;
     }
     return lhs->pointer->pointee;
   }
   CASE ANT_Expr_Cast: {
-    Type *type = resolve_ast_type(expr->expr_cast->type, cs, allocator);
-    Type *rhs  = type_check_expr( expr->expr_cast->rhs,  cs, allocator);
+    Type *type = resolve_ast_type(ctx, expr->expr_cast->type);
+    Type *rhs  = type_check_expr (ctx, expr->expr_cast->rhs );
 
     if (expr->expr_cast->bitwise) {
       if (type->size == rhs->size) {
         return type;
       }
-      errorc(Error_Type_Type, expr->location, "Operands for transmute operator have to be of the same size");
+      type_errorc(expr->location, "Operands for transmute operator have to be of the same size");
       return nil;
     }
 
     return type;
   }
   CASE ANT_Expr_Index: {
-    Type *lhs = type_check_expr(expr->expr_index->base,  cs, allocator);
-    Type *rhs = type_check_expr(expr->expr_index->index, cs, allocator);
-    lhs = type_base_type(lhs, cs);
+    Type *lhs = type_check_expr(ctx, expr->expr_index->base);
+    Type *rhs = type_check_expr(ctx, expr->expr_index->index);
+    lhs = type_base_type(ctx, lhs);
     if (lhs->type_kind == Type_Kind_Array) {
       return lhs->array->elem;
     }
@@ -2821,8 +2881,8 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
     return nil;
   }
   CASE ANT_Expr_Address: {
-    Type_Pointer *p = type_new(Pointer, allocator);
-    p->pointee      = type_check_expr(expr->expr_address->rhs, cs, allocator);
+    Type_Pointer *p = type_new(Pointer, ctx->allocator);
+    p->pointee      = type_check_expr(ctx, expr->expr_address->rhs);
     return type_base(p, 8, 8);
   }
   DEFAULT: {}
@@ -2830,19 +2890,36 @@ internal Type *_type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator all
   unimplemented();
 }
 
-internal b8 type_check_file(Ast_File file, Allocator allocator) {
+internal void type_check_file(Checker_Context *ctx) {
   spall_begin_fn();
   b8 ok = true;
 
-  Checker_Scope cs;
-  checker_scope_init(&cs, nil, allocator);
+  Checker_Scope cs = {0};
+  ctx->global_scope = &cs;
+  ctx->scope        = &cs;
+
+  hash_map_init(&cs.variables, 16, string_equal, string_hash, ctx->allocator);
+  hash_map_init(&cs.types    , 16, string_equal, string_hash, ctx->allocator);
+  hash_map_init(&cs.constants, 16, string_equal, string_hash, ctx->allocator);
 
   // TODO(Franz): set int, uint and pointer types to platform specific values
 
-  #define BASIC_TYPE(name, type, size, align)                                    \
+  #define BASIC_TYPE(NAME, TYPE, SIZE, ALIGN)                                    \
     {                                                                            \
-      Type *t = new_basic_type(Basic_Type_##type, size, align, allocator);       \
-      hash_map_insert(&cs.types, LIT(name), t);                                  \
+      Type *t = new_basic_type(Basic_Type_##TYPE, SIZE, ALIGN, ctx->allocator);  \
+      Type_Named *n = type_new(Named, ctx->allocator);                           \
+      n->type = t;                                                               \
+      n->name = LIT(NAME);                                                       \
+      hash_map_insert(&ctx->scope->types, LIT(NAME), type_base(n, SIZE, ALIGN)); \
+    }
+
+  #define BASIC_TYPE_ALIAS(NAME, NEW_NAME)                                       \
+    {                                                                            \
+      Type *t = *hash_map_get(cs.types, LIT(NAME));                              \
+      Type_Named *n = type_new(Named, ctx->allocator);                           \
+      n->type = t;                                                               \
+      n->name = LIT(NAME);                                                       \
+      hash_map_insert(&cs.types, LIT(NEW_NAME), type_base(n, t->size, t->align));\
     }
 
   BASIC_TYPE("i8",      Int,   1, 1);
@@ -2855,13 +2932,16 @@ internal b8 type_check_file(Ast_File file, Allocator allocator) {
   BASIC_TYPE("b16",     Bool,  2, 2);
   BASIC_TYPE("b32",     Bool,  4, 4);
   BASIC_TYPE("b64",     Bool,  8, 8);
-  BASIC_TYPE("bool",    Bool,  1, 1);
+
+  BASIC_TYPE_ALIAS("b8", "bool");
 
   BASIC_TYPE("u8",      Uint,  1, 1);
   BASIC_TYPE("u16",     Uint,  2, 2);
   BASIC_TYPE("u32",     Uint,  4, 4);
   BASIC_TYPE("u64",     Uint,  8, 8);
   BASIC_TYPE("uint",    Uint,  8, 8);
+
+  BASIC_TYPE_ALIAS("u8", "byte");
 
   BASIC_TYPE("f32",     Float, 4, 4);
   BASIC_TYPE("f64",     Float, 8, 8);
@@ -2874,56 +2954,47 @@ internal b8 type_check_file(Ast_File file, Allocator allocator) {
   BASIC_TYPE("rawptr",  Rawptr,  8, 8);
   BASIC_TYPE("uintptr", Uintptr, 8, 8);
 
-  type_untyped_int = new_untyped_type(Untyped_Type_Int, allocator);
-  type_untyped_rune = new_untyped_type(Untyped_Type_Rune, allocator);
-  type_untyped_bool = new_untyped_type(Untyped_Type_Bool, allocator);
-  type_untyped_float = new_untyped_type(Untyped_Type_Float, allocator);
-  type_untyped_string = new_untyped_type(Untyped_Type_String, allocator);
+  type_untyped_int    = new_untyped_type(Untyped_Type_Int,    ctx->allocator);
+  type_untyped_rune   = new_untyped_type(Untyped_Type_Rune,   ctx->allocator);
+  type_untyped_bool   = new_untyped_type(Untyped_Type_Bool,   ctx->allocator);
+  type_untyped_float  = new_untyped_type(Untyped_Type_Float,  ctx->allocator);
+  type_untyped_string = new_untyped_type(Untyped_Type_String, ctx->allocator);
 
-  type_invalid = type_base(type_new(Invalid, allocator), 0, 0);
+  type_invalid = type_base(type_new(Invalid, ctx->allocator), 0, 0);
 
-  type_byte = new_basic_type(Basic_Type_Uint,      1, 1, allocator);
-  type_bool = new_basic_type(Basic_Type_Bool,      1, 1, allocator);
-  type_rune = new_basic_type(Basic_Type_Rune,      4, 4, allocator);
-  type_isize = new_basic_type(Basic_Type_Int,      8, 8, allocator);
-  type_float = new_basic_type(Basic_Type_Float,    8, 8, allocator);
-  type_string = new_basic_type(Basic_Type_String, 16, 8, allocator);
-  
+  type_byte   = *hash_map_get(cs.types, LIT("byte"));
+  type_bool   = *hash_map_get(cs.types, LIT("bool"));
+  type_rune   = *hash_map_get(cs.types, LIT("rune"));
+  type_isize  = *hash_map_get(cs.types, LIT("int"));
+  type_f32    = *hash_map_get(cs.types, LIT("f32"));
+  type_string = *hash_map_get(cs.types, LIT("string"));
+
   #undef BASIC_TYPE
   
-  slice_iter_v(file.decls, decl, _i, {
+  slice_iter_v(ctx->file.decls, decl, _i, {
     switch (decl->ast_type) {
     CASE ANT_Decl_Type: {
-      type_check_decl_type(decl->decl_type, &cs, allocator);
+      type_check_decl_type(ctx, decl->decl_type);
     }
     CASE ANT_Decl_Variable: {
-      type_check_decl_variable(decl->decl_variable, &cs, allocator);
+      type_check_decl_variable(ctx, decl->decl_variable);
     }
     CASE ANT_Decl_Function: {
-      Type_Function *f = type_check_decl_function(decl->decl_function, &cs, allocator);
+      Type_Function *f = type_check_decl_function(ctx, decl->decl_function);
       hash_map_insert(&cs.variables, decl->decl_function->name, type_base(f, 8, 8));
     }
     DEFAULT: {}
     }
   });
 
-  // hash_map_iter(cs.types, name, type, {
-  //   fmt_printflnc("Type: %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
-  // });
-
-  // hash_map_iter(cs.variables, name, type, {
-  //   fmt_printflnc("Var:  %12S, Size: %2d, Align: %2d", name, (*type)->size, (*type)->align);
-  // });
-
   spall_end_fn();
-  return ok;
 }
 
-internal Type *type_check_expr(Ast_Expr *expr, Checker_Scope *cs, Allocator allocator) {
+internal Type *type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
   spall_begin_fn();
 
-  Type *t = _type_check_expr(expr, cs, allocator);
-  expr->type = type_base_type(t, cs);
+  Type *t = _type_check_expr(ctx, expr);
+  expr->type = type_base_type(ctx, t);
 
   spall_end_fn();
   return t;
@@ -2985,7 +3056,7 @@ internal Type *specialize_untyped_type(Type *type) {
   case Untyped_Type_Bool:
     return type_bool;
   case Untyped_Type_Float:
-    return type_float;
+    return type_f32;
   case Untyped_Type_String:
     return type_string;
   case Untyped_Type_Rune:
@@ -3402,9 +3473,113 @@ void spall_close_callback(SpallProfile *self) {
   file_close((Fd)self->data);
 }
 
+internal isize format_type_w(Writer const *w, Type *type) {
+  if (type == nil) {
+    return unwrap(write_cstring(w, "<nil>"));
+  }
+  switch (type->type_kind) {
+  CASE Type_Kind_Array: {
+    return fmt_wprintf(w, LIT("[%d]"), type->array->count) + format_type_w(w, type->array->elem);
+  }
+  CASE Type_Kind_Slice: {
+    return fmt_wprintc(w, "[]") + format_type_w(w, type->array->elem);
+  }
+  CASE Type_Kind_Struct: {
+    isize ret = 0;
+    ret += fmt_wprintc(w, "struct { ");
+    slice_iter_v(type->struct_->fields, field, i, {
+      if (i) {
+       ret += fmt_wprintc(w, ", ");
+      }
+      
+      ret += fmt_wprintfc(w, "%S: %CT", field.name, field.type);
+    });
+    ret += fmt_wprintc(w, " }");
+
+    return ret;
+  }
+  CASE Type_Kind_Union: {
+    isize ret = 0;
+    ret += fmt_wprintc(w, "union { ");
+    slice_iter_v(type->union_->variants, field, i, {
+      if (i) {
+       ret += fmt_wprintc(w, ", ");
+      }
+      
+      ret += fmt_wprintfc(w, "%S: %CT", field.name, field.type);
+    });
+    ret += fmt_wprintc(w, " }");
+
+    return ret;
+  }
+  CASE Type_Kind_Enum: {
+    unimplemented();
+  }
+  CASE Type_Kind_Named: {
+    isize ret = 0;
+    ret += fmt_wprintfc(w, "(%S aka ", type->named->name);
+    ret += format_type_w(w, type->named->type);
+    ret += fmt_wprintc(w, ")");
+    return ret;
+  }
+  CASE Type_Kind_Pointer: {
+    isize ret = 0;
+    ret += fmt_wprintc(w, "^");
+    ret += format_type_w(w, type->pointer->pointee);
+    return ret;
+  }
+  CASE Type_Kind_Basic: {
+    return fmt_wprintfc(w, "%S(size=%d)", enum_to_string(Basic_Type_Kind, type->basic->kind), type->size);
+  }
+  CASE Type_Kind_Untyped: {
+    return fmt_wprintfc(w, "%S", enum_to_string(Untyped_Type_Kind, type->untyped->kind));
+  }
+  CASE Type_Kind_Function: {
+    isize ret = 0;
+    ret += fmt_wprintc(w, "proc(");
+    slice_iter_v(type->function->args, field, i, {
+      if (i) {
+       ret += fmt_wprintc(w, ", ");
+      }
+      
+      ret += fmt_wprintfc(w, "%S: %CT", field.name, field.type);
+    });
+    ret += fmt_wprintfc(w, ") -> %CT", type->function->ret);
+
+    return ret;
+  }
+  CASE Type_Kind_Tuple: {
+    isize ret = 0;
+    ret += fmt_wprintc(w, "(");
+    slice_iter_v(type->tuple->fields, field, i, {
+      if (i) {
+       ret += fmt_wprintc(w, ", ");
+      }
+      
+      ret += fmt_wprintfc(w, "%CT", field);
+    });
+    ret += fmt_wprintc(w, ")");
+
+    return ret;
+  }
+  CASE Type_Kind_Invalid: {
+    return fmt_wprintc(w, "Invalid Type");
+  }
+  DEFAULT: {
+    fmt_eprintflnc("Wtf: %S", enum_to_string(Type_Kind, type->type_kind));
+    unreachable();
+  }
+  }
+
+  unreachable();
+}
+
+internal isize format_type_va(Writer const *w, va_list va_args) {
+  return format_type_w(w, va_arg(va_args, Type *));
+}
+
 i32 main() {
-  context.allocator = panic_allocator();
-  context.logger    = create_file_logger(FD_STDERR);
+  register_user_formatter('T', format_type_va);
 
 #ifdef SPALL_PROFILING
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
@@ -3416,8 +3591,6 @@ i32 main() {
 	};
 	spall_buffer_init(&spall_ctx, &spall_buffer);
 #endif
-
-  // context.temp_allocator.proc = printing_allocator_proc;
 
   if (os_args.len < 2) {
     fmt_eprintflnc("Usage: %S <file> <flags>", os_args.data[0]);
@@ -3439,7 +3612,7 @@ i32 main() {
     spall_end_fn();
     Token_Vector tokens = vector_make(Token_Vector, 0, 8, context.temp_allocator);
     if (!tokenize_file(bytes_to_string(file_data), path, &tokens)) {
-      fmt_eprintflnc("Failed to tokenize file '%S'", path);
+      // fmt_eprintflnc("Failed to tokenize file '%S'", path);
       continue;
     }
 
@@ -3451,14 +3624,19 @@ i32 main() {
     parse_file(&parser, context.temp_allocator);
 
     if (parser.errors) {
-      fmt_eprintflnc("Parsing failed for file: '%S'", path);
+      // fmt_eprintflnc("Parsing failed for file: '%S'", path);
       continue;
     }
 
     // slice_iter_v(parser.file.decls, decl, i, print_ast_decl(decl));
 
-    if (!type_check_file(parser.file, context.temp_allocator)) {
-      fmt_eprintflnc("Type checking failed for file: '%S'", path);
+    Checker_Context cc = {0};
+    cc.allocator = context.temp_allocator;
+    cc.file      = parser.file;
+    type_check_file(&cc);
+
+    if (cc.errors) {
+      // fmt_eprintflnc("Type checking failed for file: '%S'", path);
       continue;
     }
 

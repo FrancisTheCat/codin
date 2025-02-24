@@ -24,6 +24,7 @@ static long syscall(long syscall_number, ...) {
   case SYS_fork:
   case SYS_getgid:
   case SYS_gettid:
+  case SYS_sched_yield:
     ret = __syscall0(syscall_number);
     break;
   case SYS_exit:
@@ -69,6 +70,7 @@ static long syscall(long syscall_number, ...) {
   case SYS_recvmsg:
   case SYS_fcntl:
   case SYS_tgkill:
+  case SYS_poll:
     arg0 = __builtin_va_arg(args, long);
     arg1 = __builtin_va_arg(args, long);
     arg2 = __builtin_va_arg(args, long);

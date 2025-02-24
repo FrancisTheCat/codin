@@ -66,6 +66,14 @@
       trap();                                                                  \
     }                                                                          \
   }
+#define assert_msg(cond, msg)                                                  \
+  {                                                                            \
+    if (!(cond)) {                                                             \
+      __write_location(CALLER_LOCATION);                                       \
+      __write_cstring(" Assertion failure: (" #cond "): '" msg "'\n");         \
+      trap();                                                                  \
+    }                                                                          \
+  }
 #define unreachable()                                                          \
   {                                                                            \
     __write_location(CALLER_LOCATION);                                         \
@@ -365,7 +373,7 @@ internal thread_local Default_Allocator       __default_heap_allocator;
 internal void __thread_init() {
   context.allocator      = default_allocator_init(&__default_heap_allocator);
   context.temp_allocator = growing_arena_allocator_init(&__default_temp_allocator_arena, 1 << 20, context.allocator);
-  context.logger         = create_file_logger(FD_STDOUT);
+  context.logger         = create_file_logger(FD_STDERR);
 }
 
 internal void __runtime_init() {

@@ -377,3 +377,7 @@ internal OS_Error _set_current_directory(String directory) {
           string_to_cstring_clone(directory, context.temp_allocator));
   return __errno_unwrap(status);
 }
+
+internal void _processor_yield() {
+  syscall(SYS_sched_yield);
+}

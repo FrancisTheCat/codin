@@ -158,8 +158,7 @@ int main() {
       // server_thread_proc((rawptr)connection.socket);
     }, err, {
       if (err == NE_Would_Block) {
-        time_sleep(5 * Millisecond);
-        continue;
+        socket_poll(s, Poll_Event_Read, Millisecond * 50);
       }
       log_error(enum_to_string(Net_Error, err));
     });

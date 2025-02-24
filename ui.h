@@ -233,20 +233,20 @@ X_ENUM(UI_Color, UI_COLORS)
 typedef isize (*UI_Measure_Text_Proc)(String str);
 
 typedef struct {
-  Vector(UI_Command)    commands;
-  Vector(UI_Layout)     layouts;
-  i32                   spacing;
-  Rectangle             rect;
-  Rect_Cut_Side         side;
+  Vector(UI_Command)   commands;
+  Vector(UI_Layout)    layouts;
+  i32                  spacing;
+  Rectangle            rect;
+  Rect_Cut_Side        side;
   struct {
     i32 x, y;
     b8  buttons[2];
   } mouse;
-  UI_Measure_Text_Proc  measure_text_proc;
-  i32                   text_height;
-  Vector(Image)         images;
-  UI_Cursor             cursor;
-  u32                   colors[enum_len(UI_Color)];
+  UI_Measure_Text_Proc measure_text_proc;
+  i32                  text_height;
+  Vector(Image)        images;
+  UI_Cursor            cursor;
+  u32                  colors[enum_len(UI_Color)];
 } UI_Context;
 
 internal Rectangle ui_spacing(UI_Context *ctx, isize a) {
@@ -254,23 +254,7 @@ internal Rectangle ui_spacing(UI_Context *ctx, isize a) {
 }
 
 internal Rectangle ui_insert_rect(UI_Context *ctx, isize width, isize height) {
-  // Rectangle rect;
-  // rect.x0 = ctx->x;
-  // rect.y0 = ctx->y;
-
-  return rectcut_cut((Rect_Cut) {.rect = &ctx->rect, .side = ctx->side}, width, height);
-
-  // if (ctx->horizontal) {
-  //   rect.x1 = ctx->x + width;
-  //   rect.y1 = ctx->y + height;
-  //   ctx->x += width + ctx->spacing;
-  //   return rect;
-  // } else {
-  //   rect.x1 = ctx->x + width;
-  //   rect.y1 = ctx->y + height;
-  //   ctx->y += height + ctx->spacing;
-  //   return rect;
-  // }
+  return rectcut_cut((Rect_Cut) { .rect = &ctx->rect, .side = ctx->side }, width, height);
 }
 
 internal void ui_context_init(
@@ -281,12 +265,15 @@ internal void ui_context_init(
   isize                text_height,
   Allocator            allocator
 ) {
+  *ctx = (UI_Context) {0};
   vector_init(&ctx->commands, 0, 8, allocator);
   vector_init(&ctx->images,   0, 8, allocator);
 
   ctx->measure_text_proc = measure_text_proc;
   ctx->text_height       = text_height;
   ctx->spacing           = 2 * text_height / 3;
+  ctx->rect.x1           = width;
+  ctx->rect.y1           = height;
 
   ctx->colors[UI_Color_Background            ] = 0xFF1E2128;
   ctx->colors[UI_Color_Separator             ] = 0x22FFFFFF;
@@ -313,7 +300,7 @@ internal void ui_context_init(
   ctx->colors[UI_Color_Button_Clicked_Outline] = 0xFFE06B74;
 }
 
-internal void ui_context_destroy(UI_Context *ctx, Allocator allocator) {
+internal void ui_context_destroy(UI_Context *ctx) {
   vector_delete(ctx->commands);
   vector_delete(ctx->layouts);
   vector_delete(ctx->images);

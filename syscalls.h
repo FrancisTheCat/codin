@@ -4,9 +4,11 @@
 #define SYS_close         3
 #define SYS_stat          4
 #define SYS_fstat         5
+#define SYS_poll          7
 #define SYS_mmap          9
 #define SYS_mprotect      10
 #define SYS_munmap        11
+#define SYS_sched_yield   24
 #define SYS_dup2          33
 #define SYS_nanosleep     35
 #define SYS_socket        41

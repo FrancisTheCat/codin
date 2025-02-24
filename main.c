@@ -557,7 +557,7 @@ i32 main() {
   growing_arena_allocator_destroy(font_arena);
 
   // directory_delete(directory, context.allocator);
-  ui_context_destroy(&ui_context, context.allocator);
+  ui_context_destroy(&ui_context);
 
   if (state.keymap_data.data) {
     xkb_keymap_destroy(&state.keymap, context.allocator);

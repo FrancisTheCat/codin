@@ -1213,40 +1213,6 @@ internal void wayland_draw_ring(Draw_Context *ctx, f32 x, f32 y, f32 r, f32 w, u
   spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 }
 
-//   outside        border     inside 
-// -127, -127, -64, 0, 0, 64, 127, 127
-internal Slice(i8) ring_bitmap;
-
-internal void wayland_rasterize_ring_bitmap(
-  i8 *bitmap,
-  i32 w,
-  i32 r
-) {
-  spall_buffer_begin(&spall_ctx, &spall_buffer, LIT(__FUNCTION__), get_time_in_micros());
-  for_range(dy, -r, r) {
-    for_range(dx, -r,  r) {
-      f32 d2 = dy * dy + dx * dx;
-      f32 d  = sqrt(d2);
-      if (d < r - w - 1) {
-        // alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], inner_color);
-      } else if (d < r - w) {
-        // f32 aa    = d - (r - w);
-        // u8  blend = aa * 255;
-        // u32 col   = inner_color;
-        // alpha_blend_rgb8(&col, color, blend);
-        // alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], col);
-      } else if (d < r - 1) {
-        // ctx->pixels[_x + _y * ctx->w] = color;
-      } else if (d < r) {
-        // f32 aa    = r - d;
-        // u8  alpha = aa * 255;
-        // alpha_blend_rgb8(&ctx->pixels[_x + _y * ctx->w], color, alpha);
-      }
-    }
-  }
-  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
-}
-
 internal void wayland_draw_ring_filled(
   Draw_Context *ctx,
   f32           x,
