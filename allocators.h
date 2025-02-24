@@ -4,12 +4,12 @@ internal rawptr os_allocate_pages(isize n);
 internal b8 os_deallocate_pages(rawptr p, isize n);
 #define OS_PAGE_SIZE (4 * Kibibyte)
 
-internal Allocator_Result __mmap_allocator_proc(
-  rawptr data,
-  Allocator_Mode mode,
-  isize size,
-  isize align,
-  rawptr old_memory,
+internal Allocator_Result _mmap_allocator_proc(
+  rawptr               data,
+  Allocator_Mode       mode,
+  isize                size,
+  isize                align,
+  rawptr               old_memory,
   Source_Code_Location location
 ) {
   (void)data;
@@ -49,9 +49,9 @@ internal Allocator_Result __mmap_allocator_proc(
 }
 
 [[nodiscard]]
-internal Allocator __mmap_allocator() {
+internal Allocator _mmap_allocator() {
   return (Allocator) {
-      __mmap_allocator_proc,
+      _mmap_allocator_proc,
       nil,
   };
 }
@@ -155,7 +155,7 @@ internal Allocator_Result growing_arena_allocator_proc(
   case AM_Alloc:
     if (!size) {
       result.value = nil;
-      result.err = AE_None;
+      result.err   = AE_None;
       return result;
     }
     b = &a->blocks.data[a->blocks.len - 1];
@@ -164,15 +164,13 @@ internal Allocator_Result growing_arena_allocator_proc(
       result.err = AE_None;
       if (size > a->block_size) {
         new_block.used = size;
-        new_block.data = (byte *)or_return_err(
-            mem_alloc_aligned(size, max(MAX_ALIGN, align), a->backing));
+        new_block.data = (byte *)or_return_err(mem_alloc_aligned(size, max(MAX_ALIGN, align), a->backing));
         vector_append(&a->blocks, new_block);
         result.value = new_block.data;
         return result;
       } else {
         new_block.used = size;
-        new_block.data = (byte *)or_return_err(mem_alloc_aligned(
-            a->block_size, max(MAX_ALIGN, align), a->backing));
+        new_block.data = (byte *)or_return_err(mem_alloc_aligned(a->block_size, max(MAX_ALIGN, align), a->backing));
         vector_append(&a->blocks, new_block);
         result.value = new_block.data;
         return result;
@@ -237,8 +235,11 @@ typedef struct {
   Allocator backing;
 } Pool_Allocator;
 
-internal Pool_Allocation_Header *
-pool_allocator_chunk_init(rawptr data, isize chunk_size, isize block_size) {
+internal Pool_Allocation_Header *pool_allocator_chunk_init(
+  rawptr data,
+  isize  chunk_size,
+  isize  block_size
+) {
   Pool_Allocation_Header *prev = nil;
   for (uintptr i = 0; i < chunk_size; i += block_size) {
     Pool_Allocation_Header *p = (Pool_Allocation_Header *)((uintptr)data + i);
@@ -249,14 +250,14 @@ pool_allocator_chunk_init(rawptr data, isize chunk_size, isize block_size) {
 }
 
 internal Allocator_Result pool_allocator_proc(
-  rawptr data,
-  Allocator_Mode mode,
-  isize size,
-  isize align,
-  rawptr old_memory,
+  rawptr               data,
+  Allocator_Mode       mode,
+  isize                size,
+  isize                align,
+  rawptr               old_memory,
   Source_Code_Location location
 ) {
-  Allocator_Result result = {.value = nil, .err = AE_None};
+  Allocator_Result result = {0};
 
   assert(data);
   Pool_Allocator *a = (Pool_Allocator *)data;
@@ -292,21 +293,24 @@ internal Allocator_Result pool_allocator_proc(
 
       *(rawptr *)new_chunk = a->data;
       a->data = new_chunk;
-      a->free =
-          pool_allocator_chunk_init((rawptr)((uintptr)a->data + sizeof(rawptr)),
-                                    a->chunk_size, a->block_size);
+      a->free = pool_allocator_chunk_init(
+        (rawptr)((uintptr)a->data + sizeof(rawptr)),
+        a->chunk_size,
+        a->block_size
+      );
 
       result.value = a->free;
       if (a->free) {
         a->free = *(Pool_Allocation_Header **)a->free;
       }
     }
+    mem_zero(result.value, a->block_size);
     return result;
   case AM_Free:
     result.value = a->free;
-    a->free = (Pool_Allocation_Header *)old_memory;
-    *a->free = result.value;
-    result.err = AE_None;
+    a->free      = (Pool_Allocation_Header *)old_memory;
+    *a->free     = result.value;
+    result.err   = AE_None;
     return result;
   case AM_Free_All:
     if (a->growing) {
@@ -318,13 +322,14 @@ internal Allocator_Result pool_allocator_proc(
       }
       *(rawptr *)a->data = nil;
       mem_zero((rawptr)((uintptr)a->data + sizeof(rawptr)), a->chunk_size);
-      a->free =
-          pool_allocator_chunk_init((rawptr)((uintptr)a->data + sizeof(rawptr)),
-                                    a->chunk_size, a->block_size);
+      a->free = pool_allocator_chunk_init(
+        (rawptr)((uintptr)a->data + sizeof(rawptr)),
+        a->chunk_size,
+        a->block_size
+      );
     } else {
       mem_zero(a->data, a->chunk_size);
-      a->free =
-          pool_allocator_chunk_init(a->data, a->chunk_size, a->block_size);
+      a->free = pool_allocator_chunk_init(a->data, a->chunk_size, a->block_size);
     }
     result.err = AE_None;
     return result;
@@ -341,18 +346,19 @@ internal Allocator pool_allocator(Pool_Allocator *pool, isize block_size,
   chunk_size += (chunk_size == 0) * DEFAULT_POOL_CHUNK_SIZE * block_size;
   assert(chunk_size % block_size == 0);
 
-  pool->backing = backing_allocator;
+  pool->backing    = backing_allocator;
   pool->block_size = block_size;
   pool->chunk_size = chunk_size;
-  pool->growing = growing;
+  pool->growing    = growing;
 
   if (growing) {
-    pool->data =
-        unwrap_err(mem_alloc(pool->chunk_size + sizeof(rawptr), pool->backing));
+    pool->data = unwrap_err(mem_alloc(pool->chunk_size + sizeof(rawptr), pool->backing));
     assert(pool->data);
     pool->free = pool_allocator_chunk_init(
-        (rawptr)((uintptr)pool->data + sizeof(rawptr)), pool->chunk_size,
-        pool->block_size);
+      (rawptr)((uintptr)pool->data + sizeof(rawptr)),
+      pool->chunk_size,
+      pool->block_size
+    );
   } else {
     pool->data = unwrap_err(mem_alloc(chunk_size, backing_allocator));
     pool->free = pool_allocator_chunk_init(pool->data, chunk_size, block_size);
@@ -382,18 +388,18 @@ internal void pool_allocator_destroy(Pool_Allocator pool) {
 
 typedef struct {
   Source_Code_Location location;
-  isize size;
-  isize id;
-  rawptr ptr;
-  Allocator_Error error;
-  Allocator_Mode mode;
+  isize                size;
+  isize                id;
+  rawptr               ptr;
+  Allocator_Error      error;
+  Allocator_Mode       mode;
 } Tracked_Allocation;
 
 typedef struct {
   Hash_Map(rawptr, Tracked_Allocation) allocations;
-  Vector(Tracked_Allocation) failed_allocations;
-  isize current_allocation_index;
-  Allocator backing;
+  Vector(Tracked_Allocation)           failed_allocations;
+  isize                                current_allocation_index;
+  Allocator                            backing;
 } Tracking_Allocator;
 
 internal Allocator_Result tracking_allocator_proc(
@@ -404,7 +410,7 @@ internal Allocator_Result tracking_allocator_proc(
   rawptr old_memory,
   Source_Code_Location location
 ) {
-  Allocator_Result result = {.value = nil, .err = AE_None};
+  Allocator_Result result = {0};
 
   assert(data);
   Tracking_Allocator *a = (Tracking_Allocator *)data;
@@ -417,14 +423,14 @@ internal Allocator_Result tracking_allocator_proc(
       return result;
     }
     result = mem_alloc_aligned(size, align, a->backing);
-    t.id = a->current_allocation_index;
+    t.id   = a->current_allocation_index;
     a->current_allocation_index += 1;
     if (!result.err) {
       hash_map_insert(&a->allocations, result.value, t);
     } else {
       t.error = result.err;
-      t.size = size;
-      t.ptr = result.value;
+      t.size  = size;
+      t.ptr   = result.value;
       vector_append(&a->failed_allocations, t);
       return result;
     }
@@ -436,22 +442,22 @@ internal Allocator_Result tracking_allocator_proc(
       if (old->size >= size) {
         result.err = mem_free(old_memory, size, a->backing);
         if (result.err) {
-          t.size = size;
+          t.size  = size;
           t.error = result.err;
-          t.ptr = old_memory;
+          t.ptr   = old_memory;
           vector_append(&a->failed_allocations, t);
         } else {
           assert(hash_map_remove(&a->allocations, old_memory));
         }
       } else {
-        t.size = size;
+        t.size  = size;
         t.error = AE_Invalid_Arguments;
-        t.ptr = old_memory;
+        t.ptr   = old_memory;
         vector_append(&a->failed_allocations, t);
       }
     } else {
-      t.ptr = old_memory;
-      t.size = 0;
+      t.ptr   = old_memory;
+      t.size  = 0;
       t.error = AE_Invalid_Arguments;
       vector_append(&a->failed_allocations, t);
     }
@@ -490,38 +496,41 @@ typedef struct {
 } Ring_Buffer_Allocator;
 
 internal Allocator_Result ring_buffer_allocator_proc(
-  rawptr data,
-  Allocator_Mode mode,
-  isize size,
-  isize align,
-  rawptr old_memory,
+  rawptr               data,
+  Allocator_Mode       mode,
+  isize                size,
+  isize                align,
+  rawptr               old_memory,
   Source_Code_Location location
 ) {
-  (void)align;
   (void)location;
   (void)old_memory;
 
-  Allocator_Result result = {.value = nil, .err = AE_None};
+  Allocator_Result result = {0};
 
   assert(data);
   Ring_Buffer_Allocator *r = (Ring_Buffer_Allocator *)data;
+
+  uintptr align_offset;
 
   switch (mode) {
   case AM_Alloc:
     if (!size) {
       return result;
     }
-    if (r->current + size > r->size) {
+    align_offset = required_align_offset(r->current, align);
+    if (r->current + size + align_offset > r->size) {
       if (size > r->size) {
         result.err = AE_Out_Of_Memory;
         return result;
       }
 
       r->current = 0;
+      mem_zero(r->data, r->size);
     }
 
-    result.value = &r->data[r->current];
-    r->current += size;
+    result.value = &r->data[r->current + align_offset];
+    r->current  += size + align_offset;
     return result;
   case AM_Free:
   case AM_Free_All:
@@ -540,11 +549,11 @@ internal Allocator ring_buffer_allocator(Ring_Buffer_Allocator *r) {
 }
 
 internal Allocator_Result nil_allocator_proc(
-  rawptr data,
-  Allocator_Mode mode,
-  isize size,
-  isize align,
-  rawptr old_memory,
+  rawptr               data,
+  Allocator_Mode       mode,
+  isize                size,
+  isize                align,
+  rawptr               old_memory,
   Source_Code_Location location
 ) {
   (void)data;
@@ -567,11 +576,11 @@ internal Allocator nil_allocator() {
 }
 
 internal Allocator_Result panic_allocator_proc(
-  rawptr data,
-  Allocator_Mode mode,
-  isize size,
-  isize align,
-  rawptr old_memory,
+  rawptr               data,
+  Allocator_Mode       mode,
+  isize                size,
+  isize                align,
+  rawptr               old_memory,
   Source_Code_Location location
 ) {
   (void)data;
@@ -580,6 +589,7 @@ internal Allocator_Result panic_allocator_proc(
   (void)align;
   (void)old_memory;
   (void)location;
+
   panic("panic allocator");
 }
 
@@ -607,7 +617,7 @@ typedef struct {
 } Default_Allocator_Pool_Header;
 
 typedef struct {
-  // sizeof    | Allocator 
+  // size_of   | Allocator 
   // ----------+-----------
   // ]0 ..8  ] | 0         
   // ]8 ..16 ] | 1         
@@ -629,8 +639,8 @@ internal Allocator_Result default_allocator_proc(
 ) {
   (void)location;
 
-  Allocator_Result result = {0};
-  Default_Allocator *da = (Default_Allocator *)data;
+  Allocator_Result               result      = {0};
+  Default_Allocator             *da          = (Default_Allocator *)data;
   Default_Allocator_Page_Header *page_header = nil;
 
   isize size_category = 0;

@@ -89,7 +89,9 @@ internal Allocator_Result _mem_alloc_aligned(isize size, isize align,
   Allocator_Result ret = {0};
   ret = allocator.proc(allocator.data, AM_Alloc, size, align, nil, location);
   if (ret.err == AE_None && ret.value != nil) {
-    mem_zero(ret.value, size);
+    for_range(i, 0, size) {
+      assert(((byte *)ret.value)[i] == 0);
+    }
   }
   return ret;
 }
