@@ -837,7 +837,7 @@ internal Ast_Expr *parse_atom_expr(Parser *parser, Allocator allocator) {
       parser_expect(parser, Token_Type_Open_Paren, nil);
       cast->type = parse_type(parser, allocator);
       parser_expect(parser, Token_Type_Close_Paren, nil);
-      cast->rhs = parse_expr(parser, allocator);
+      cast->rhs = parse_atom_expr(parser, allocator);
 
       return ast_base(cast);
     }
@@ -2517,57 +2517,114 @@ internal void type_check_stmt(Checker_Context *ctx, Ast_Stmt *s) {
     Checker_Scope scope;
     checker_scope_begin(ctx, &scope);
 
-    if (iterator_type->type_kind != Type_Kind_Tuple) {
-      type_errorc(
-        s->stmt_iterator->lhs->location,
-        "Iterator has to be a function with multiple return values"
-      );
-      goto skip_iterator_type_checking;
-    }
-
-    if (!type_is_boolean(ctx, *IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1))) {
-      type_errorfc(
-        s->stmt_iterator->lhs->location,
-        "Expected last return value of an iterator to be a boolean, but got: '%CT'",
-        *IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1)
-      );
-    }
-
-    if (iterator_type->tuple->fields.len - 1 < s->stmt_iterator->decls.len) {
-      type_errorfc(
-        ast_base(s->stmt_iterator->decls.data[0])->location,
-        "Too many declarations on right side of iterator, expected up to %d but got %d",
-        iterator_type->tuple->fields.len - 1,
-        s->stmt_iterator->decls.len
-      );
-      goto skip_iterator_type_checking;
-    }
-
-    slice_iter_v(s->stmt_iterator->decls, decl, i, {
-      Type *lhs_type = *IDX(iterator_type->tuple->fields, i);
-      Type *rhs_type = resolve_ast_type(ctx, decl->type);
-
-      if (types_equal(ctx, lhs_type, rhs_type)) {
-        hash_map_insert(&scope.variables, decl->name, lhs_type);
-        continue;
+    if (iterator_type->type_kind == Type_Kind_Tuple) {
+      if (!type_is_boolean(ctx, *IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1))) {
+        type_errorfc(
+          s->stmt_iterator->lhs->location,
+          "Expected last return value of an iterator to be a boolean, but got: '%CT'",
+          *IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1)
+        );
       }
 
-      if (lhs_type->type_kind == Type_Kind_Pointer) {
-        lhs_type = lhs_type->pointer->pointee;
+      if (iterator_type->tuple->fields.len - 1 < s->stmt_iterator->decls.len) {
+        type_errorfc(
+          ast_base(s->stmt_iterator->decls.data[0])->location,
+          "Too many declarations on right side of iterator, expected up to %d but got %d",
+          iterator_type->tuple->fields.len - 1,
+          s->stmt_iterator->decls.len
+        );
+        goto skip_iterator_type_checking;
+      }
+
+      slice_iter_v(s->stmt_iterator->decls, decl, i, {
+        Type *lhs_type = *IDX(iterator_type->tuple->fields, i);
+        Type *rhs_type = resolve_ast_type(ctx, decl->type);
+
         if (types_equal(ctx, lhs_type, rhs_type)) {
           hash_map_insert(&scope.variables, decl->name, lhs_type);
           continue;
         }
+
+        if (lhs_type->type_kind == Type_Kind_Pointer) {
+          lhs_type = lhs_type->pointer->pointee;
+          if (types_equal(ctx, lhs_type, rhs_type)) {
+            hash_map_insert(&scope.variables, decl->name, lhs_type);
+            continue;
+          }
+        }
+
+        type_errorfc(
+          ast_base(decl)->location,
+          "Iterator return types and declaration types do not match at index %d: '%CT' != '%CT'",
+          i,
+          lhs_type,
+          rhs_type
+        );
+      });
+    } else {
+      iterator_type = type_base_type(ctx, iterator_type);
+      Type *elem_type = nil;
+      switch (iterator_type->type_kind) {
+      CASE Type_Kind_Array:
+        elem_type = iterator_type->array->elem;
+      CASE Type_Kind_Slice:
+        elem_type = iterator_type->slice->elem;
+      CASE Type_Kind_Basic:
+        if (iterator_type->basic->kind == Basic_Type_String) {
+          elem_type = type_rune;
+        }
+      DEFAULT:
       }
 
-      type_errorfc(
-        ast_base(decl)->location,
-        "Iterator return types and declaration types do not match at index %d: '%CT' != '%CT'",
-        i,
-        lhs_type,
-        rhs_type
-      );
-    });
+      if (!elem_type) {
+        type_errorfc(
+          s->stmt_iterator->lhs->location,
+          "Can not iterate over expression of type '%CT'.\n"
+          "Hint: Only functions with multiple return values, as well as string and array types can be iterated over",
+          iterator_type
+        );
+        goto skip_iterator_type_checking;
+      }
+
+      switch (s->stmt_iterator->decls.len) {
+      case 2: {
+          Ast_Field *counter_decl = *IDX(s->stmt_iterator->decls, 1);
+          Type      *counter_type = resolve_ast_type(ctx, counter_decl->type);
+
+          if (!types_equal(ctx, type_untyped_int, counter_type)) {
+            type_errorfc(
+              s->stmt_iterator->lhs->location,
+              "Expected an integer type as iteration counter as second declaration for array iterator, but got '%CT'",
+              counter_type
+            );
+          } else {
+            hash_map_insert(&scope.variables, counter_decl->name, counter_type);
+          }
+        }
+      case 1: {
+          Ast_Field *iter_decl = *IDX(s->stmt_iterator->decls, 0);
+          Type      *iter_type = resolve_ast_type(ctx, iter_decl->type);
+
+          if (!types_equal(ctx, elem_type, iter_type)) {
+            type_errorfc(
+              s->stmt_iterator->lhs->location,
+              "Array iterator type '%CT' can not be iterated with a variable of type '%CT', expected '%CT'",
+              iterator_type,
+              iter_type,
+              elem_type
+            );
+          } else {
+            hash_map_insert(&scope.variables, iter_decl->name, iter_type);
+          }
+        }
+      DEFAULT:
+        type_errorfc(
+          s->stmt_iterator->lhs->location,
+          "Expected one or two declaration on right hand side of array iterator, but got %d",
+          s->stmt_iterator->decls.len
+        );
+      }
+    }
 
 skip_iterator_type_checking:
     
