@@ -232,6 +232,8 @@ internal String format_usize_to_buffer(usize value, Byte_Slice buffer) {
         end--;
     }
 
+    buffer.data[i] = 0;
+
     return (String) {
       .data = (char *)buffer.data,
       .len = i,
@@ -291,6 +293,7 @@ internal void __write_usize_hex(usize value) {
   __write_string(str);
 #undef N
 }
+
 internal void __write_usize(usize value) {
 #define N 32
   byte buf[N] = {0};
@@ -298,6 +301,23 @@ internal void __write_usize(usize value) {
   __write_string(str);
 #undef N
 }
+
+internal void __write_isize(isize value) {
+#define N 32
+  byte buf[N + 1] = {0};
+  Byte_Slice slice = slice_array(Byte_Slice, buf);
+  Byte_Slice buf_ = slice;
+  if (value < 0) {
+    buf[0] = '-';
+    buf_.data += 1;
+    buf_.len  -= 1;
+    value *= -1;
+  }
+  (void)format_usize_to_buffer(value, buf_);
+  __write_cstring((cstring)buf);
+#undef N
+}
+
 internal void __write_location(Source_Code_Location location) {
   __write_string(location.file);
   __write_cstring(":");

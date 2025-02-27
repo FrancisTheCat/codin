@@ -279,3 +279,20 @@ internal String_Slice string_split(String str, String split, Allocator allocator
     { BLOCK; }                                                                   \
   }                                                                              \
 }
+
+internal isize builder_write_bytes(Builder *b, Byte_Slice data) {
+  vector_append_slice(b, data);
+  return data.len;
+}
+
+internal isize builder_write_byte(Builder *b, byte data) {
+  return builder_write_bytes(b, (Byte_Slice) { .data = &data, .len = 1 });
+}
+
+internal isize builder_write_string(Builder *b, String data) {
+  return builder_write_bytes(b, string_to_bytes(data));
+}
+
+internal isize builder_write_cstring(Builder *b, cstring data) {
+  return builder_write_string(b, cstring_to_string(data));
+}

@@ -8,7 +8,26 @@
   .len = size                                                                  \
 })
 
-#define IDX(arr, i) (({ assert((i) >= 0); assert((i) < (arr).len); }), &(arr).data[(i)])
+internal void _do_bounds_check(isize index, isize len, Source_Code_Location location) {
+  if (index < 0) {
+    __write_location(location);
+    __write_cstring(": Bounds checking failure: ");
+    __write_isize(index);
+    __write_cstring(" < 0\n");
+    trap();
+  }
+  if (index >= len) {
+    __write_location(location);
+    __write_cstring(": Bounds checking failure: ");
+    __write_isize(index);
+    __write_cstring(" > ");
+    __write_isize(len);
+    __write_cstring("\n");
+    trap();
+  }
+}
+
+#define IDX(arr, i) (arr).data[({ _do_bounds_check((i), (arr).len, CALLER_LOCATION); }), (i)]
 
 #define Array(T, N) struct {                                                   \
   T data[N];                                                                   \
@@ -91,16 +110,11 @@
     range;                                                                     \
   })
 
-#define slice_end(_full, _end)                                                 \
-  ({                                                                           \
-    type_of(_end)  end = _end;                                                 \
-    type_of(_full) full = _full;                                               \
-    type_of(_full) range = full;                                               \
-                                                                               \
-    range.data = full.data;                                                    \
-    range.len = end;                                                           \
-    range;                                                                     \
-  })
+#define slice_end(full, end)                                                   \
+  (type_of(full)) {                                                            \
+    .data = (full).data,                                                       \
+    .len  = (end),                                                             \
+  }
 
 #define slice_zero(_slice) {                                                   \
   type_of(_slice) slice = _slice;                                              \
@@ -194,3 +208,6 @@ internal isize bytes_copy(Byte_Slice dst, Byte_Slice src) {
       size_of(*__slice_reinterpret_dummy.data)),                               \
   };                                                                           \
 })
+
+#define slice_copy(DST, SRC) \
+  mem_copy(DST.data, SRC.data, min(DST.len, SRC.len) * size_of(*DST.data))

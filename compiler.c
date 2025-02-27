@@ -1,6 +1,9 @@
 #include "codin.h"
 
+#include "image.h"
 #include "spall.h"
+
+#include "qr.h"
 
 #define SPALL_PROFILING
 
@@ -100,7 +103,7 @@ typedef struct {
       isize  integer;
       rune   rune;
       f64    decimal;
-      b8     bool;
+      b8     boolean;
     } literal;
     Token_Type assign_op;
   };
@@ -610,7 +613,7 @@ typedef struct {
     isize  integer;
     rune   rune;
     f64    decimal;
-    b8     bool;
+    b8     boolean;
   } value;
 } Ast_Expr_Literal;
 
@@ -736,7 +739,7 @@ internal Token parser_peek(Parser *parser) {
   if (parser->current >= parser->tokens.len) {
     return (Token) { .type = Token_Type_EOF };
   }
-  Token t = *IDX(parser->tokens, parser->current);
+  Token t = IDX(parser->tokens, parser->current);
   return t;
 }
 
@@ -744,7 +747,7 @@ internal Token parser_peek_n(Parser *parser, int n) {
   if (parser->current + n >= parser->tokens.len) {
     return (Token) { .type = Token_Type_EOF };
   }
-  Token t = *IDX(parser->tokens, parser->current + n);
+  Token t = IDX(parser->tokens, parser->current + n);
   return t;
 }
 
@@ -752,7 +755,7 @@ internal Token parser_advance(Parser *parser) {
   if (parser->current >= parser->tokens.len) {
     return (Token) { .type = Token_Type_EOF };
   }
-  Token t = *IDX(parser->tokens, parser->current);
+  Token t = IDX(parser->tokens, parser->current);
   parser->current += 1;
   return t;
 }
@@ -820,8 +823,8 @@ internal Ast_Expr *parse_atom_expr(Parser *parser, Allocator allocator) {
   case Token_Type_True:
   case Token_Type_False: {
       Ast_Expr_Literal *literal = ast_new(Expr_Literal, t.location, allocator);
-      literal->value.bool    = t.type == Token_Type_True;
-      literal->type          = t.type;
+      literal->value.boolean    = t.type == Token_Type_True;
+      literal->type             = t.type;
       return ast_base(literal);
     }
   case Token_Type_Open_Paren: {
@@ -1316,8 +1319,8 @@ internal b8 parse_fields(Parser *parser, Token_Type terminator, Field_Vector *fi
     }
 
     for_range(i, repeat_start, fields->len) {
-      (*IDX(*fields, i))->type = type;
-      (*IDX(*fields, i))->value = value;
+      IDX(*fields, i)->type  = type;
+      IDX(*fields, i)->value = value;
     }
 
     Ast_Field *field = ast_new(Field, ident.location, allocator);
@@ -1942,12 +1945,19 @@ typedef struct {
   isize value;
 } Constant;
 
+typedef struct {
+  String name;
+  Type  *type;
+} Entity;
+
 typedef struct _Checker_Scope {
+  String                     label;
   Hash_Map(String, Type   *) types;
   Hash_Map(String, Type   *) variables;
   Hash_Map(String, Constant) constants;
   Type                      *return_value;
   struct _Checker_Scope     *parent;
+  b8                         breakable, continueable, implicit_label;
 } Checker_Scope;
 
 typedef struct {
@@ -2033,6 +2043,44 @@ internal Constant *resolve_constant(Checker_Context *ctx, String name) {
     return c;
   }
   return nil;
+}
+
+internal b8 scope_is_breakable(Checker_Context *ctx, String label) {
+  Checker_Scope *scope = ctx->scope;
+  while (scope) {
+    if (scope->breakable) {
+      if (scope->implicit_label && label.len == 0) {
+        return true;
+      }
+      if (string_equal(scope->label, label)) {
+        return true;
+      }
+    }
+    if (scope->return_value) {
+      return false;
+    }
+    scope = scope->parent;
+  }
+  return false;
+}
+
+internal b8 scope_is_continueable(Checker_Context *ctx, String label) {
+  Checker_Scope *scope = ctx->scope;
+  while (scope) {
+    if (scope->continueable) {
+      if (scope->implicit_label && label.len == 0) {
+        return true;
+      }
+      if (string_equal(scope->label, label)) {
+        return true;
+      }
+    }
+    if (scope->return_value) {
+      return false;
+    }
+    scope = scope->parent;
+  }
+  return false;
 }
 
 internal Type *get_return_type(Checker_Context *ctx) {
@@ -2270,8 +2318,8 @@ internal Type *resolve_ast_type(Checker_Context *ctx, Ast_Expr *t) {
     Type_Enum *e = type_new(Enum, allocator);
     slice_init(&e->values, t->type_enum->values.len, allocator);
     slice_iter_v(t->type_enum->values, value, i, {
-      IDX(e->values, i)->name  = value.name;
-      IDX(e->values, i)->value = i;
+      IDX(e->values, i).name  = value.name;
+      IDX(e->values, i).value = i;
     });
     return type_base(e, 8, 8);
   }
@@ -2284,12 +2332,12 @@ internal Type *resolve_ast_type(Checker_Context *ctx, Ast_Expr *t) {
       Type *field_type = resolve_ast_type(ctx, field->type);
       offset = (offset + field_type->align - 1) & ~(field_type->align - 1);
 
-      IDX(s->fields, i)->name   = field->name;
-      IDX(s->fields, i)->type   = field_type;
-      IDX(s->fields, i)->offset = offset;
+      IDX(s->fields, i).name   = field->name;
+      IDX(s->fields, i).type   = field_type;
+      IDX(s->fields, i).offset = offset;
 
-      offset   += IDX(s->fields, i)->type->size;
-      max_align = max(max_align, IDX(s->fields, i)->type->align);
+      offset   += IDX(s->fields, i).type->size;
+      max_align = max(max_align, IDX(s->fields, i).type->align);
     });
     offset = (offset + max_align - 1) & ~(max_align - 1);
     return type_base(s, offset, max_align);
@@ -2299,11 +2347,11 @@ internal Type *resolve_ast_type(Checker_Context *ctx, Ast_Expr *t) {
     slice_init(&u->variants, t->type_union->variants.len, allocator);
     isize max_align = 0, max_size = 0;
     slice_iter_v(t->type_union->variants, variant, i, {
-      IDX(u->variants, i)->name = variant->name;
-      IDX(u->variants, i)->type = resolve_ast_type(ctx, variant->type);
+      IDX(u->variants, i).name = variant->name;
+      IDX(u->variants, i).type = resolve_ast_type(ctx, variant->type);
 
-      max_align = max(max_align, IDX(u->variants, i)->type->align);
-      max_size  = max(max_size,  IDX(u->variants, i)->type->size );
+      max_align = max(max_align, IDX(u->variants, i).type->align);
+      max_size  = max(max_size,  IDX(u->variants, i).type->size );
     });
     return type_base(u, max_size, max_align);
   }
@@ -2369,9 +2417,9 @@ internal void type_check_stmt_assign(Checker_Context *ctx, Ast_Stmt_Assign *assi
   if (!types_equal(ctx, lhs, rhs)) {
     type_errorfc(
       ast_base(assign)->location,
-      "Can not assign expression of type '%CT' to r-value of type '%CT'",
-      lhs,
-      rhs
+      "Can not assign expression of type '%CT' to l-value of type '%CT'",
+      rhs,
+      lhs
     );
   }
 }
@@ -2416,7 +2464,7 @@ internal void type_check_stmt(Checker_Context *ctx, Ast_Stmt *s) {
         }
         slice_iter_v(s->stmt_return->values, value, i, {
           Type *return_type = type_check_expr(ctx, value);
-          Type *expected    = *IDX(ret->tuple->fields, i);
+          Type *expected    = IDX(ret->tuple->fields, i);
           if (!types_equal(ctx, return_type, expected)) {
             type_errorfc(value->location, "Type of return value differs from function signature at return value %d", i);
             break;
@@ -2514,15 +2562,15 @@ internal void type_check_stmt(Checker_Context *ctx, Ast_Stmt *s) {
   CASE ANT_Stmt_Iterator: {
     Type *iterator_type = type_check_expr(ctx, s->stmt_iterator->lhs);
 
-    Checker_Scope scope;
+    Checker_Scope scope = {0};
     checker_scope_begin(ctx, &scope);
 
     if (iterator_type->type_kind == Type_Kind_Tuple) {
-      if (!type_is_boolean(ctx, *IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1))) {
+      if (!type_is_boolean(ctx, IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1))) {
         type_errorfc(
           s->stmt_iterator->lhs->location,
           "Expected last return value of an iterator to be a boolean, but got: '%CT'",
-          *IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1)
+          IDX(iterator_type->tuple->fields, iterator_type->tuple->fields.len - 1)
         );
       }
 
@@ -2537,7 +2585,7 @@ internal void type_check_stmt(Checker_Context *ctx, Ast_Stmt *s) {
       }
 
       slice_iter_v(s->stmt_iterator->decls, decl, i, {
-        Type *lhs_type = *IDX(iterator_type->tuple->fields, i);
+        Type *lhs_type = IDX(iterator_type->tuple->fields, i);
         Type *rhs_type = resolve_ast_type(ctx, decl->type);
 
         if (types_equal(ctx, lhs_type, rhs_type)) {
@@ -2573,7 +2621,7 @@ internal void type_check_stmt(Checker_Context *ctx, Ast_Stmt *s) {
         if (iterator_type->basic->kind == Basic_Type_String) {
           elem_type = type_rune;
         }
-      DEFAULT:
+      DEFAULT: {}
       }
 
       if (!elem_type) {
@@ -2588,7 +2636,7 @@ internal void type_check_stmt(Checker_Context *ctx, Ast_Stmt *s) {
 
       switch (s->stmt_iterator->decls.len) {
       case 2: {
-          Ast_Field *counter_decl = *IDX(s->stmt_iterator->decls, 1);
+          Ast_Field *counter_decl = IDX(s->stmt_iterator->decls, 1);
           Type      *counter_type = resolve_ast_type(ctx, counter_decl->type);
 
           if (!types_equal(ctx, type_untyped_int, counter_type)) {
@@ -2602,7 +2650,7 @@ internal void type_check_stmt(Checker_Context *ctx, Ast_Stmt *s) {
           }
         }
       case 1: {
-          Ast_Field *iter_decl = *IDX(s->stmt_iterator->decls, 0);
+          Ast_Field *iter_decl = IDX(s->stmt_iterator->decls, 0);
           Type      *iter_type = resolve_ast_type(ctx, iter_decl->type);
 
           if (!types_equal(ctx, elem_type, iter_type)) {
@@ -2645,7 +2693,7 @@ skip_iterator_type_checking:
 internal void type_check_scope(Checker_Context *ctx, Ast_Stmt_Block body) {
   spall_begin_fn();
 
-  Checker_Scope scope;
+  Checker_Scope scope = {0};
   checker_scope_begin(ctx, &scope);
   
   slice_iter_v(body, stmt, _i, {
@@ -2662,7 +2710,7 @@ internal Type_Function *type_check_decl_function(Checker_Context *ctx, Ast_Decl_
   Type_Function *f = type_new(Function, ctx->allocator);
   slice_init(&f->args, function->args.len, ctx->allocator);
 
-  Checker_Scope scope;
+  Checker_Scope scope = {0};
   checker_scope_begin(ctx, &scope);
 
   slice_iter_v(function->args, arg, i, {
@@ -2811,18 +2859,17 @@ internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
     CASE Token_Type_More_Equal:
       return type_untyped_bool;
     DEFAULT:
-      return type_invalid;
+      unreachable();
     }
   }
   CASE ANT_Expr_Ternary:
+    unimplemented();
   CASE ANT_Expr_Call: {
     Type *t = type_check_expr(ctx, expr->expr_call->lhs);
-    if (!t) {
-      return nil;
-    }
     t = type_base_type(ctx, t);
     if (t->type_kind != Type_Kind_Function) {
-      panic("call operator can only be used on functions");
+      type_errorc(expr->location, "call operator can only be used on functions");
+      return type_invalid;
     }
     Type_Function *fn = t->function;
 
@@ -2832,15 +2879,12 @@ internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
 
     slice_iter_v(expr->expr_call->args, arg, i, {
       Type *arg_type = type_check_expr(ctx, arg);
-      Type *expected = IDX(fn->args, i)->type;
+      Type *expected = IDX(fn->args, i).type;
 
       if (!types_equal(ctx, arg_type, expected)) {
         type_errorfc(arg->location, "Argument type missmatch, at argument %d: '%CT' != '%CT'", i, arg_type, expected);
       }
     });
-
-    // slice_iter(slice_start(fn->args, expr->expr_call->args.len), arg, i, {
-    // });
 
     return t->function->ret;
   }
@@ -2851,7 +2895,7 @@ internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
     }
     t = type_base_type(ctx, t);
     if (t->type_kind == Type_Kind_Pointer) {
-      t = t->pointer->pointee;
+      t = type_base_type(ctx, t->pointer->pointee);
     }
     if (t->type_kind == Type_Kind_Struct) {
       slice_iter_v(t->struct_->fields, field, i, {
@@ -2859,7 +2903,7 @@ internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
           return field.type;
         }
         type_errorfc(expr->location, "Struct has no field named '%S'", expr->expr_selector->selector);
-        return nil;
+        return type_invalid;
       });
     }
     if (t->type_kind == Type_Kind_Array) {
@@ -2869,7 +2913,8 @@ internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
       if (
         (string_equal(expr->expr_selector->selector, LIT("x")) && t->array->count > 0) ||
         (string_equal(expr->expr_selector->selector, LIT("y")) && t->array->count > 1) ||
-        (string_equal(expr->expr_selector->selector, LIT("z")) && t->array->count > 2)
+        (string_equal(expr->expr_selector->selector, LIT("z")) && t->array->count > 2) || 
+        (string_equal(expr->expr_selector->selector, LIT("w")) && t->array->count > 3) 
       ) {
         return t->array->elem;
       }
@@ -2878,6 +2923,13 @@ internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
         ptr->pointee = t->slice->elem;
         return type_base(ptr, 8, 8);
       }
+      type_errorfc(
+        expr->location,
+        "Unknown field '%S' on array type %CT",
+        expr->expr_selector->selector,
+        t
+      );
+      return type_invalid;
     }
     if (t->type_kind == Type_Kind_Slice) {
       if (string_equal(expr->expr_selector->selector, LIT("len"))) {
@@ -2888,8 +2940,18 @@ internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
         ptr->pointee = t->slice->elem;
         return type_base(ptr, 8, 8);
       }
+      type_errorfc(
+        expr->location,
+        "Unknown field '%S' on slice type %CT",
+        expr->expr_selector->selector,
+        t
+      );
+      return type_invalid;
     }
-    if (t->type_kind == Type_Kind_Basic && t->basic->kind == Basic_Type_String) {
+    if (
+      t->type_kind == Type_Kind_Basic &&
+      (t->basic->kind == Basic_Type_String || t->basic->kind == Basic_Type_Cstring)
+    ) {
       if (string_equal(expr->expr_selector->selector, LIT("len"))) {
         return type_untyped_int;
       }
@@ -2898,8 +2960,19 @@ internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
         ptr->pointee      = type_byte;
         return type_base(ptr, 8, 8);
       }
+      type_errorfc(
+        expr->location,
+        "Unknown field '%S' on string type %CT",
+        expr->expr_selector->selector,
+        t
+      );
+      return type_invalid;
     }
-    type_errorc(expr->location, "selector operator can only be used on structs, unions, enums, slices and arrays, or pointers to those");
+    type_errorfc(
+      expr->location,
+      "selector operator can only be used on structs, slices and arrays, or pointers to those, but not on '%CT'",
+      t
+    );
     return type_invalid;
   }
   CASE ANT_Expr_Deref: {
@@ -2928,23 +3001,57 @@ internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
   CASE ANT_Expr_Index: {
     Type *lhs = type_check_expr(ctx, expr->expr_index->base);
     Type *rhs = type_check_expr(ctx, expr->expr_index->index);
-    lhs = type_base_type(ctx, lhs);
-    if (lhs->type_kind == Type_Kind_Array) {
-      return lhs->array->elem;
+    Type* lhs_base = type_base_type(ctx, lhs);
+
+    Type *elem  = nil;
+    Type *index = nil;
+
+    switch (lhs_base->type_kind) {
+    CASE Type_Kind_Array: {
+      elem  = lhs_base->array->elem;
+      index = type_untyped_int;
     }
-    if (lhs->type_kind == Type_Kind_Slice) {
-      return lhs->slice->elem;
+    CASE Type_Kind_Slice: {
+      elem  = lhs_base->slice->elem;
+      index = type_untyped_int;
     }
-    return nil;
+    CASE Type_Kind_Basic: {
+      if (lhs_base->basic->kind != Basic_Type_String && lhs_base->basic->kind != Basic_Type_Cstring) {
+        goto invalid_index_type;
+      }
+      elem  = type_untyped_rune;
+      index = type_untyped_int;
+    }
+    DEFAULT: {
+      invalid_index_type:
+      type_errorfc(
+        expr->location,
+        "Can not index into expression of type '%CT', only arrays and strings can be indexed",
+        lhs
+      );
+      return type_invalid;
+    }
+    }
+
+    if (!types_equal(ctx, rhs, index)) {
+      type_errorfc(
+        expr->location,
+        "Expected indexing expression to be of type '%CT' but got '%CT'",
+        index,
+        rhs
+      );
+    }
+    return elem;
   }
   CASE ANT_Expr_Address: {
     Type_Pointer *p = type_new(Pointer, ctx->allocator);
     p->pointee      = type_check_expr(ctx, expr->expr_address->rhs);
     return type_base(p, 8, 8);
   }
-  DEFAULT: {}
+  DEFAULT:
+    unimplemented();
   }
-  unimplemented();
+  unreachable();
 }
 
 internal void type_check_file(Checker_Context *ctx) {
@@ -2979,37 +3086,36 @@ internal void type_check_file(Checker_Context *ctx) {
       hash_map_insert(&cs.types, LIT(NEW_NAME), type_base(n, t->size, t->align));\
     }
 
-  BASIC_TYPE("i8",      Int,   1, 1);
-  BASIC_TYPE("i16",     Int,   2, 2);
-  BASIC_TYPE("i32",     Int,   4, 4);
-  BASIC_TYPE("i64",     Int,   8, 8);
-  BASIC_TYPE("int",     Int,   8, 8);
+  BASIC_TYPE("i8",      Int,     1, 1);
+  BASIC_TYPE("i16",     Int,     2, 2);
+  BASIC_TYPE("i32",     Int,     4, 4);
+  BASIC_TYPE("i64",     Int,     8, 8);
+  BASIC_TYPE("int",     Int,     8, 8);
 
-  BASIC_TYPE("b8",      Bool,  1, 1);
-  BASIC_TYPE("b16",     Bool,  2, 2);
-  BASIC_TYPE("b32",     Bool,  4, 4);
-  BASIC_TYPE("b64",     Bool,  8, 8);
+  BASIC_TYPE("b8",      Bool,    1, 1);
+  BASIC_TYPE("b16",     Bool,    2, 2);
+  BASIC_TYPE("b32",     Bool,    4, 4);
+  BASIC_TYPE("b64",     Bool,    8, 8);
 
-  BASIC_TYPE_ALIAS("b8", "bool");
+  BASIC_TYPE("u8",      Uint,    1, 1);
+  BASIC_TYPE("u16",     Uint,    2, 2);
+  BASIC_TYPE("u32",     Uint,    4, 4);
+  BASIC_TYPE("u64",     Uint,    8, 8);
+  BASIC_TYPE("uint",    Uint,    8, 8);
 
-  BASIC_TYPE("u8",      Uint,  1, 1);
-  BASIC_TYPE("u16",     Uint,  2, 2);
-  BASIC_TYPE("u32",     Uint,  4, 4);
-  BASIC_TYPE("u64",     Uint,  8, 8);
-  BASIC_TYPE("uint",    Uint,  8, 8);
-
-  BASIC_TYPE_ALIAS("u8", "byte");
-
-  BASIC_TYPE("f32",     Float, 4, 4);
-  BASIC_TYPE("f64",     Float, 8, 8);
+  BASIC_TYPE("f32",     Float,   4, 4);
+  BASIC_TYPE("f64",     Float,   8, 8);
 
   BASIC_TYPE("string",  String, 16, 8);
-  BASIC_TYPE("cstring", String,  8, 8);
+  BASIC_TYPE("cstring", Cstring, 8, 8);
 
-  BASIC_TYPE("rune",    Rune, 4, 4);
+  BASIC_TYPE("rune",    Rune,    4, 4);
 
   BASIC_TYPE("rawptr",  Rawptr,  8, 8);
   BASIC_TYPE("uintptr", Uintptr, 8, 8);
+
+  BASIC_TYPE_ALIAS("u8", "byte");
+  BASIC_TYPE_ALIAS("b8", "bool");
 
   type_untyped_int    = new_untyped_type(Untyped_Type_Int,    ctx->allocator);
   type_untyped_rune   = new_untyped_type(Untyped_Type_Rune,   ctx->allocator);
@@ -3146,6 +3252,7 @@ internal Argument_Class get_type_argument_class(Type *type) {
     case Basic_Type_Uint:
     case Basic_Type_Bool:
     case Basic_Type_String:
+    case Basic_Type_Cstring:
     case Basic_Type_Rune:
       return Argument_Class_Integer;
     case Basic_Type_Float:
@@ -3190,7 +3297,7 @@ internal String_Slice registers[enum_len(Argument_Class)] = {
 };
 
 internal i32 *cg_get_ident_offset(Code_Gen_Context *ctx, String ident) {
-  return hash_map_get(IDX(ctx->stack, ctx->stack.len - 1)->offsets, ident);
+  return hash_map_get(IDX(ctx->stack, ctx->stack.len - 1).offsets, ident);
 }
 
 internal void code_gen_expr(Code_Gen_Context *ctx, Ast_Expr *e) {
@@ -3283,7 +3390,7 @@ internal void code_gen_expr(Code_Gen_Context *ctx, Ast_Expr *e) {
 
 internal void code_gen_variable(Code_Gen_Context *ctx, Ast_Decl_Variable *var) {
   assert(ast_base(var)->type);
-  Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
+  Stack_Frame *f = &IDX(ctx->stack, ctx->stack.len - 1);
   hash_map_insert(&f->offsets, var->name, f->offset);
   if (var->value) {
     code_gen_expr(ctx, var->value);
@@ -3298,18 +3405,18 @@ internal void code_gen_variable(Code_Gen_Context *ctx, Ast_Decl_Variable *var) {
 
 internal void code_gen_push_args(Code_Gen_Context *ctx, Field_Vector args) {
   spall_begin_fn();
-  Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
+  Stack_Frame *f = &IDX(ctx->stack, ctx->stack.len - 1);
 
   isize register_index[enum_len(Argument_Class)] = {0};
   slice_iter_v(args, arg, i, {
-    Ast_Field       *arg = *IDX(args, i);
+    Ast_Field       *arg = IDX(args, i);
     Argument_Class class = get_type_argument_class(ast_base(arg)->type);
 
     if (ast_base(arg)->type->size <= 8) {
       if (class == Argument_Class_Integer) {
-        cg_printflnc("\tpush %S", *IDX(registers[class], register_index[class]));
+        cg_printflnc("\tpush %S", IDX(registers[class], register_index[class]));
       } else {
-        cg_printflnc("\tmovq rax, %S", *IDX(registers[class], register_index[class]));
+        cg_printflnc("\tmovq rax, %S", IDX(registers[class], register_index[class]));
         cg_printlnc ("\tpush rax");
       }
       hash_map_insert(&f->offsets, arg->name, f->offset);
@@ -3317,8 +3424,8 @@ internal void code_gen_push_args(Code_Gen_Context *ctx, Field_Vector args) {
       register_index[class] += 1;
     } else if (ast_base(arg)->type->size <= 16) {
       assert(class == Argument_Class_Integer);
-      cg_printflnc("\tpush %S", *IDX(registers[class], register_index[class]    ));
-      cg_printflnc("\tpush %S", *IDX(registers[class], register_index[class] + 1));
+      cg_printflnc("\tpush %S", IDX(registers[class], register_index[class]    ));
+      cg_printflnc("\tpush %S", IDX(registers[class], register_index[class] + 1));
       hash_map_insert(&f->offsets, arg->name, f->offset);
       f->offset += 16;
       register_index[class] += 2;
@@ -3331,27 +3438,27 @@ internal void code_gen_push_args(Code_Gen_Context *ctx, Field_Vector args) {
 
 internal void code_gen_load_args(Code_Gen_Context *ctx, Type_Function *fn) {
   spall_begin_fn();
-  Stack_Frame *f = IDX(ctx->stack, ctx->stack.len - 1);
+  Stack_Frame *f = &IDX(ctx->stack, ctx->stack.len - 1);
 
   isize offset = 0;
 
   isize register_index[enum_len(Argument_Class)] = {0};
   slice_iter_v(fn->args, arg, i, {
-    Type_Argument  arg   = *IDX(fn->args, i);
+    Type_Argument  arg   = IDX(fn->args, i);
     Argument_Class class = get_type_argument_class(arg.type);
 
     if (arg.type->size <= 8) {
       if (class == Argument_Class_Integer) {
-        cg_printflnc("\tmov %S, [rsp+%d]",    *IDX(registers[class], register_index[class]), offset);
+        cg_printflnc("\tmov %S, [rsp+%d]",    IDX(registers[class], register_index[class]), offset);
       } else {
-        cg_printflnc("\tmovdqu %S, [rsp+%d]", *IDX(registers[class], register_index[class]), offset);
+        cg_printflnc("\tmovdqu %S, [rsp+%d]", IDX(registers[class], register_index[class]), offset);
       }
       register_index[class] += 1;
       offset += 8;
     } else if (arg.type->size <= 16) {
       assert(class == Argument_Class_Integer);
-      cg_printflnc("\tmov %S, [rsp+%d]", *IDX(registers[class], register_index[class]    ), offset + 8);
-      cg_printflnc("\tmov %S, [rsp+%d]", *IDX(registers[class], register_index[class] + 1), offset    );
+      cg_printflnc("\tmov %S, [rsp+%d]", IDX(registers[class], register_index[class]    ), offset + 8);
+      cg_printflnc("\tmov %S, [rsp+%d]", IDX(registers[class], register_index[class] + 1), offset    );
       register_index[class] += 2;
       offset += 16;
     } else {
@@ -3636,6 +3743,45 @@ internal isize format_type_va(Writer const *w, va_list va_args) {
 }
 
 i32 main() {
+  // Bit_Array  ba      = bit_array_make(0, 8, context.allocator);
+  Byte_Slice data    = string_to_bytes(LIT("Hello"));
+  // isize      version = qr__required_version(data.len, QR_Error_Correction_L);
+  // qr__generate_data_bits(version, QR_Error_Correction_L, data, &ba);
+  
+  Byte_Buffer ecs = byte_buffer_make(0, 8, context.allocator);
+  Byte_Slice _data = SLICE_VAL(Byte_Slice, {
+    17,
+    236,
+    17,
+    236,
+    17,
+    236,
+    64,
+    67,
+    77,
+    220,
+    114,
+    209,
+    120,
+    11,
+    91,
+    32,
+  });
+  qr__generate_error_correction_codes(1, QR_Error_Correction_M, _data, &ecs);
+  slice_iter_v(ecs, e, i, {
+    fmt_printflnc("%d", e);
+  });
+
+  Image image;
+  qr_code_generate_image(data, QR_Error_Correction_L, &image, context.allocator);
+
+  Fd image_file = unwrap_err(file_open(LIT("image.png"), FP_Create | FP_Write | FP_Truncate));
+
+  Writer image_writer = writer_from_handle(image_file);
+  png_save_writer(&image_writer, &image);
+
+  return 0;
+
   register_user_formatter('T', format_type_va);
 
 #ifdef SPALL_PROFILING
@@ -3654,15 +3800,13 @@ i32 main() {
     os_exit(1);
   }
 
-  isize allocated = 0;
-
   slice_iter_v(slice_start(os_args, 1), path, _i, {
     spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_entire_file"), get_time_in_nanos());
-    Fd file = or_do_err(file_open(path, FP_Read), err, {
+    Fd file = or_do_err(file_open(path, FP_Read), _err, {
       fmt_eprintflnc("Failed to open source file '%S'", path);
       continue;
     });
-    Byte_Slice file_data = or_do_err(map_entire_file(file), err, {
+    Byte_Slice file_data = or_do_err(map_entire_file(file), _err, {
       fmt_eprintflnc("Failed to read file '%S'", path);
       continue;
     });

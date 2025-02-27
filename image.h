@@ -455,7 +455,7 @@ internal Maybe_Int _png_write_chunk(Writer const *writer, String type, Byte_Slic
   return write_bytes(writer, (Byte_Slice){.data = (byte *)&hash, .len = 4});
 }
 
-internal b8 png_save_writer(Writer const *writer, Image *image) {
+internal b8 png_save_writer(Writer const *writer, Image const *image) {
   if (!write_string(writer, PNG_HEADER).ok) {
     return false;
   }

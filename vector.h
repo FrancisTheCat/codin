@@ -13,7 +13,8 @@ typedef Vector(byte) Byte_Buffer;
 
 // NOLINTBEGIN
 #define vector_init(_vector, length, capacity, ally)                           \
-  {                                                                            \
+  {                                                                              \
+    assert((length) < (capacity));                                               \
     type_of(*_vector) *vector = _vector;                                       \
     vector->len = length;                                                      \
     vector->cap = capacity;                                                    \
@@ -28,11 +29,21 @@ typedef Vector(byte) Byte_Buffer;
     __make_vector;                                                             \
   })
 
-#define builder_init(builder, length, capacity, ally)                          \
-  vector_init(builder, length, capacity, ally)
+internal void builder_init(Builder *builder, isize length, isize capacity, Allocator allocator) {
+  vector_init(builder, length, capacity, allocator);
+}
 
-#define builder_make(length, capacity, ally)                                   \
-  vector_make(Builder, length, capacity, ally)
+internal Builder builder_make(isize length, isize capacity, Allocator allocator) {
+  return vector_make(Builder, length, capacity, allocator);
+}
+
+internal void byte_buffer_init(Byte_Buffer *byte_buffer, isize length, isize capacity, Allocator allocator) {
+  vector_init(byte_buffer, length, capacity, allocator);
+}
+
+internal Byte_Buffer byte_buffer_make(isize length, isize capacity, Allocator allocator) {
+  return vector_make(Byte_Buffer, length, capacity, allocator);
+}
 
 #define vector_delete(_vector)                                                 \
   {                                                                            \
@@ -40,6 +51,10 @@ typedef Vector(byte) Byte_Buffer;
     mem_free(vector.data, vector.cap * sizeof(vector.data[0]),                 \
              vector.allocator);                                                \
   }
+
+internal void byte_buffer_destroy(Byte_Buffer *bb) {
+  vector_delete(*bb)
+}
 
 #define vector_append(_vector, elem)                                           \
   {                                                                            \
@@ -59,9 +74,10 @@ typedef Vector(byte) Byte_Buffer;
   }
 // NOLINTEND
 
-#define vector_append_slice(_vector, s)                                        \
+#define vector_append_slice(_vector, _s)                                       \
   {                                                                            \
     type_of(_vector) vector = _vector;                                         \
+    type_of(_s) s = _s;                                                        \
     if (!vector->allocator.proc) {                                             \
       vector->allocator = context.allocator;                                   \
     }                                                                          \
@@ -174,4 +190,17 @@ internal Byte_Slice builder_to_bytes(Builder b) {
 internal cstring builder_to_cstring(Builder *b) {
   vector_append(b, 0);
   return b->data;
+}
+
+internal Byte_Buffer buffer_from_bytes(Byte_Slice data, Allocator allocator) {
+  return (Byte_Buffer) {
+    .data      = data.data,
+    .len       = data.len,
+    .cap       = data.len,
+    .allocator = allocator,
+  };
+}
+
+internal Byte_Slice buffer_to_bytes(Byte_Buffer bb) {
+  return slice_to_bytes(bb);
 }

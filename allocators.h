@@ -213,8 +213,8 @@ internal Allocator growing_arena_allocator_init(
 ) {
   *ga = (Growing_Arena_Allocator){0};
   vector_init(&ga->blocks, 1, 8, backing_allocator);
-  IDX(ga->blocks, 0)->used = 0;
-  IDX(ga->blocks, 0)->data = (byte *)unwrap_err(mem_alloc(block_size, backing_allocator));
+  IDX(ga->blocks, 0).used = 0;
+  IDX(ga->blocks, 0).data = (byte *)unwrap_err(mem_alloc(block_size, backing_allocator));
   ga->backing    = backing_allocator;
   ga->block_size = block_size;
   return (Allocator) {
