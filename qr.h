@@ -220,6 +220,7 @@ internal QR_Error_Correction_Info qr__error_correction_table[] = {
 internal b8 qr__luts_generated = false;
 internal u8 qr__galois_power_2_lut    [256] = {0};
 internal u8 qr__galois_power_2_lut_rev[256] = {0};
+internal u8 qr__bit_order_swap_lut    [256] = {0};
 
 internal void qr__generate_lut() {
   for_range(i, 0, 255) {
@@ -232,6 +233,12 @@ internal void qr__generate_lut() {
     }
     qr__galois_power_2_lut[i]         = value;
     qr__galois_power_2_lut_rev[value] = i;
+
+    u8 swap = 0;
+    for_range(j, 0, 8) {
+      swap |= !!(i & (1 << j)) << (7 - j);
+    }
+    qr__bit_order_swap_lut[i] = swap;
   }
   qr__luts_generated = true;
 }
@@ -287,13 +294,11 @@ internal void qr__modulo_galois_polynomial(
 }
 
 internal void qr__generate_error_correction_codes(
-  isize               version,
-  QR_Error_Correction correction_level,
-  Byte_Slice          data,
-  Byte_Buffer        *ecs
+  QR_Error_Correction_Info const *info,
+  Byte_Slice                      data,
+  Byte_Buffer                    *ecs
 ) {
   assert(qr__luts_generated);
-  QR_Error_Correction_Info const *info = &QR_ERROR_CORRECTION_INFO(correction_level, version);
   assert(data.len == info->data_words);
 
   Galois_Polynomial g = alloca_slice(Galois_Polynomial, info->error_words_per_block + 1);
@@ -305,29 +310,19 @@ internal void qr__generate_error_correction_codes(
 
   isize data_offset = 0;
 
-  fmt_printlnc("g:");
-  slice_iter_v(g, v, i, {
-    fmt_printflnc("%d", v);
-  });
-
   for_range(i, 0, info->blocks_group1) {
     mem_zero(m.data, info->error_words_per_block);
     mem_copy(m.data + info->error_words_per_block, &IDX(data, data_offset), info->data_words_per_block_group1);
     slice_reverse(slice_start(m, info->error_words_per_block));
 
-    fmt_printlnc("m:");
-    slice_iter_v(m, v, i, {
-      fmt_printflnc("%d", v);
+    slice_iter(m, b, i, {
+      *b = qr__bit_order_swap_lut[*b];
     });
 
     qr__modulo_galois_polynomial(m, g);
+
     out = slice_end(m, info->error_words_per_block);
     slice_reverse(out);
-
-    fmt_printlnc("out:");
-    slice_iter_v(out, v, i, {
-      fmt_printflnc("%d", v);
-    });
 
     vector_append_slice(ecs, slice_to_bytes(out));
 
@@ -571,7 +566,7 @@ internal void qr__place_fixed_patterns(isize version, isize level, isize mask, I
             if (dy < 0) dy = -dy;
 
             isize dist = max(dx, dy);
-            IDX(image->pixels, _x + _y * image->width) = (dist & 1) ? 0xFF : 0;
+            IDX(image->pixels, _x + _y * image->width) = -(dist & 1);
           }
         }
       }
@@ -580,8 +575,8 @@ internal void qr__place_fixed_patterns(isize version, isize level, isize mask, I
 
   // Timing Patterns
   for_range(i, 8, image->width - 8) {
-    IDX(image->pixels, i + image->width * 6) = (i & 1) * 0xFF;
-    IDX(image->pixels, i * image->width + 6) = (i & 1) * 0xFF;
+    IDX(image->pixels, i + image->width * 6) = -(i & 1);
+    IDX(image->pixels, i * image->width + 6) = -(i & 1);
   }
 
   // Format Information
@@ -591,24 +586,38 @@ internal void qr__place_fixed_patterns(isize version, isize level, isize mask, I
 
   for_range(i, 0, 6) {
     b8 b = (format_string & (1l << (14 - i))) != 0;
-    IDX(image->pixels, 8 * image->width + i) = !b * 0xFF;
-    IDX(image->pixels, 8 + image->width * (image->width - i - 1)) = !b * 0xFF;
+    IDX(image->pixels, 8 * image->width + i) = b - 1;
+    IDX(image->pixels, 8 + image->width * (image->width - i - 1)) = b - 1;
   }
 
   b8 bit_6 = (format_string & (1l << (14 - 6))) != 0;
-  IDX(image->pixels, 8 * image->width + 7) = !bit_6 * 0xFF;
-  IDX(image->pixels, 8 + image->width * (image->width - 6 - 1)) = !bit_6 * 0xFF;
+  IDX(image->pixels, 8 * image->width + 7) = bit_6 - 1;
+  IDX(image->pixels, 8 + image->width * (image->width - 6 - 1)) = bit_6 - 1;
 
   for_range(i, 7, 9) {
     b8 b = (format_string & (1l << (14 - i))) != 0;
-    IDX(image->pixels, 8 + image->width * (15 - i)) = !b * 0xFF;
-    IDX(image->pixels, 8 * image->width + i - 7 + image->width - 8) = !b * 0xFF;
+    IDX(image->pixels, 8 + image->width * (15 - i)) = b - 1;
+    IDX(image->pixels, 8 * image->width + i - 7 + image->width - 8) = b - 1;
   }
 
   for_range(i, 9, 15) {
     b8 b = (format_string & (1l << (14 - i))) != 0;
-    IDX(image->pixels, 8 + image->width * (14 - i)) = !b * 0xFF;
-    IDX(image->pixels, 8 * image->width + i - 9 + image->width - 6) = !b * 0xFF;
+    IDX(image->pixels, 8 + image->width * (14 - i)) = b - 1;
+    IDX(image->pixels, 8 * image->width + i - 9 + image->width - 6) = b - 1;
+  }
+
+  // Version information
+  if (version < 7) {
+    return;
+  }
+
+  u64 version_info_string = qr__version_info_strings[version];
+  assert(version_info_string);
+
+  for_range(i, 0, 18) {
+    b8 bit = (version_info_string >> i) & 1;
+    IDX(image->pixels, i / 3 + image->width * (i % 3 + image->height - 11)) = bit - 1;
+    IDX(image->pixels, i % 3 + image->width - 11 + image->width * (i / 3)) = bit - 1;
   }
 }
 
@@ -674,11 +683,55 @@ internal void qr__place_data_bit(
 
   // log_infof(LIT("(%d, %d) -> %d"), row, column, value);
 
-  IDX(image->pixels, column + row * image->width) = value * 0xFF;
+  IDX(image->pixels, column + row * image->width) = -value;
 }
+
+internal u8 qr__remainder_bits[] = {
+  [ 1] = 0,
+  [ 2] = 7,
+  [ 3] = 7,
+  [ 4] = 7,
+  [ 5] = 7,
+  [ 6] = 7,
+  [ 7] = 0,
+  [ 8] = 0,
+  [ 9] = 0,
+  [10] = 0,
+  [11] = 0,
+  [12] = 0,
+  [13] = 0,
+  [14] = 3,
+  [15] = 3,
+  [16] = 3,
+  [17] = 3,
+  [18] = 3,
+  [19] = 3,
+  [20] = 3,
+  [21] = 4,
+  [22] = 4,
+  [23] = 4,
+  [24] = 4,
+  [25] = 4,
+  [26] = 4,
+  [27] = 4,
+  [28] = 3,
+  [29] = 3,
+  [30] = 3,
+  [31] = 3,
+  [32] = 3,
+  [33] = 3,
+  [34] = 3,
+  [35] = 0,
+  [36] = 0,
+  [37] = 0,
+  [38] = 0,
+  [39] = 0,
+  [40] = 0,
+};
 
 internal void qr__place_data_bits(
   QR_Error_Correction_Info const *info,
+  isize                           version,
   Image                          *image,
   Byte_Slice                      data,
   Byte_Slice                      ecs,
@@ -689,26 +742,56 @@ internal void qr__place_data_bits(
   b8    left     = false;
   b8    down     = false;
 
-  fmt_printlnc("raw_data:");
-  slice_iter_v(data, d, i, {
-    fmt_printfc("%d, ", d);
-    for_range(j, 0, 8) {
-      b8 b = d & (1 << j);
-      qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
+  for_range(dw, 0, max(info->data_words_per_block_group1, info->data_words_per_block_group2)) {
+    if (dw < info->data_words_per_block_group1) {
+      for_range(block, 0, info->blocks_group1) {
+        u8 d = IDX(data, dw + info->data_words_per_block_group1 * block);
+        for_range(j, 0, 8) {
+          b8 b = d & (1 << j);
+          qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
+        }
+      }
     }
-  });
-  fmt_printlnc("");
 
-  fmt_printlnc("ecs:");
-  slice_iter_v(ecs, d, i, {
-    fmt_printfc("%d, ", d);
-    for_range(j, 0, 8) {
-      b8 b = d & (1 << j);
-      qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
+    if (dw < info->data_words_per_block_group2) {
+      for_range(block, 0, info->blocks_group2) {
+        u8 d = IDX(data, dw + info->data_words_per_block_group2 * block + info->blocks_group1 * info->data_words_per_block_group1);
+        for_range(j, 0, 8) {
+          b8 b = d & (1 << j);
+          qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
+        }
+      }
     }
-      return;
-  });
-  fmt_printlnc("");
+  }
+
+  for_range(ew, 0, info->error_words_per_block) {
+    for_range(block, 0, info->blocks_group1 + info->blocks_group2) {
+      u8 d = IDX(ecs, ew + block * info->error_words_per_block);
+      for_range(j, 0, 8) {
+        b8 b = d & (1 << (7 - j));
+        qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
+      }
+    }
+  }
+
+  isize remainder_bits = qr__remainder_bits[version];
+  for_range(i, 0, remainder_bits) {
+    qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, 0, mask);
+  }
+
+  // slice_iter_v(data, d, i, {
+  //   for_range(j, 0, 8) {
+  //     b8 b = d & (1 << j);
+  //     qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
+  //   }
+  // });
+
+  // slice_iter_v(ecs, d, i, {
+  //   for_range(j, 0, 8) {
+  //     b8 b = d & (1 << (7 - j));
+  //     qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
+  //   }
+  // });
 }
 
 internal b8 qr_code_generate_image(
@@ -754,9 +837,24 @@ internal b8 qr_code_generate_image(
   }
 
   Byte_Buffer ecs = byte_buffer_make(0, data.len, allocator);
-  qr__generate_error_correction_codes(version, level, buffer_to_bytes(raw_data), &ecs);
+  qr__generate_error_correction_codes(eci, buffer_to_bytes(raw_data), &ecs);
 
-  qr__place_data_bits(eci, image, buffer_to_bytes(raw_data), buffer_to_bytes(ecs), mask);
+  qr__place_data_bits(eci, version, image, buffer_to_bytes(raw_data), buffer_to_bytes(ecs), mask);
+
+  fmt_printflnc(
+    "data_words: %d\n"
+    "error_words_per_block: %d\n"
+    "blocks_group1: %d\n"
+    "data_words_per_block_group1: %d\n"
+    "blocks_group2: %d\n"
+    "data_words_per_block_group2: %d\n",
+    eci->data_words,
+    eci->error_words_per_block,
+    eci->blocks_group1,
+    eci->data_words_per_block_group1,
+    eci->blocks_group2,
+    eci->data_words_per_block_group2
+  );
 
   // vector_iter_v(raw_data, v, i, {
   //   fmt_printflnc("%2d = %08b", i, v);
