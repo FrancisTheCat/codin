@@ -3743,37 +3743,27 @@ internal isize format_type_va(Writer const *w, va_list va_args) {
 }
 
 i32 main() {
+  qr__generate_lut();
   // Bit_Array  ba      = bit_array_make(0, 8, context.allocator);
-  Byte_Slice data    = string_to_bytes(LIT("Hello"));
+  Byte_Slice data    = string_to_bytes(LIT("abc"));
   // isize      version = qr__required_version(data.len, QR_Error_Correction_L);
   // qr__generate_data_bits(version, QR_Error_Correction_L, data, &ba);
   
-  Byte_Buffer ecs = byte_buffer_make(0, 8, context.allocator);
-  Byte_Slice _data = SLICE_VAL(Byte_Slice, {
-    17,
-    236,
-    17,
-    236,
-    17,
-    236,
-    64,
-    67,
-    77,
-    220,
-    114,
-    209,
-    120,
-    11,
-    91,
-    32,
-  });
-  qr__generate_error_correction_codes(1, QR_Error_Correction_M, _data, &ecs);
-  slice_iter_v(ecs, e, i, {
-    fmt_printflnc("%d", e);
-  });
+  if (true) {
+    Byte_Buffer ecs = byte_buffer_make(0, 8, context.allocator);
+    // Byte_Slice _data = SLICE_VAL(Byte_Slice, { 32, 91, 11, 120, 209, 114, 220, 77, 67, 64, 236, 17, 236, 17, 236, 17 });
+    Byte_Slice _data = SLICE_VAL(Byte_Slice, { 182, 230, 247, 119, 50, 7, 118, 134, 87, 38, 82, 6, 134, 151, 50, 7 });
+    qr__generate_error_correction_codes(1, QR_Error_Correction_M, _data, &ecs);
+    fmt_printlnc("ecs: ");
+    slice_iter_v(ecs, e, i, {
+      fmt_printflnc("%d", e);
+    });
+
+    return 0;
+  }
 
   Image image;
-  qr_code_generate_image(data, QR_Error_Correction_L, &image, context.allocator);
+  qr_code_generate_image(data, QR_Error_Correction_M, &image, context.allocator);
 
   Fd image_file = unwrap_err(file_open(LIT("image.png"), FP_Create | FP_Write | FP_Truncate));
 
