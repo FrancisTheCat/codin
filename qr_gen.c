@@ -1,6 +1,10 @@
 #include "codin.h"
 #include "spall.h"
 #include "image.h"
+#include "time_.h"
+#include "os.h"
+#include "strings.h"
+#include "fmt.h"
 
 #define SPALL_PROFILING
 
@@ -77,7 +81,7 @@ i32 main() {
   spall_end();
 
   spall_begin("save_png");
-  png_save_writer(&stdout, &image);
+  png_save_writer(&std_out, &image);
   spall_end();
 
 #ifdef SPALL_PROFILING

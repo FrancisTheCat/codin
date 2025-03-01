@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 #define X_UNION_FIELDS(f) f __##f;

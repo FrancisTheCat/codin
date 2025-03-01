@@ -1,5 +1,8 @@
 #pragma once
+
 #include "codin.h"
+#include "strings.h"
+#include "fmt.h"
 
 // #include "zlib.h"
 #include "deflate.h"
@@ -13,11 +16,11 @@ typedef enum {
 struct IHDR {
   u32 width;
   u32 height;
-  u8 bit_depth;
-  u8 color_type;
-  u8 compression_method;
-  u8 filter_method;
-  u8 interlace_method;
+  u8  bit_depth;
+  u8  color_type;
+  u8  compression_method;
+  u8  filter_method;
+  u8  interlace_method;
 } __attribute__ ((packed));
 
 // internal rawptr z_alloc_proc(rawptr allocator, u32 items, u32 size) {
@@ -36,8 +39,8 @@ internal isize abs_isize(isize x) {
 
 // a = left, b = above, c = upper left
 internal u8 paeth_predictor (u8 a, u8 b, u8 c) {
-  isize p = a + b - c; // initial estimate
-  isize pa = abs_isize(p - a); // distances to a, b, c
+  isize p  = a + b - c;
+  isize pa = abs_isize(p - a);
   isize pb = abs_isize(p - b);
   isize pc = abs_isize(p - c);
   if (pa <= pb && pa <= pc) {
@@ -215,7 +218,7 @@ internal u32 update_crc(u32 crc, Reader const *reader) {
 
 /* Return the CRC of the bytes buf[0..len-1]. */
 internal u32 crc(Reader const *reader) {
- return update_crc(0xffffffffL, reader) ^ 0xffffffffL;
+ return update_crc(~0, reader) ^ ~0;
 }
 
 typedef enum {

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 #define LOG_LEVELS(X)                                                          \
@@ -22,7 +24,7 @@ typedef struct {
   Logger    logger;
 } Context;
 
-internal thread_local Context context;
+extern thread_local Context context;
 
 #define CONTEXT_PUSH                                                           \
   {                                                                            \

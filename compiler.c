@@ -1,4 +1,10 @@
 #include "codin.h"
+#include "strings.h"
+#include "fmt.h"
+#include "os.h"
+#include "allocators.h"
+#include "unicode.h"
+#include "log.h"
 
 #include "spall.h"
 
@@ -3600,32 +3606,6 @@ internal void code_gen_file(Ast_File file, Allocator allocator) {
   fmt_printfc("%S", builder_to_string(ctx->b));
 }
 
-internal Allocator_Result printing_allocator_proc(
-  rawptr               data,
-  Allocator_Mode       mode,
-  isize                size,
-  isize                align,
-  rawptr               old_memory,
-  Source_Code_Location location
-) {
-  if (mode == AM_Alloc) {
-    CONTEXT_GUARD({
-      static byte backing[256];
-      Arena_Allocator a = {0};
-      context.temp_allocator = arena_allocator_init(&a, transmute(Byte_Slice, c_array_to_slice(backing)));
-      fmt_printfln(LIT("Allocation: %M\t at %L"), size, location);
-    });
-  }
-  return growing_arena_allocator_proc(
-    data,
-    mode,
-    size,
-    align,
-    old_memory,
-    location
-  );
-}
-
 b8 spall_write_callback(SpallProfile *self, const void *data, isize length) {
   return file_write((Fd)self->data, (Byte_Slice) {.data = (byte *)data, .len = length}).err == OSE_None;
 }
@@ -3755,7 +3735,7 @@ i32 main() {
 
   if (os_args.len < 2) {
     fmt_eprintflnc("Usage: %S <file> <flags>", os_args.data[0]);
-    os_exit(1);
+    process_exit(1);
   }
 
   slice_iter_v(slice_start(os_args, 1), path, _i, {
@@ -3764,7 +3744,7 @@ i32 main() {
       fmt_eprintflnc("Failed to open source file '%S'", path);
       continue;
     });
-    Byte_Slice file_data = or_do_err(map_entire_file(file), _err, {
+    Byte_Slice file_data = or_do_err(read_entire_file_fd(file, context.temp_allocator), _err, {
       fmt_eprintflnc("Failed to read file '%S'", path);
       continue;
     });

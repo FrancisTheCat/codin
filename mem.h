@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 #define ALLOCATOR_ERRORS(X)                                                    \

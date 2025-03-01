@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 typedef Maybe_Int (*Writer_Proc)(rawptr, Byte_Slice);

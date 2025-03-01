@@ -1,5 +1,7 @@
 #include "codin.h"
-#include "image.h"
+
+#include "io.h"
+#include "log.h"
 
 #define BASE 65521
 

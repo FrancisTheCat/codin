@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 // SPDX-FileCopyrightText: © 2023 Phillip Trudeau-Tavara <pmttavara@protonmail.com>

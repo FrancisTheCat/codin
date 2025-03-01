@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 #define enum_to_string(T, value)                                               \
