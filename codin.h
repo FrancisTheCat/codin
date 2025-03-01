@@ -410,23 +410,23 @@ internal void __runtime_cleanup() { __thread_cleanup(); }
 i32 main();
 
 i32 __codin_main(i32 arg_c, cstring *arg_v) {
-    __runtime_init();
-    slice_init(&os_args, arg_c, context.allocator);
-    slice_iter(os_args, arg, i, {
-      *arg = cstring_to_string(arg_v[i]);
-    });
-    for (cstring *e = &arg_v[arg_c + 1]; *e; e += 1) {
-      os_env.len += 1;
-    }
-    slice_init(&os_env, os_env.len, context.allocator);
-    slice_iter(os_env, e, i, {
-      *e = cstring_to_string(arg_v[arg_c + 1 + i]);
-    });
+  __runtime_init();
+  slice_init(&os_args, arg_c, context.allocator);
+  slice_iter(os_args, arg, i, {
+    *arg = cstring_to_string(arg_v[i]);
+  });
+  for (cstring *e = &arg_v[arg_c + 1]; *e; e += 1) {
+    os_env.len += 1;
+  }
+  slice_init(&os_env, os_env.len, context.allocator);
+  slice_iter(os_env, e, i, {
+    *e = cstring_to_string(arg_v[arg_c + 1 + i]);
+  });
 
-    CONTEXT_GUARD({
-      main();
-    })
-    __runtime_cleanup();
+  CONTEXT_GUARD({
+    main();
+  })
+  __runtime_cleanup();
 }
 
 static const double tiny = 1.0e-300;

@@ -3743,46 +3743,6 @@ internal isize format_type_va(Writer const *w, va_list va_args) {
 }
 
 i32 main() {
-  qr__generate_lut();
-  // Bit_Array  ba      = bit_array_make(0, 8, context.allocator);
-  Byte_Slice data    = string_to_bytes(LIT("Papa ist ein alter Esel"));
-  // data               = unwrap_err(read_entire_file_path(LIT("amd64.S"), context.temp_allocator));
-  // isize      version = qr__required_version(data.len, QR_Error_Correction_L);
-  // qr__generate_data_bits(version, QR_Error_Correction_L, data, &ba);
-  
-  // if (false) {
-  //   Byte_Buffer ecs = byte_buffer_make(0, 8, context.allocator);
-  //   // Byte_Slice _data = SLICE_VAL(Byte_Slice, { 32, 91, 11, 120, 209, 114, 220, 77, 67, 64, 236, 17, 236, 17, 236, 17 });
-  //   Byte_Slice _data = SLICE_VAL(Byte_Slice, { 182, 230, 247, 119, 50, 7, 118, 134, 87, 38, 82, 6, 134, 151, 50, 7 });
-  //   qr__generate_error_correction_codes(
-  //     &(QR_Error_Correction_Info) {
-  //       .data_words                  = 16,
-  //       .error_words_per_block       = 18,
-  //       .data_words_per_block_group1 = 16,
-  //       .blocks_group1               = 1,
-  //     },
-  //     _data,
-  //     &ecs
-  //   );
-  //   fmt_printlnc("ecs: ");
-  //   slice_iter_v(ecs, e, i, {
-  //     fmt_printflnc("%d", e);
-  //   });
-
-  //   return 0;
-  // }
-
-  Image image;
-  b8 ok = qr_code_generate_image(data, QR_Error_Correction_L, &image, context.allocator);
-  assert(ok);
-
-  Fd image_file = unwrap_err(file_open(LIT("image.png"), FP_Create | FP_Write | FP_Truncate));
-
-  Writer image_writer = writer_from_handle(image_file);
-  png_save_writer(&image_writer, &image);
-
-  return 0;
-
   register_user_formatter('T', format_type_va);
 
 #ifdef SPALL_PROFILING
