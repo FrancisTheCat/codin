@@ -460,7 +460,7 @@ internal b8 png_save_writer(Writer const *writer, Image const *image) {
     return false;
   }
 
-   struct IHDR ihdr = {0};
+  struct IHDR ihdr = {0};
 
   isize bpp = image->components * (image->pixel_type == PT_u8 ? 1 : 2);
   if (image->pixels.len != bpp * image->width * image->height) {

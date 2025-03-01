@@ -1,9 +1,6 @@
 #include "codin.h"
 
-#include "image.h"
 #include "spall.h"
-
-#include "qr.h"
 
 #define SPALL_PROFILING
 
