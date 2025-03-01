@@ -3745,7 +3745,7 @@ internal isize format_type_va(Writer const *w, va_list va_args) {
 i32 main() {
   qr__generate_lut();
   // Bit_Array  ba      = bit_array_make(0, 8, context.allocator);
-  Byte_Slice data    = string_to_bytes(LIT("Hello World"));
+  Byte_Slice data    = string_to_bytes(LIT("Papa ist ein alter Esel"));
   // data               = unwrap_err(read_entire_file_path(LIT("amd64.S"), context.temp_allocator));
   // isize      version = qr__required_version(data.len, QR_Error_Correction_L);
   // qr__generate_data_bits(version, QR_Error_Correction_L, data, &ba);

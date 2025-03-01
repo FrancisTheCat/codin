@@ -11,7 +11,7 @@ internal void bit_array_init(Bit_Array *ba, isize len, isize cap, Allocator allo
 }
 
 internal Bit_Array bit_array_make(isize len, isize cap, Allocator allocator) {
-  Bit_Array b;
+  Bit_Array b = {0};
   bit_array_init(&b, len, cap, allocator);
   return b;
 }

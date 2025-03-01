@@ -329,14 +329,19 @@ internal void qr__generate_error_correction_codes(
     data_offset += info->data_words_per_block_group1;
   }
   
-  m = alloca_slice(Galois_Polynomial, info->data_words_per_block_group2 + 1);
+  m = alloca_slice(Galois_Polynomial, info->data_words_per_block_group2 + info->error_words_per_block);
 
   for_range(i, 0, info->blocks_group2) {
     mem_zero(m.data, info->error_words_per_block);
     mem_copy(m.data + info->error_words_per_block, &IDX(data, data_offset), info->data_words_per_block_group2);
     slice_reverse(slice_start(m, info->error_words_per_block));
 
+    slice_iter(m, b, i, {
+      *b = qr__bit_order_swap_lut[*b];
+    });
+
     qr__modulo_galois_polynomial(m, g);
+
     out = slice_end(m, info->error_words_per_block);
     slice_reverse(out);
 
@@ -375,6 +380,8 @@ internal void qr__generate_data_bits(
   Byte_Slice          data,
   Bit_Array          *ba
 ) {
+  assert(ba->len == 0);
+
   bit_array_append_n(ba, QR_BYTE_ENCODING, 4);
   bit_array_append_n(ba, data.len, qr__character_count_bits(version));
 
@@ -501,7 +508,7 @@ internal u64 qr__version_info_strings[41] = {
  [40] = 0b101000110001101001,
 };
 
-internal void qr__place_fixed_patterns(isize version, isize level, isize mask, Image const *image) {
+internal void qr__place_fixed_patterns(Image const *image, isize version, QR_Error_Correction level) {
   // Finder Patterns
   #define QR__FINDER_PIXEL(x, y, v)                                                        \
     IDX(image->pixels, x +                     y                      * image->width) = v; \
@@ -578,7 +585,14 @@ internal void qr__place_fixed_patterns(isize version, isize level, isize mask, I
     IDX(image->pixels, i + image->width * 6) = -(i & 1);
     IDX(image->pixels, i * image->width + 6) = -(i & 1);
   }
+}
 
+internal void qr__place_format_and_version_info(
+  Image              *image,
+  isize               version,
+  QR_Error_Correction level,
+  isize               mask
+) {
   // Format Information
   IDX(image->pixels, (image->width - 8) * image->width + 8) = 0;
 
@@ -617,8 +631,30 @@ internal void qr__place_fixed_patterns(isize version, isize level, isize mask, I
   for_range(i, 0, 18) {
     b8 bit = (version_info_string >> i) & 1;
     IDX(image->pixels, i / 3 + image->width * (i % 3 + image->height - 11)) = bit - 1;
-    IDX(image->pixels, i % 3 + image->width - 11 + image->width * (i / 3)) = bit - 1;
+    IDX(image->pixels, i % 3 + image->width - 11 + image->width * (i / 3))  = bit - 1;
   }
+}
+
+internal b8 qr__mask(isize mask, isize row, isize column) {
+  switch (mask) {
+  CASE 0:
+    return !((column + row) & 1);
+  CASE 1:
+    return !(row & 1);
+  CASE 2:
+    return column % 3 == 0;
+  CASE 3:
+    return (column + row) % 3 == 0;
+  CASE 4:
+    return !((column / 2 + row / 3) & 1);
+  CASE 5:
+    return ((row * column) % 2) + ((row * column) % 3) == 0;
+  CASE 6:
+    return (((row * column) % 2) + ((row * column) % 3)) % 2 == 0;
+  CASE 7:
+    return (((row + column) % 2) + ((row * column) % 3)) % 2 == 0;
+  }
+  return 0;
 }
 
 internal void qr__place_data_bit(
@@ -660,30 +696,7 @@ internal void qr__place_data_bit(
   isize row    = *cursor_y;
   isize column = *cursor_x - *left;
 
-  // log_infof(LIT("row: %d column: %d, value: %d, mask: %d"), row, column, value, column % 3 == 1);
-
-  switch (mask) {
-  CASE 0:
-    value ^= (column + row) & 1;
-  CASE 1:
-    value ^= row & 1;
-  CASE 2:
-    value ^= column % 3 == 0;
-  CASE 3:
-    value ^= (column + row) % 3 == 0;
-  CASE 4:
-    value ^= (column / 2 + row / 3) & 1;
-  CASE 5:
-    value ^= ((row * column) % 2) + ((row * column) % 3) == 0;
-  CASE 6:
-    value ^= (((row * column) % 2) + ((row * column) % 3)) % 2 == 0;
-  CASE 7:
-    value ^= (((row + column) % 2) + ((row * column) % 3)) % 2 == 0;
-  }
-
-  // log_infof(LIT("(%d, %d) -> %d"), row, column, value);
-
-  IDX(image->pixels, column + row * image->width) = -value;
+  IDX(image->pixels, column + row * image->width) = -(value ^ qr__mask(mask, row, column));
 }
 
 internal u8 qr__remainder_bits[] = {
@@ -730,9 +743,9 @@ internal u8 qr__remainder_bits[] = {
 };
 
 internal void qr__place_data_bits(
+  Image                          *image,
   QR_Error_Correction_Info const *info,
   isize                           version,
-  Image                          *image,
   Byte_Slice                      data,
   Byte_Slice                      ecs,
   isize                           mask
@@ -776,22 +789,144 @@ internal void qr__place_data_bits(
 
   isize remainder_bits = qr__remainder_bits[version];
   for_range(i, 0, remainder_bits) {
-    qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, 0, mask);
+    qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, 1, mask);
+  }
+}
+
+internal isize qr__evaluate_penalty_consecutive(Image const *image) {
+  isize penalty = 0;
+
+  for_range(row, 0, image->height) {
+    isize run = 0;
+    u8    run_value = 1;
+    for_range(col, 0, image->width) {
+      isize value = IDX(image->pixels, col + row * image->width);
+      if (value == run_value) {
+        run += 1;
+      } else {
+        if (run >= 5) {
+          penalty += 3 + run - 5;
+        }
+        run = 1;
+        run_value = value;
+      }
+    }
   }
 
-  // slice_iter_v(data, d, i, {
-  //   for_range(j, 0, 8) {
-  //     b8 b = d & (1 << j);
-  //     qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
-  //   }
-  // });
+  for_range(col, 0, image->width) {
+    isize run = 0;
+    u8    run_value = 1;
+    for_range(row, 0, image->height) {
+      isize value = IDX(image->pixels, col + row * image->width);
+      if (value == run_value) {
+        run += 1;
+      } else {
+        if (run >= 5) {
+          penalty += 3 + run - 5;
+        }
+        run = 1;
+        run_value = value;
+      }
+    }
+  }
 
-  // slice_iter_v(ecs, d, i, {
-  //   for_range(j, 0, 8) {
-  //     b8 b = d & (1 << (7 - j));
-  //     qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
-  //   }
-  // });
+  return penalty;
+}
+
+internal isize qr__evaluate_penalty_squares(Image const *image) {
+  isize penalty = 0;
+
+  for_range(row, 0, image->height - 1) {
+    for_range(col, 0, image->width - 1) {
+      isize value = IDX(image->pixels, col + row * image->width);
+
+      if (value != IDX(image->pixels, col + 1 +  row      * image->width)) {
+        continue;
+      }
+      if (value != IDX(image->pixels, col     + (row + 1) * image->width)) {
+        continue;
+      }
+      if (value != IDX(image->pixels, col + 1 + (row + 1) * image->width)) {
+        continue;
+      }
+
+      penalty += 3;
+    }
+  }
+
+  return penalty;
+}
+
+internal isize qr__evaluate_penalty_weird(Image const *image) {
+  isize penalty = 0;
+
+  u16 pattern_1 = 0b01000101111;
+  u16 pattern_2 = 0b11110100010;
+
+  for_range(row, 0, image->height) {
+    u16 window = 0;
+    for_range(col, 0, image->width) {
+      window <<= 1;
+      isize value = IDX(image->pixels, col + row * image->width);
+      window |= value & 1;
+      window &= 0b11111111111;
+      if (window == pattern_1 || window == pattern_2) {
+        penalty += 40;
+      }
+    }
+  }
+
+  for_range(col, 0, image->width) {
+    u16 window = 0;
+    for_range(row, 0, image->height) {
+      window <<= 1;
+      isize value = IDX(image->pixels, col + row * image->width);
+      window |= value & 1;
+      window &= 0b11111111111;
+      if (window == pattern_1 || window == pattern_2) {
+        penalty += 40;
+      }
+    }
+  }
+
+  return penalty;
+}
+
+internal isize qr__evaluate_penalty_balance(Image const *image) {
+  isize n_dark = 0;
+  slice_iter_v(image->pixels, p, i, {
+    if (!p) {
+      n_dark += 1;
+    }
+  });
+
+  isize portion_dark  = (isize)((f64)n_dark / (f64)image->pixels.len);
+  isize prev_multiple = (portion_dark / 5) * 5;
+  isize next_multiple = (portion_dark / 5) * 5 + 5;
+
+  prev_multiple -= 50;
+  next_multiple -= 50;
+
+  if (prev_multiple < 0) { prev_multiple = -prev_multiple; }
+  if (next_multiple < 0) { next_multiple = -next_multiple; }
+
+  prev_multiple /= 5;
+  next_multiple /= 5;
+
+  return min(prev_multiple, next_multiple) * 10;
+}
+
+internal isize qr__evaluate_penalty(Image const *image) {
+  return
+    qr__evaluate_penalty_consecutive(image) +
+    qr__evaluate_penalty_squares    (image) +
+    qr__evaluate_penalty_weird      (image) +
+    qr__evaluate_penalty_balance    (image);
+    
+}
+
+internal isize qr__change_mask(Image const *image, isize old_mask, isize new_mask) {
+
 }
 
 internal b8 qr_code_generate_image(
@@ -810,8 +945,6 @@ internal b8 qr_code_generate_image(
   }
   isize size = (version - 1) * 4 + 21;
 
-  isize mask = 2;
-
   image->components = 1;
   image->width      = size;
   image->height     = size;
@@ -819,7 +952,7 @@ internal b8 qr_code_generate_image(
   image->pixels     = slice_make(Byte_Slice, size * size, allocator);
   slice_iter(image->pixels, p, _i, *p = 127; );
 
-  qr__place_fixed_patterns(version, level, mask, image);
+  qr__place_fixed_patterns(image, version, level);
 
   Bit_Array ba = bit_array_make(0, data.len * 8 + 32, allocator);
   qr__generate_data_bits(version, level, data, &ba);
@@ -839,7 +972,25 @@ internal b8 qr_code_generate_image(
   Byte_Buffer ecs = byte_buffer_make(0, data.len, allocator);
   qr__generate_error_correction_codes(eci, buffer_to_bytes(raw_data), &ecs);
 
-  qr__place_data_bits(eci, version, image, buffer_to_bytes(raw_data), buffer_to_bytes(ecs), mask);
+  qr__place_format_and_version_info(image, version, level, 6);
+  qr__place_data_bits(image, eci, version, buffer_to_bytes(raw_data), buffer_to_bytes(ecs), 6);
+
+  isize penalty = qr__evaluate_penalty(image);
+ 
+  // isize best_mask  = 0;
+  // isize best_score = qr__evaluate_penalty(image);
+
+  // for_range(mask, 0, 7) {
+  //   qr__change_mask(image, version, mask, mask + 1);
+  //   qr__place_format_and_version_info(image, version, level, mask);
+  //   isize score = qr__evaluate_penalty(image);
+  //   if (score <= best_score) {
+  //     best_mask  = mask;
+  //     best_score = score;
+  //   }
+  // }
+
+  // qr__change_mask(image, version, 7, best_mask);
 
   fmt_printflnc(
     "data_words: %d\n"
@@ -847,13 +998,16 @@ internal b8 qr_code_generate_image(
     "blocks_group1: %d\n"
     "data_words_per_block_group1: %d\n"
     "blocks_group2: %d\n"
-    "data_words_per_block_group2: %d\n",
+    "data_words_per_block_group2: %d\n"
+    "\n"
+    "penalty: %d\n",
     eci->data_words,
     eci->error_words_per_block,
     eci->blocks_group1,
     eci->data_words_per_block_group1,
     eci->blocks_group2,
-    eci->data_words_per_block_group2
+    eci->data_words_per_block_group2,
+    penalty
   );
 
   // vector_iter_v(raw_data, v, i, {
