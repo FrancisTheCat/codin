@@ -97,6 +97,8 @@ extern b8 file_exists(String path);
 extern OS_Result_Dir directory_read_fd(Fd fd, Allocator allocator);
 [[nodiscard]]
 extern OS_Result_Dir directory_read_path(String path, Allocator allocator);
+[[nodiscard]]
+extern OS_Result_String directory_get_current(Allocator allocator);
 
 extern void directory_delete(Directory dir, Allocator allocator);
 

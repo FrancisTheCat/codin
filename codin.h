@@ -262,3 +262,4 @@ i32 __codin_main(i32 arg_c, cstring *arg_v);
 
 // should be `math.h` or smth
 f64 sqrt_f64(f64 x);
+f32 sqrt_f32(f32 x);

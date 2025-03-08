@@ -95,8 +95,8 @@ Color3 per_pixel(Vec2 uv) {
 }
 
 f32 hash12(Vec2 p) {
-	Vec3 p3 = vec3_fract(vec3_scale(vec3(p.x, p.y, p.x), .1031));
-	f32 dot = vec3_dot(p3, vec3_add(vec3(p3.y, p3.z, p3.x), vec3(33.33, 33.33, 33.33)));
+  Vec3 p3 = vec3_fract(vec3_scale(vec3(p.x, p.y, p.x), .1031));
+  f32 dot = vec3_dot(p3, vec3_add(vec3(p3.y, p3.z, p3.x), vec3(33.33, 33.33, 33.33)));
   return fract_f32((p3.x + p3.y + dot * 2) * (p3.z + dot));
 }
 

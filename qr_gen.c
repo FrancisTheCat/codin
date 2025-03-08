@@ -1,10 +1,11 @@
 #include "codin.h"
-#include "spall.h"
-#include "image.h"
-#include "time_.h"
-#include "os.h"
-#include "strings.h"
+
 #include "fmt.h"
+#include "image.h"
+#include "os.h"
+#include "spall.h"
+#include "strings.h"
+#include "time_.h"
 
 #define SPALL_PROFILING
 
@@ -38,12 +39,12 @@ i32 main() {
 #ifdef SPALL_PROFILING
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
   spall_ctx   = spall_init_callbacks(0.001, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
-	Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 4, context.temp_allocator);
-	spall_buffer = (SpallBuffer) {
-		.length = spall_buffer_backing.len,
-		.data   = spall_buffer_backing.data,
-	};
-	spall_buffer_init(&spall_ctx, &spall_buffer);
+  Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 4, context.temp_allocator);
+  spall_buffer = (SpallBuffer) {
+    .length = spall_buffer_backing.len,
+    .data   = spall_buffer_backing.data,
+  };
+  spall_buffer_init(&spall_ctx, &spall_buffer);
 #endif
 
   if (os_args.len < 2) {
@@ -58,7 +59,7 @@ i32 main() {
   if (os_args.len == 2) {
     data = unwrap_err_msg(read_entire_file_path(LIT("msg.txt"), context.allocator), "Failed to read input file");
   } else {
-    if (string_equal(IDX(os_args, 1), LIT("-v"))) {
+    if (!string_equal(IDX(os_args, 1), LIT("-v"))) {
       fmt_eprintlnc("Usage:");
       fmt_eprintlnc("\tFile:  qr_gen 'file' > qr_code.png");
       fmt_eprintlnc("\tValue: qr_gen -v 'value' > qr_code.png");
@@ -85,7 +86,7 @@ i32 main() {
   spall_end();
 
 #ifdef SPALL_PROFILING
-	spall_buffer_quit(&spall_ctx, &spall_buffer);
-	spall_quit(&spall_ctx);
+  spall_buffer_quit(&spall_ctx, &spall_buffer);
+  spall_quit(&spall_ctx);
 #endif
 }

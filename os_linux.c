@@ -1,4 +1,5 @@
 #include "codin.h"
+
 #include "os.h"
 #include "runtime_linux.h"
 #include "strings.h"
@@ -6,43 +7,6 @@
 #define FD_STDIN  0
 #define FD_STDOUT 1
 #define FD_STDERR 2
-
-#define EPERM    1	/* Operation not permitted */
-#define ENOENT   2	/* No such file or directory */
-#define ESRCH    3	/* No such process */
-#define EINTR    4	/* Interrupted system call */
-#define EIO      5	/* I/O error */
-#define ENXIO    6	/* No such device or address */
-#define E2BIG    7	/* Argument list too long */
-#define ENOEXEC  8	/* Exec format error */
-#define EBADF    9	/* Bad file number */
-#define ECHILD  10	/* No child processes */
-#define EAGAIN  11	/* Try again */
-#define ENOMEM  12	/* Out of memory */
-#define EACCES  13	/* Permission denied */
-#define EFAULT  14	/* Bad address */
-#define ENOTBLK 15	/* Block device required */
-#define EBUSY   16	/* Device or resource busy */
-#define EEXIST  17	/* File exists */
-#define EXDEV   18	/* Cross-device link */
-#define ENODEV  19	/* No such device */
-#define ENOTDIR 20	/* Not a directory */
-#define EISDIR  21	/* Is a directory */
-#define EINVAL  22	/* Invalid argument */
-#define ENFILE  23	/* File table overflow */
-#define EMFILE  24	/* Too many open files */
-#define ENOTTY  25	/* Not a typewriter */
-#define ETXTBSY 26	/* Text file busy */
-#define EFBIG   27	/* File too large */
-#define ENOSPC  28	/* No space left on device */
-#define ESPIPE  29	/* Illegal seek */
-#define EROFS   30	/* Read-only file system */
-#define EMLINK  31	/* Too many links */
-#define EPIPE   32	/* Broken pipe */
-#define EDOM    33	/* Math argument out of domain of func */
-#define ERANGE  34	/* Math result not representable */
-
-#define	EBADFD  77	/* File descriptor in bad state */
 
 #define O_ACCMODE  0003
 #define O_RDONLY   00
@@ -58,82 +22,32 @@
 #define O_SYNC     04010000
 #define O_FSYNC    O_SYNC
 #define O_ASYNC    020000
-#define O_CLOEXEC	 02000000
+#define O_CLOEXEC  02000000
 
 #define S_IFDIR 0040000
 
 #define AT_REMOVEDIR 0x200
 
 struct stat {
-    usize st_dev;
-    usize st_ino;
-    usize st_nlink;
-    u32   st_mode;
-    u32   st_uid;
-    u32   st_gid;
-    i32   __pad0;
-    usize st_rdev;
-    isize st_size;
-    isize st_blksize;
-    isize st_blocks;
-    isize st_atime;
-    usize st_atimensec;
-    isize st_mtime;
-    usize st_mtimensec;
-    isize st_ctime;
-    usize st_ctimensec;
-    isize __reserved[3];
+  usize st_dev;
+  usize st_ino;
+  usize st_nlink;
+  u32   st_mode;
+  u32   st_uid;
+  u32   st_gid;
+  i32   __pad0;
+  usize st_rdev;
+  isize st_size;
+  isize st_blksize;
+  isize st_blocks;
+  isize st_atime;
+  usize st_atimensec;
+  isize st_mtime;
+  usize st_mtimensec;
+  isize st_ctime;
+  usize st_ctimensec;
+  isize __reserved[3];
 };
-
-#define syscall_or_return(...)                                                 \
-  ({                                                                           \
-    isize ret = syscall(__VA_ARGS__);                                          \
-    if (ret < 0) {                                                             \
-      result.err = __errno_unwrap(ret);                                        \
-      if (result.err) {                                                        \
-        return result;                                                         \
-      }                                                                        \
-    }                                                                          \
-    ret;                                                                       \
-  })
-
-#define syscall_or_return_err(...)                                             \
-  ({                                                                           \
-    isize ret = syscall(__VA_ARGS__);                                          \
-    if (ret < 0) {                                                             \
-      OS_Error err = __errno_unwrap(ret);                                      \
-      if (err) {                                                               \
-        return err;                                                            \
-      }                                                                        \
-    }                                                                          \
-    ret;                                                                       \
-  })
-
-extern OS_Error __errno_unwrap(i32 errno) {
-  if (errno < 0) {
-    errno = -errno;
-  }
-  switch (errno) {
-  case 0:
-    return OSE_None;
-  case EISDIR:
-    return OSE_Is_Dir;
-  case EPERM:
-  case EACCES:
-    return OSE_No_Perm;
-  case ECHILD:
-    return OSE_No_Child;
-  case EINVAL:
-    return OSE_Bad_Arguments;
-  case EBADFD:
-    return OSE_Bad_Fd;
-  case ENOENT:
-    return OSE_No_File;
-  case EAGAIN:
-    return OSE_Block;
-  }
-  return OSE_Other;
-}
 
 extern OS_Error file_close(Fd fd) {
   syscall_or_return_err(SYS_close, fd);
@@ -355,7 +269,7 @@ extern b8 file_exists(String path) {
   return syscall(SYS_stat, string_to_cstring_clone(path, context.temp_allocator), &stat) == 0;
 }
 
-extern OS_Result_String get_current_directory(Allocator allocator) {
+extern OS_Result_String directory_get_current(Allocator allocator) {
   OS_Result_String result = {0};
   Byte_Slice buf = slice_make(Byte_Slice, 4096, allocator);
   isize status = syscall(SYS_getcwd, buf.data, buf.len);

@@ -606,14 +606,14 @@ extern isize fmt_fprintf(Fd f, String format, ...) {
   return ret;
 }
 
-extern isize fmt_location_w(
+internal isize fmt_location_w(
   const Writer *w,
   Source_Code_Location const *loc
 ) {
   return fmt_wprintf(w, LIT("%S:%S(%d)"), loc->file, loc->proc, loc->line);
 }
 
-extern isize fmt_file_size_w(const Writer *w, isize size) {
+internal isize fmt_file_size_w(const Writer *w, isize size) {
   String file_size_prefixes[] = {LIT("b"),  LIT("Kb"), LIT("Mb"),
                                  LIT("Gb"), LIT("Tb"), LIT("Pb")};
   isize i = 0;
@@ -632,7 +632,7 @@ extern isize fmt_file_size_w(const Writer *w, isize size) {
   return fmt_wprintf(w, LIT("%.1f%S"), size_f / size_s, file_size_prefixes[i]);
 }
 
-extern isize fmt_time_w(const Writer *w, Timestamp time) {
+internal isize fmt_time_w(const Writer *w, Timestamp time) {
   Time_Value tv;
   time_get_value(time, &tv);
   return fmt_wprintf(w, LIT("%02d.%02d.%02d %02d:%02d:%02d"),
@@ -644,9 +644,6 @@ extern isize fmt_time_w(const Writer *w, Timestamp time) {
     (isize)tv.second
   );
 }
-
-#define fmt_debug(value, verb)                                                 \
-  fmt_eprintf(LIT(#value ": %" verb "\n"), value);                             \
 
 // extern void tracking_allocator_fmt_results_w(
 //   const Writer *w,

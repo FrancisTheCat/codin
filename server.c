@@ -1,5 +1,15 @@
 #include "codin.h"
 
+#include "allocators.h"
+#include "fmt.h"
+#include "io.h"
+#include "log.h"
+#include "mem.h"
+#include "net.h"
+#include "os.h"
+#include "strings.h"
+#include "thread.h"
+
 String content_dir;
 Byte_Slice response_404;
 Byte_Slice response_500;
@@ -9,7 +19,7 @@ void server_thread_proc(rawptr data) {
   String request       = alloca_slice(String, 1024);
   Reader socket_reader = reader_from_socket(s);
   Writer socket_writer = writer_from_socket(s);
-  isize  n             = or_goto(read_bytes(&socket_reader, slice_to_bytes(request)), error_500);
+  request.len          = or_goto(read_bytes(&socket_reader, slice_to_bytes(request)), error_500);
 
   if (request.len <= LIT("GET ").len) {
     goto error_500;
@@ -34,7 +44,7 @@ void server_thread_proc(rawptr data) {
     File_Info info;
     file_stat(file, &info);
     if (info.is_dir) {
-      if (*IDX(requested_file, requested_file.len - 1) == '/') {
+      if (IDX(requested_file, requested_file.len - 1) == '/') {
         requested_file = slice_end(requested_file, requested_file.len - 1);
       }
       requested_file = strings_concatenate(requested_file, LIT("/index.html"), context.temp_allocator);
@@ -42,7 +52,7 @@ void server_thread_proc(rawptr data) {
       file_close(file);
       if_let_err(file_open(requested_file, FP_Read), index_file, {
         file = index_file;
-      }, err, {
+      }, _err, {
         goto error_404;
       });
     }
@@ -56,10 +66,10 @@ void server_thread_proc(rawptr data) {
       file_response.len
     );
     // log_infof(LIT("'%S'"), header);
-    isize n1 = or_goto(write_string(&socket_writer, header), end);
-    isize n2 = or_else(write_bytes(&socket_writer, file_response), -1);
+    isize _n1 = or_goto(write_string(&socket_writer, header), end);
+    isize _n2 = or_else(write_bytes(&socket_writer, file_response), -1);
     // log_infof(LIT("Bytes written: %d, %d"), n1, n2);
-  }, err, {
+  }, _err, {
     goto error_404;
   });
 
@@ -84,7 +94,7 @@ void command_line_thread(rawptr data) {
   b8 volatile *should_exit = data;
 
   loop {
-    if_let(read_bytes(&stdin, buf), n, {
+    if_let(read_bytes(&std_in, buf), n, {
       String input;
       input.data = (char*)buf.data;
       input.len  = n - 1; // remove \n
@@ -111,7 +121,7 @@ int main() {
   response_500 = string_to_bytes(LIT("HTTP/1.0 200 OK\r\nContent-Length: 9\r\n\r\nError 500"));
 
   if (os_args.len > 1) {
-    content_dir = *IDX(os_args, 1);
+    content_dir = IDX(os_args, 1);
   }
 
   if_let_err(file_open(content_dir, FP_Read), dir, {
@@ -124,7 +134,7 @@ int main() {
       log_errorf(LIT("Invalid content dir: '%S' (Not a directory)"), content_dir);
       return 1;
     }
-  }, err, {
+  }, _err, {
     log_errorf(LIT("Invalid content dir: '%S'"), content_dir);
     return 1;
   });
@@ -132,15 +142,15 @@ int main() {
   isize port = 25566;
 
   if (os_args.len > 2) {
-    if_let(parse_isize(*IDX(os_args, 2)), custom_port, {
+    if_let(parse_isize(IDX(os_args, 2)), custom_port, {
       if (port > 0 && (port < 1 << 16)) {
         port = custom_port;
       } else {
-        log_error(strings_concatenate(LIT("Invalid port: %S"), *IDX(os_args, 2), context.temp_allocator));
+        log_error(strings_concatenate(LIT("Invalid port: %S"), IDX(os_args, 2), context.temp_allocator));
         return 1;
       }
     }, {
-      log_error(strings_concatenate(LIT("Invalid port: %S"), *IDX(os_args, 2), context.temp_allocator));
+      log_error(strings_concatenate(LIT("Invalid port: %S"), IDX(os_args, 2), context.temp_allocator));
       return 1;
     });
   }
@@ -148,23 +158,22 @@ int main() {
   log_infof(LIT("Starting Server on port %d with content dir '%S'"), port, content_dir);
 
   volatile b8 should_exit = false;
-  thread_create(command_line_thread, (rawptr)&should_exit);
+  thread_create(command_line_thread, (rawptr)&should_exit, 8 * Megabyte, 8 * Megabyte);
 
   Socket s = unwrap_err_msg(socket_create(port, false), "failed to create socket");
 
   while (!should_exit) {
     if_let_err(socket_accept(s), connection, {
-      thread_create(server_thread_proc, (rawptr)connection.socket);
+      thread_create(server_thread_proc, (rawptr)connection.socket, 8 * Megabyte, 8 * Megabyte);
       // server_thread_proc((rawptr)connection.socket);
     }, err, {
       if (err == NE_Would_Block) {
         socket_poll(s, Poll_Event_Read, Millisecond * 50);
       }
-      log_error(enum_to_string(Net_Error, err));
+      // log_error(enum_to_string(Net_Error, err));
     });
   }
 
   socket_close(s);
-  tracking_allocator_fmt_results_w(&stdout, &track);
-  os_exit(0);
+  process_exit(0);
 }

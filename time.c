@@ -82,108 +82,108 @@ Days in 4 years, with leap days.
 #define ABSOLUTE_TO_UNIX (-UNIX_TO_ABSOLUTE)
 
 extern void time_precise_clock(Timestamp time, isize *hour, isize *min, isize *sec, isize *nanos) {
-	isize _sec   = time / 1e9;
+  isize _sec   = time / 1e9;
   isize _nanos = time % (isize)1e9;
-	_sec  += INTERNAL_TO_ABSOLUTE;
-	*nanos = (isize)(_nanos);
-	*sec   = (isize)(_sec  % SECONDS_PER_DAY);
-	*hour  = *sec  / SECONDS_PER_HOUR;
-	*sec  -= *hour * SECONDS_PER_HOUR;
-	*min   = *sec  / SECONDS_PER_MINUTE;
-	*sec  -= *min  * SECONDS_PER_MINUTE;
+  _sec  += INTERNAL_TO_ABSOLUTE;
+  *nanos = (isize)(_nanos);
+  *sec   = (isize)(_sec  % SECONDS_PER_DAY);
+  *hour  = *sec  / SECONDS_PER_HOUR;
+  *sec  -= *hour * SECONDS_PER_HOUR;
+  *min   = *sec  / SECONDS_PER_MINUTE;
+  *sec  -= *min  * SECONDS_PER_MINUTE;
   return;
 }
 
 
 [[nodiscard]]
 internal u64 _time_abs(Timestamp t) {
-	return (u64)(t / (isize)1e9 + UNIX_TO_ABSOLUTE);
+  return (u64)(t / (isize)1e9 + UNIX_TO_ABSOLUTE);
 }
 
 
 [[nodiscard]]
 internal b8 _time_is_leap_year (isize year){
-	return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+  return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
 }
 
 
 internal i32 _days_before[13] = {
-	0,
-	31,
-	31 + 28,
-	31 + 28 + 31,
-	31 + 28 + 31 + 30,
-	31 + 28 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
+  0,
+  31,
+  31 + 28,
+  31 + 28 + 31,
+  31 + 28 + 31 + 30,
+  31 + 28 + 31 + 30 + 31,
+  31 + 28 + 31 + 30 + 31 + 30,
+  31 + 28 + 31 + 30 + 31 + 30 + 31,
+  31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
+  31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
+  31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
+  31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
+  31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
 };
 
 internal void _abs_date(u64 abs, b8 full, isize *year, isize *month, isize *day, isize *yday) {
-	isize d = abs / SECONDS_PER_DAY;
+  isize d = abs / SECONDS_PER_DAY;
 
-	// 400 year cycles
-	isize n = d / DAYS_PER_400_YEARS;
-	isize y = 400 * n;
-	d -= DAYS_PER_400_YEARS * n;
+  // 400 year cycles
+  isize n = d / DAYS_PER_400_YEARS;
+  isize y = 400 * n;
+  d -= DAYS_PER_400_YEARS * n;
 
-	// Cut-off 100 year cycles
-	n = d / DAYS_PER_100_YEARS;
-	n -= n >> 2;
-	y += 100 * n;
-	d -= DAYS_PER_100_YEARS * n;
+  // Cut-off 100 year cycles
+  n = d / DAYS_PER_100_YEARS;
+  n -= n >> 2;
+  y += 100 * n;
+  d -= DAYS_PER_100_YEARS * n;
 
-	// Cut-off 4 year cycles
-	n = d / DAYS_PER_4_YEARS;
-	y += 4 * n;
-	d -= DAYS_PER_4_YEARS * n;
+  // Cut-off 4 year cycles
+  n = d / DAYS_PER_4_YEARS;
+  y += 4 * n;
+  d -= DAYS_PER_4_YEARS * n;
 
-	n = d / 365;
-	n -= n >> 2;
-	y += n;
-	d -= 365 * n;
+  n = d / 365;
+  n -= n >> 2;
+  y += n;
+  d -= 365 * n;
 
-	*year = (isize)((i64)(y) + ABSOLUTE_ZERO_YEAR);
-	*yday = (isize)(d);
+  *year = (isize)((i64)(y) + ABSOLUTE_ZERO_YEAR);
+  *yday = (isize)(d);
 
-	if (!full) {
-		return;
-	}
+  if (!full) {
+    return;
+  }
 
-	*day = *yday;
+  *day = *yday;
 
-	if (_time_is_leap_year(*year)) {
-		if (*day > 31+29-1) {
-			*day -= 1;
-		} else if (*day == 31+29-1) {
-			*month = Month_February;
-			*day = 29;
-			return;
-		}
-	}
+  if (_time_is_leap_year(*year)) {
+    if (*day > 31+29-1) {
+      *day -= 1;
+    } else if (*day == 31+29-1) {
+      *month = Month_February;
+      *day = 29;
+      return;
+    }
+  }
 
-	*month = (Month)(*day / 31);
-	isize end = (isize)(_days_before[(isize)(*month)+1]);
-	isize begin = 0;
-	if (*day >= end) {
-		*(isize*)(&month) += 1;
-		begin = end;
-	} else {
-		begin = (isize)(_days_before[*month]);
-	}
-	*(isize*)(&month) += 1; // January is 1
-	*day = *day - begin + 1;
-	return;
+  *month = (Month)(*day / 31);
+  isize end = (isize)(_days_before[(isize)(*month)+1]);
+  isize begin = 0;
+  if (*day >= end) {
+    *(isize*)(&month) += 1;
+    begin = end;
+  } else {
+    begin = (isize)(_days_before[*month]);
+  }
+  *(isize*)(&month) += 1; // January is 1
+  *day = *day - begin + 1;
+  return;
 }
 
 extern void time_date(Timestamp t, b8 full, isize *year, isize *month, isize *day, isize *yday) {
-	 _abs_date(_time_abs(t), full, year, month, day, yday);
+   _abs_date(_time_abs(t), full, year, month, day, yday);
 }
 
 extern Duration time_since(Timestamp t) {
-	return time_now() - t;
+  return time_now() - t;
 }

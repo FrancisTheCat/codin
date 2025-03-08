@@ -1,4 +1,9 @@
 #include "codin.h"
+
+#include "fmt.h"
+#include "os.h"
+#include "strings.h"
+#include "unicode.h"
 #include "xml.h"
 
 #define WAYLAND_HEADER_SIZE 8

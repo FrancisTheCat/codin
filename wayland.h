@@ -3,6 +3,13 @@
 #include "bad_font.h"
 #include "wayland_gen_common.h"
 #include "xkb.h"
+#include "log.h"
+#include "fmt.h"
+#include "os.h"
+#include "runtime_linux.h"
+#include "sync.h"
+#include "thread.h"
+#include "unicode.h"
 
 #include "wayland-gen/wayland.h"
 #include "wayland-gen/xdg-shell.h"
@@ -126,8 +133,7 @@ struct cmsghdr * __cmsg_nxthdr(struct msghdr *__mhdr, struct cmsghdr *__cmsg) {
     return (struct cmsghdr *) 0;
 
   /* Now, we trust cmsg_len and can use it to find the next header.  */
-  __cmsg = (struct cmsghdr *) ((unsigned char *) __cmsg
-			       + CMSG_ALIGN (__cmsg->len));
+  __cmsg = (struct cmsghdr *) ((unsigned char *) __cmsg + CMSG_ALIGN (__cmsg->len));
   return __cmsg;
 }
 
@@ -204,6 +210,7 @@ internal void wayland_connection_flush(Wayland_Connection *conn) {
     cmsg->len   = CMSG_LEN(conn->fds_out.len * size_of(int));
     mem_copy(CMSG_DATA(cmsg), conn->fds_out.data, conn->fds_out.len * size_of(int));
 
+    #define MSG_NOSIGNAL  0x4000
     syscall(SYS_sendmsg, conn->socket, &msg, MSG_NOSIGNAL);
 
     vector_clear(&conn->builder);
@@ -327,9 +334,9 @@ internal b8 create_shared_memory_file(uintptr size, Wayland_State *state) {
     return false;
   }
 
-  #define F_LINUX_SPECIFIC_BASE	1024
-  #define F_ADD_SEALS	(F_LINUX_SPECIFIC_BASE + 9)
-  #define F_GET_SEALS	(F_LINUX_SPECIFIC_BASE + 10)
+  #define F_LINUX_SPECIFIC_BASE 1024
+  #define F_ADD_SEALS (F_LINUX_SPECIFIC_BASE + 9)
+  #define F_GET_SEALS (F_LINUX_SPECIFIC_BASE + 10)
 
   /*
    * Types of seals
@@ -444,7 +451,7 @@ internal void wayland_handle_events(Wayland_Connection *conn, Wayland_State *sta
         assert(format == Wayland_Wl_Keyboard_Keymap_Format_Xkb_V1);
 
         if (state->keymap_data.data) {
-          os_deallocate_pages(state->keymap_data.data, state->keymap_data.len);
+          os_pages_deallocate(state->keymap_data.data, state->keymap_data.len);
           xkb_keymap_destroy(&state->keymap, context.allocator);
         }
 
@@ -1175,7 +1182,7 @@ internal void wayland_draw_circle(Draw_Context *ctx, f32 x, f32 y, f32 r, u32 co
       f32 dy = _y - y;
       f32 dx = _x - x;
       f32 d2 = dy * dy + dx * dx;
-      f32 d  = sqrt(d2);
+      f32 d  = sqrt_f64(d2);
       if (d < r - 1) {
         ctx->pixels[_x + _y * ctx->w] = color;
       } else if (d < r) {
@@ -1195,7 +1202,7 @@ internal void wayland_draw_ring(Draw_Context *ctx, f32 x, f32 y, f32 r, f32 w, u
       f32 dy = _y - y;
       f32 dx = _x - x;
       f32 d2 = dy * dy + dx * dx;
-      f32 d  = sqrt(d2);
+      f32 d  = sqrt_f64(d2);
       if (d < r - w - 1) {
       } else if (d < r - w) {
         f32 aa    = d - (r - w);
@@ -1228,7 +1235,7 @@ internal void wayland_draw_ring_filled(
       f32 dy = _y - y;
       f32 dx = _x - x;
       f32 d2 = dy * dy + dx * dx;
-      f32 d  = sqrt(d2);
+      f32 d  = sqrt_f64(d2);
       if (d < r - w - 1) {
         alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], inner_color);
       } else if (d < r - w) {
@@ -1265,7 +1272,7 @@ internal void wayland_draw_ring_filled_outer(
       f32 dy = _y - y;
       f32 dx = _x - x;
       f32 d2 = dy * dy + dx * dx;
-      f32 d  = sqrt(d2);
+      f32 d  = sqrt_f64(d2);
       if (d < r - w - 1) {
         alpha_blend_rgba8(&ctx->pixels[_x + _y * ctx->w], inner);
       } else if (d < r - w) {
@@ -1672,7 +1679,7 @@ internal void renderer_init(UI_Context const *ctx, Wayland_State const *state, i
   slice_iter(render_threads, t, i, {
     t->ctx   = ctx;
     t->state = state;
-    t->tid   = unwrap_err(thread_create((Thread_Proc)render_thread_proc, (rawptr)t));
+    t->tid   = unwrap_err(thread_create((Thread_Proc)render_thread_proc, (rawptr)t, THREAD_STACK_DEFAULT, THREAD_TLS_DEFAULT));
   });
 }
 

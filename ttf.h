@@ -275,11 +275,11 @@ typedef struct {
 } _TTF_Table_Record;
 
 typedef struct {
-  ttf_i16	numberOfContours;
-  ttf_i16	xMin;
-  ttf_i16	yMin;
-  ttf_i16	xMax;
-  ttf_i16	yMax;
+  ttf_i16 numberOfContours;
+  ttf_i16 xMin;
+  ttf_i16 yMin;
+  ttf_i16 xMax;
+  ttf_i16 yMax;
 } _TTF_Glyph_Header;
 
 typedef struct {
@@ -439,7 +439,7 @@ typedef union {
     ttf_i16 sCapHeight;
     ttf_u16 usDefaultChar;
     ttf_u16 usBreakChar;
-    ttf_u16	usMaxContext;
+    ttf_u16  usMaxContext;
   } v4;
   struct {
     ttf_u16 version;

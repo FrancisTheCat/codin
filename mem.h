@@ -30,7 +30,7 @@ typedef Allocator_Result (*Allocator_Proc)(
 
 typedef struct {
   Allocator_Proc proc;
-  rawptr data;
+  rawptr         data;
 } Allocator;
 
 #define Kilobyte (1000)
@@ -45,141 +45,67 @@ typedef struct {
 #define Tebibyte (1024 * Gibibyte)
 #define Pebibyte (1024 * Tebibyte)
 
-internal void mem_zero(rawptr data, isize len) {
-  for (int i = 0; i < len; i += 1) {
-    ((byte *)data)[i] = 0;
-  }
-}
-
 #define mem_tcopy(dst, src, len)                                               \
   ({                                                                           \
     assert(sizeof(dst[0]) == sizeof(src[0]));                                  \
     mem_copy((rawptr)dst, (rawptr)src, len * size_of(dst[0]));                 \
   })
 
-internal void mem_copy(rawptr dst, rawptr src, isize len) {
-  for (int i = 0; i < len; i += 1) {
-    ((byte *)dst)[i] = ((byte *)src)[i];
-  }
-}
-
-internal bsize mem_compare(rawptr a, rawptr b, isize len) {
-  for (int i = 0; i < len; i += 1) {
-    if (((byte *)a)[i] != ((byte *)b)[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-internal isize required_align_offset(uintptr ptr, isize align) {
-  uintptr diff = ptr & (align - 1);
-  return (align - diff) * (diff != 0);
-}
+extern void  mem_zero(rawptr data, isize len);
+extern void  mem_copy(rawptr dst, rawptr src, isize len);
+extern bsize mem_compare(rawptr a, rawptr b, isize len);
+extern isize required_align_offset(uintptr ptr, isize align);
 
 #define mem_tnew(T, allocator)                                                 \
   (T*)unwrap_err(mem_alloc_aligned(size_of(T), align_of(T), (allocator)))
 
 #define mem_alloc_aligned(size, align, allocator)                              \
   _mem_alloc_aligned(size, align, allocator, CALLER_LOCATION)
-internal Allocator_Result _mem_alloc_aligned(isize size, isize align,
-                                             Allocator allocator,
-                                             Source_Code_Location location) {
-  // if (!allocator.proc) {
-  //   allocator = context.allocator;
-  // }
-  assert(allocator.proc);
-  Allocator_Result ret = {0};
-  ret = allocator.proc(allocator.data, AM_Alloc, size, align, nil, location);
-  if (ret.err == AE_None && ret.value != nil) {
-    for_range(i, 0, size) {
-      assert(((byte *)ret.value)[i] == 0);
-    }
-  }
-  return ret;
-}
+extern Allocator_Result _mem_alloc_aligned(
+  isize                size,
+  isize                align,
+  Allocator            allocator,
+  Source_Code_Location location
+);
 
 #define mem_alloc(size, allocator) _mem_alloc(size, allocator, CALLER_LOCATION)
-internal Allocator_Result _mem_alloc(isize size, Allocator allocator,
-                                     Source_Code_Location location) {
-  return _mem_alloc_aligned(size, MAX_ALIGN, allocator, location);
-}
+extern Allocator_Result _mem_alloc(isize size, Allocator allocator, Source_Code_Location location);
 
 #define mem_tclone(value, allocator)                                           \
   (type_of(*(value)) *)mem_clone(value, size_of(*(value)), allocator)
 
 #define mem_clone(data, size, allocator)                                       \
   _mem_clone(data, size, allocator, CALLER_LOCATION)
-internal Allocator_Result _mem_clone(rawptr data, isize size,
-                                     Allocator allocator,
-                                     Source_Code_Location location) {
-  // if (!allocator.proc) {
-  //   allocator = context.allocator;
-  // }
-  assert(allocator.proc);
-  Allocator_Result result = {0};
-  result.value = or_return_err(_mem_alloc(size, allocator, location));
-  mem_copy(result.value, data, size);
-  return result;
-}
-
-#define mem_alloc_clone(value_, allocator)                                     \
-  ({                                                                           \
-    type_of(value_) value = value_;                                            \
-    type_of(value) *p = (type_of(value) *)_mem_alloc(sizeof(value), allocator, \
-                                                     CALLER_LOCATION);         \
-    *p = value;                                                                \
-    p;                                                                         \
-  })
+extern Allocator_Result _mem_clone(
+  rawptr               data,
+  isize                size,
+  Allocator            allocator,
+  Source_Code_Location location
+);
 
 #define mem_tfree(ptr, allocator)                                              \
   _mem_free(ptr, sizeof((ptr)[0]), allocator, CALLER_LOCATION)
 
 #define mem_free(ptr, size, allocator)                                         \
   _mem_free(ptr, size, allocator, CALLER_LOCATION)
-internal Allocator_Error _mem_free(rawptr ptr, isize size, Allocator allocator,
-                                   Source_Code_Location location) {
-  // if (!allocator.proc) {
-  //   allocator = context.allocator;
-  // }
-  assert(allocator.proc);
-  return allocator.proc(allocator.data, AM_Free, size, 0, ptr, location).err;
-}
+extern Allocator_Error _mem_free(
+  rawptr               ptr,
+  isize                size,
+  Allocator            allocator,
+  Source_Code_Location location
+);
 
 #define mem_resize(data, old_size, new_size, allocator)                        \
   _mem_resize(data, old_size, new_size, allocator, CALLER_LOCATION)
-internal Allocator_Error _mem_resize(rawptr *data, isize old_size,
-                                     isize new_size, Allocator allocator,
-                                     Source_Code_Location location) {
-  Allocator_Error err;
-  // if (!allocator.proc) {
-  //   allocator = context.allocator;
-  // }
-  assert(allocator.proc);
-  if (new_size == 0) {
-    err = _mem_free(*data, old_size, allocator, location);
-    if (!err) {
-      *data = nil;
-    }
-    return err;
-  }
-  rawptr new_data = or_return_err_v(_mem_alloc(new_size, allocator, location));
-  mem_copy(new_data, *data, old_size);
-  if (old_size) {
-    err = _mem_free(*data, old_size, allocator, location);
-  }
-  *data = new_data;
-
-  return err;
-}
+extern Allocator_Error _mem_resize(
+  rawptr              *data,
+  isize                old_size,
+  isize                new_size,
+  Allocator            allocator,
+  Source_Code_Location location
+);
 
 #define mem_free_all(allocator) _mem_free_all(allocator, CALLER_LOCATION)
-internal Allocator_Error _mem_free_all(Allocator allocator,
-                                       Source_Code_Location location) {
-  // if (!allocator.proc) {
-  //   allocator = context.allocator;
-  // }
-  assert(allocator.proc);
-  return allocator.proc(allocator.data, AM_Free_All, 0, 0, nil, location).err;
-}
+extern Allocator_Error _mem_free_all(Allocator allocator, Source_Code_Location location);
 
 #define any_to_bytes(any) ((Byte_Slice) {.data = (byte *)any, .len = size_of(*any)})

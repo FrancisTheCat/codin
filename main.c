@@ -1,6 +1,13 @@
 #include "codin.h"
+
+#include "allocators.h"
+#include "fmt.h"
 #include "image.h"
-#include "xml.h"
+#include "log.h"
+#include "os.h"
+#include "sort.h"
+#include "strings.h"
+#include "test.h"
 
 #define ttf_alloc(U, size) (unwrap_err(mem_alloc(size, *(Allocator *)U)))
 #define ttf_free(U, ptr) ((void)mem_free(ptr, 0, *(Allocator *)U))
@@ -23,7 +30,7 @@ f32 ttf_absf(f32 x) {
   return x > 0 ? x : -x;
 }
 
-#define ttf_sqrtf(x) (f32)sqrt((f32)x)
+#define ttf_sqrtf(x) (f32)sqrt_f64((f32)x)
 
 #define TTF_IMPLEMENTATION
 #include "ttf.h"
@@ -83,8 +90,7 @@ b8 test_vector() {
 
 b8 test_pool_allocator() {
   Pool_Allocator _pool;
-  Allocator pool =
-      pool_allocator(&_pool, sizeof(isize), 1024, true, context.allocator);
+  Allocator pool = pool_allocator(&_pool, sizeof(isize), 1024, true, context.allocator);
 
   Vector(isize *) allocations;
   vector_init(&allocations, 0, 8, context.allocator);
@@ -92,8 +98,7 @@ b8 test_pool_allocator() {
     vector_append(&allocations, mem_tnew(isize, pool));
   }
 
-  vector_iter(allocations, ptr, i,
-              { test_expect(mem_tfree(*ptr, pool) == AE_None); });
+  vector_iter(allocations, ptr, i, { test_expect(mem_tfree(*ptr, pool) == AE_None); });
 
   Allocator_Result r = mem_alloc(sizeof(isize) + 1, pool);
   test_expect(!r.value && (r.err == AE_Invalid_Arguments));
@@ -124,11 +129,9 @@ b8 test_heap_allocator() {
     vector_append(&allocations2, mem_tnew(Double_Int, context.allocator));
   }
 
-  vector_iter(allocations, ptr, i,
-              { test_expect(mem_tfree(*ptr, context.allocator) == AE_None); });
+  vector_iter(allocations, ptr, i, { test_expect(mem_tfree(*ptr, context.allocator) == AE_None); });
 
-  vector_iter(allocations2, ptr, i,
-              { test_expect(mem_tfree(*ptr, context.allocator) == AE_None); });
+  vector_iter(allocations2, ptr, i, { test_expect(mem_tfree(*ptr, context.allocator) == AE_None); });
 
   Allocator_Result r;
   r = mem_alloc(sizeof(isize), context.allocator);
@@ -232,33 +235,33 @@ i32 main() {
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
   spall_ctx   = spall_init_callbacks(1, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
 
-  // File_Info fi;
-  // file_stat(spall_fd, &fi);
-  // assert(fi.readable);
-  // assert(fi.writeable);
-  // assert(!fi.executable);
+  File_Info fi;
+  file_stat(spall_fd, &fi);
+  assert(fi.readable);
+  assert(fi.writeable);
+  assert(!fi.executable);
 
-	Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 1024, context.allocator);
-	spall_buffer = (SpallBuffer){
-		.length = spall_buffer_backing.len,
-		.data   = spall_buffer_backing.data,
-	};
+  Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 1024, context.allocator);
+  spall_buffer = (SpallBuffer){
+    .length = spall_buffer_backing.len,
+    .data   = spall_buffer_backing.data,
+  };
 
-	spall_buffer_init(&spall_ctx, &spall_buffer);
+  spall_buffer_init(&spall_ctx, &spall_buffer);
 
- // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_directory"), get_time_in_micros());
- //  Directory directory = unwrap_err(read_directory_path(LIT("."), context.allocator));
- //  spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("read_directory"), get_time_in_micros());
+  // Directory directory = unwrap_err(directory_read_path(LIT("."), context.allocator));
+  // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   // isize max_name_len = 0;
   // isize max_size_len = LIT("<dir>").len;
 
   // slice_iter(directory, file, i, {
   //   max_name_len = max(file->name.len, max_name_len);
-  //   max_size_len = max(fmt_file_size_w(nil, file->size), max_size_len);
+  //   max_size_len = max(fmt_wprintfc(nil, "%M", file->size), max_size_len);
   // });
 
-  // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("sort"), get_time_in_micros());
+  // // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("sort"), get_time_in_micros());
   // // sort_slice_by(directory, i, j, string_compare_lexicographic(directory.data[i].name, directory.data[j].name));
   // sort_slice_by(
   //   directory,
@@ -268,9 +271,9 @@ i32 main() {
   //    ? directory.data[i].is_dir
   //    : string_compare_lexicographic(directory.data[i].name, directory.data[j].name)
   // );
-  // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
+  // // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
-  // String cwd = unwrap_err(_get_current_directory(context.temp_allocator));
+  // String cwd = unwrap_err(directory_get_current(context.temp_allocator));
   // fmt_printfln(LIT("Directory: %S\n"), cwd);
 
   // String spaces = slice_make(String, max_size_len, context.temp_allocator);
@@ -278,7 +281,7 @@ i32 main() {
   //   *(char *)s = ' ';
   // });
 
-  // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("print_directory"), get_time_in_micros());
+  // // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("print_directory"), get_time_in_micros());
 
   // String name_format = fmt_tprintf(LIT("%%-%dS | "), max_name_len);
 
@@ -308,7 +311,7 @@ i32 main() {
   // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   // spall_buffer_begin(&spall_ctx, &spall_buffer, LIT("write_directory"), get_time_in_micros());
-  // write_bytes(&stdout, builder_to_bytes(b));
+  // write_bytes(&std_out, builder_to_bytes(b));
   // spall_buffer_end(&spall_ctx, &spall_buffer, get_time_in_micros());
 
   // fmt_println(LIT(""));
@@ -561,7 +564,7 @@ i32 main() {
 
   if (state.keymap_data.data) {
     xkb_keymap_destroy(&state.keymap, context.allocator);
-    os_deallocate_pages(state.keymap_data.data, state.keymap_data.len);
+    os_pages_deallocate(state.keymap_data.data, state.keymap_data.len);
   }
   wayland_connection_destroy(&wl_connection);
 
@@ -574,11 +577,11 @@ i32 main() {
   slice_delete(ui_hash_chunks, context.allocator);
   slice_delete(ui_prev_chunks, context.allocator);
 
-	spall_buffer_quit(&spall_ctx, &spall_buffer);
-	spall_quit(&spall_ctx);
-	slice_delete(spall_buffer_backing, context.allocator);
+  spall_buffer_quit(&spall_ctx, &spall_buffer);
+  spall_quit(&spall_ctx);
+  slice_delete(spall_buffer_backing, context.allocator);
 
-  tracking_allocator_fmt_results_w(&stdout, &track);
+  // tracking_allocator_fmt_results_w(&std_out, &track);
   tracking_allocator_destroy(track);
 
   return 0;

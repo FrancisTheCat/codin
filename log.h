@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 #define log_debug(string)       _log (LL_Debug, string, CALLER_LOCATION)

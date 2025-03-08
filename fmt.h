@@ -35,9 +35,9 @@ typedef isize (*User_Formatter_Proc)(Writer const *w, va_list va_args);
 
 extern User_Formatter_Proc register_user_formatter(rune verb, User_Formatter_Proc proc);
 
-internal isize fmt_file_size_w(const Writer *w, isize size);
-internal isize fmt_location_w(const Writer *w, Source_Code_Location const *location);
-internal isize fmt_time_w(const Writer *w, Timestamp time);
+// internal isize fmt_file_size_w(const Writer *w, isize size);
+// internal isize fmt_location_w(const Writer *w, Source_Code_Location const *location);
+// internal isize fmt_time_w(const Writer *w, Timestamp time);
 
 extern isize fmt_wprintf_va(const Writer *w, String format, va_list va_args);
 

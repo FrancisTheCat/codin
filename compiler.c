@@ -3725,12 +3725,12 @@ i32 main() {
 #ifdef SPALL_PROFILING
   Fd spall_fd = unwrap_err(file_open(LIT("trace.spall"), FP_Create | FP_Read_Write | FP_Truncate));
   spall_ctx   = spall_init_callbacks(0.001, spall_write_callback, nil, spall_close_callback, (rawptr)spall_fd);
-	Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 4, context.temp_allocator);
-	spall_buffer = (SpallBuffer){
-		.length = spall_buffer_backing.len,
-		.data   = spall_buffer_backing.data,
-	};
-	spall_buffer_init(&spall_ctx, &spall_buffer);
+  Byte_Slice spall_buffer_backing = slice_make(Byte_Slice, 1024 * 4, context.temp_allocator);
+  spall_buffer = (SpallBuffer){
+    .length = spall_buffer_backing.len,
+    .data   = spall_buffer_backing.data,
+  };
+  spall_buffer_init(&spall_ctx, &spall_buffer);
 #endif
 
   if (os_args.len < 2) {
@@ -3783,8 +3783,8 @@ i32 main() {
   });
 
 #ifdef SPALL_PROFILING
-	spall_buffer_quit(&spall_ctx, &spall_buffer);
-	spall_quit(&spall_ctx);
+  spall_buffer_quit(&spall_ctx, &spall_buffer);
+  spall_quit(&spall_ctx);
 #endif
 
   return 0;

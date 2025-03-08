@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 typedef i32 Keycode;

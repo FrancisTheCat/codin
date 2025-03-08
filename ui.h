@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 #include "image.h"
 
@@ -404,7 +406,7 @@ internal b8 ui_button(UI_Context *ctx, String text) {
     ctx->cursor = UI_Cursor_Pointer;
 
     if (ctx->mouse.buttons[0]) {
-      GB_STATIC_ASSERT(size_of(i32) == size_of(UI_Color));
+      STATIC_ASSERT(size_of(i32) == size_of(UI_Color));
 
       *(i32 *)&color         += 8;
       *(i32 *)&color_2       += 8;

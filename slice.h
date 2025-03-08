@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 #define c_array_to_slice(arr) ((Slice(typeof(*arr))) { .data = arr, .len = count_of(arr) })
@@ -181,8 +183,7 @@ internal Byte_Slice pointer_to_bytes(rawptr data, isize size, isize count) {
   
 
 [[nodiscard]]
-internal Byte_Slice bytes_concatenate(Byte_Slice a, Byte_Slice b,
-                                      Allocator allocator) {
+internal Byte_Slice bytes_concatenate(Byte_Slice a, Byte_Slice b, Allocator allocator) {
   Byte_Slice data;
   slice_init(&data, a.len + b.len, allocator);
   mem_copy(data.data, a.data, a.len);

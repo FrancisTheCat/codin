@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 #include "image.h"
 #include "bit_array.h"

@@ -1,19 +1,14 @@
 #include "codin.h"
+#include "os.h"
+
+#define THREAD_STACK_DEFAULT (8 * 1024)
+#define THREAD_TLS_DEFAULT   (8 * 1024)
 
 typedef void (*Thread_Proc)(rawptr);
 
-#ifdef linux
-  #include "thread_linux.h"
-#endif
+[[nodiscard]]
+extern Tid get_thread_id();
 
-internal Tid get_thread_id() {
-  return syscall(SYS_gettid);
-}
+extern OS_Result_Tid thread_create(Thread_Proc proc, rawptr user_data, isize stack_size, isize tls_size);
 
-internal OS_Result_Tid thread_create(Thread_Proc proc, rawptr user_data) {
-  return _create_thread(proc, user_data, 2<<12, 2<<12);
-}
-
-// internal OS_Error thread_join(Tid thread) {
-//   return _thread_join(thread);
-// }
+// extern OS_Error thread_join(Tid thread);
