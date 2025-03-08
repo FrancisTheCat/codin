@@ -1,12 +1,13 @@
 #include "codin.h"
-#include "allocators.h"
-#include "os.h"
-#include "strings.h"
-#include "log.h"
-#include "runtime_linux.h"
 
-internal thread_local Growing_Arena_Allocator __default_temp_allocator_arena;
-internal thread_local Default_Allocator       __default_heap_allocator;
+#include "allocators.h"
+#include "log.h"
+#include "os.h"
+#include "runtime_linux.h"
+#include "strings.h"
+
+thread_local Growing_Arena_Allocator _default_temp_allocator_arena;
+thread_local Default_Allocator       _default_heap_allocator;
 
 extern rawptr memset(u8 *data, i32 c, isize n) {
   for_range(i, 0, n) {
@@ -143,8 +144,8 @@ extern void __thread_cleanup();
 extern void __runtime_cleanup();
 
 extern void __thread_init() {
-  context.allocator      = default_allocator_init(&__default_heap_allocator);
-  context.temp_allocator = growing_arena_allocator_init(&__default_temp_allocator_arena, 1 << 20, context.allocator);
+  context.allocator      = default_allocator_init(&_default_heap_allocator);
+  context.temp_allocator = growing_arena_allocator_init(&_default_temp_allocator_arena, 1 << 20, context.allocator);
   context.logger         = create_file_logger(FD_STDERR);
 }
 
@@ -154,7 +155,7 @@ extern void __runtime_init() {
 }
 
 extern void __thread_cleanup() {
-  growing_arena_allocator_destroy(__default_temp_allocator_arena);
+  growing_arena_allocator_destroy(_default_temp_allocator_arena);
 }
 
 extern void __runtime_cleanup() { __thread_cleanup(); }

@@ -1,5 +1,5 @@
 CC = cc
-CFLAGS = -nostdlib -fno-builtin -I. -fno-stack-protector -O3 -march=native
+CFLAGS = -nostdlib -fno-builtin -I. -fno-stack-protector -g -O2
 OBJS = codin.o strings.o runtime_linux.o allocators.o os.o os_linux.o log.o time.o fmt.o context.o amd64.o bit_array.o net.o thread_linux.c xml.o image.o test.o mem.o
 
 all: Error
