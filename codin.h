@@ -10,14 +10,14 @@
 #endif
 //NOLINTEND
 
-#define nil 0
+#define nil   0
 #define false 0
-#define true 1
+#define true  1
 
 #define MAX_ALIGN 8
 
 #define local_persist static
-#define internal static
+#define internal      static
 
 #define thread_local _Thread_local
 
@@ -38,18 +38,46 @@ typedef __builtin_va_list va_list;
 #define CASE    break; case
 #define DEFAULT break; default
 
-#define min(_A, _B)                                                            \
+#define _MACRO_CONCAT_IMPL(x, y) x##y
+#define MACRO_CONCAT(x, y) _MACRO_CONCAT_IMPL(x, y)
+
+#define min(A, B) _min((A), (B), __COUNTER__)
+#define _min(A, B, COUNTER)                                                    \
   ({                                                                           \
-    type_of(_A) __A = (_A);                                                    \
-    type_of(_B) __B = (_B);                                                    \
-    __A < __B ? __A : __B;                                                     \
+    type_of(A) MACRO_CONCAT(__A_, COUNTER) = (A);                              \
+    type_of(B) MACRO_CONCAT(__B_, COUNTER) = (B);                              \
+    MACRO_CONCAT(__A_, COUNTER) < MACRO_CONCAT(__B_, COUNTER) ?                \
+    MACRO_CONCAT(__A_, COUNTER) : MACRO_CONCAT(__B_, COUNTER);                 \
   })
-#define max(_A, _B)                                                            \
+
+#define max(A, B) _max((A), (B), __COUNTER__)
+#define _max(A, B, COUNTER)                                                    \
   ({                                                                           \
-    type_of(_A) __A = (_A);                                                    \
-    type_of(_B) __B = (_B);                                                    \
-    __A > __B ? __A : __B;                                                     \
+    type_of(A) MACRO_CONCAT(__A_, COUNTER) = (A);                              \
+    type_of(B) MACRO_CONCAT(__B_, COUNTER) = (B);                              \
+    MACRO_CONCAT(__A_, COUNTER) > MACRO_CONCAT(__B_, COUNTER) ?                \
+    MACRO_CONCAT(__A_, COUNTER) : MACRO_CONCAT(__B_, COUNTER);                 \
   })
+
+#define clamp(X, A, B) _clamp((X), (A), (B), __COUNTER__)
+#define _clamp(X, A, B, COUNTER)                                               \
+  ({                                                                           \
+    type_of(X) MACRO_CONCAT(__X_, COUNTER) = (X);                              \
+    type_of(A) MACRO_CONCAT(__A_, COUNTER) = (A);                              \
+    type_of(B) MACRO_CONCAT(__B_, COUNTER) = (B);                              \
+                                                                               \
+    assert(MACRO_CONCAT(__A_, COUNTER) < MACRO_CONCAT(__B_, COUNTER))          \
+                                                                               \
+    if (MACRO_CONCAT(__X_, COUNTER) < MACRO_CONCAT(__A_, COUNTER)) {           \
+      MACRO_CONCAT(__X_, COUNTER) = MACRO_CONCAT(__A_, COUNTER);               \
+    }                                                                          \
+    if (MACRO_CONCAT(__X_, COUNTER) > MACRO_CONCAT(__B_, COUNTER)) {           \
+      MACRO_CONCAT(__X_, COUNTER) = MACRO_CONCAT(__B_, COUNTER);               \
+    }                                                                          \
+                                                                               \
+    MACRO_CONCAT(__X_, COUNTER);                                               \
+  })
+
 #define trap() __builtin_trap()
 #define panic(message)                                                         \
   {                                                                            \
@@ -102,22 +130,26 @@ typedef __builtin_va_list va_list;
 
 #define alloca(size) __builtin_alloca(size)
 
-#define endianness_swap(_x)                                                    \
-({                                                                             \
-  union {                                                                      \
-    type_of(_x) value;                                                         \
-    byte bytes[size_of(_x)];                                                   \
-  } x;                                                                         \
-  x.value = (_x);                                                              \
+#define endianness_swap(x) _endianness_swap(x, __COUNTER__)
+#define _endianness_swap(_x, COUNTER)                                          \
+  ({                                                                           \
+    union {                                                                    \
+      type_of(_x) value;                                                       \
+      byte        bytes[size_of(_x)];                                          \
+    } MACRO_CONCAT(__x_, COUNTER);                                             \
+    MACRO_CONCAT(__x_, COUNTER).value = (_x);                                  \
                                                                                \
-  for (int i = 0; i < (size_of(x) >> 1); i += 1) {                             \
-    byte tmp = x.bytes[i];                                                     \
-    x.bytes[i] = x.bytes[size_of(x) - 1 - i];                                  \
-    x.bytes[size_of(x) - 1 - i] = tmp;                                         \
-  }                                                                            \
+    for (int i = 0; i < (size_of(MACRO_CONCAT(__x_, COUNTER)) >> 1); i += 1) { \
+      byte tmp = MACRO_CONCAT(__x_, COUNTER).bytes[i];                         \
+      MACRO_CONCAT(__x_, COUNTER).bytes[i] =                                   \
+          MACRO_CONCAT(__x_, COUNTER)                                          \
+              .bytes[size_of(MACRO_CONCAT(__x_, COUNTER)) - 1 - i];            \
+      MACRO_CONCAT(__x_, COUNTER)                                              \
+          .bytes[size_of(MACRO_CONCAT(__x_, COUNTER)) - 1 - i] = tmp;          \
+    }                                                                          \
                                                                                \
-  x.value;                                                                     \
-})
+    MACRO_CONCAT(__x_, COUNTER).value;                                         \
+  })
 
 typedef signed long int i64;
 typedef signed int      i32;
@@ -139,7 +171,7 @@ STATIC_ASSERT(size_of(u32) == 4);
 STATIC_ASSERT(size_of(u16) == 2);
 STATIC_ASSERT(size_of(u8)  == 1);
 
-typedef u8 b8;
+typedef u8  b8;
 typedef u16 b16;
 typedef u32 b32;
 typedef u64 b64;
@@ -149,8 +181,8 @@ STATIC_ASSERT(size_of(b32) == 4);
 STATIC_ASSERT(size_of(b16) == 2);
 STATIC_ASSERT(size_of(b8)  == 1);
 
-typedef u64 usize;
-typedef i64 isize;
+typedef u64   usize;
+typedef i64   isize;
 typedef isize bsize;
 
 STATIC_ASSERT(size_of(usize) == size_of(void *));
@@ -174,8 +206,6 @@ typedef uintptr Fd;
 typedef uintptr Pid;
 typedef uintptr Tid;
 
-u64 __get_fs_register();
-
 #define Slice(T)                                                               \
   struct {                                                                     \
     T *data;                                                                   \
@@ -192,6 +222,7 @@ typedef Slice(void) Void_Slice;
   }
 
 typedef Slice(const char) String;
+typedef Slice(String) String_Slice;
 
 typedef struct {
   String file;
@@ -208,32 +239,27 @@ typedef struct {
     s;                                                                         \
   })
 
-extern rawptr memset(u8 *data, i32 c, isize n);
+extern rawptr memset(rawptr data, i32 c, usize n);
 
 [[nodiscard]]
 extern String format_usize_to_buffer(usize value, Byte_Slice buffer);
-
+[[nodiscard]]
 extern String format_usize_to_buffer_hex(usize value, Byte_Slice buffer, b8 uppercase);
 
-#define slice_array(T, array) ({                                               \
-   T slice;                                                                    \
-   slice.data = &array[0];                                                     \
-   slice.len = count_of(array);                                                \
-   slice;                                                                      \
+#define slice_array(T, array) ((T) {                                           \
+ .data = &array[0],                                                            \
+ .len  = count_of(array),                                                      \
 })
 
+[[nodiscard]]
 extern isize cstring_len(cstring s);
+
 extern void __write_cstring(cstring str);
 extern void __write_string(String str);
-extern void __write_usize_hex(usize value);
-
 extern void __write_usize(usize value);
-
+extern void __write_usize_hex(usize value);
 extern void __write_isize(isize value);
-
 extern void __write_location(Source_Code_Location location);
-
-extern isize ilog2(isize x);
 
 extern void __thread_init();
 extern void __runtime_init();
@@ -255,11 +281,3 @@ extern void __runtime_cleanup();
 #include "vector.h"
 
 #include "hash_map.h"
-
-i32 main();
-
-i32 __codin_main(i32 arg_c, cstring *arg_v);
-
-// should be `math.h` or smth
-f64 sqrt_f64(f64 x);
-f32 sqrt_f32(f32 x);

@@ -3,6 +3,7 @@
 #include "codin.h"
 #include "image.h"
 #include "bit_array.h"
+#include "fmt.h"
 
 #define QR_BYTE_ENCODING 0b0100
 #define QR_ECI_ENCODING  0b0111
@@ -671,7 +672,7 @@ internal b8 qr__mask(isize mask, isize row, isize column) {
   CASE 3:
     return (column + row) % 3 == 0;
   CASE 4:
-    return !((column / 2 + row / 3) & 1);
+    return !((row / 2 + column / 3) & 1);
   CASE 5:
     return ((row * column) % 2) + ((row * column) % 3) == 0;
   CASE 6:

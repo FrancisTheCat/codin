@@ -2,8 +2,6 @@
 
 #include "codin.h"
 
-typedef Slice(String) String_Slice;
-
 [[nodiscard]]
 extern Byte_Slice string_to_bytes(String str);
 

@@ -7,8 +7,8 @@ Reader std_in;
 Writer std_out;
 Writer std_err;
 
-Process_Args os_args;
-Process_Env  os_env;
+String_Slice os_args;
+String_Slice os_env;
 
 extern String get_env(String key) {
   slice_iter(os_env, str, _i, {

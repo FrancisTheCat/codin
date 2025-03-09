@@ -4,6 +4,7 @@
 #include "fmt.h"
 #include "image.h"
 #include "log.h"
+#include "math.h"
 #include "os.h"
 #include "sort.h"
 #include "strings.h"

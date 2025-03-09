@@ -11,11 +11,8 @@
 #define FD_STDOUT 1
 #define FD_STDERR 2
 
-typedef Slice(String) Process_Args;
-typedef Slice(String) Process_Env;
-
-extern Process_Args os_args;
-extern Process_Env  os_env;
+extern String_Slice os_args;
+extern String_Slice  os_env;
 
 [[nodiscard]]
 extern String get_env(String key);
@@ -103,8 +100,8 @@ extern OS_Result_String directory_get_current(Allocator allocator);
 extern void directory_delete(Directory dir, Allocator allocator);
 
 typedef struct {
-  Process_Args args;
-  Process_Env  env;
+  String_Slice args;
+  String_Slice env;
   Fd           stdin;
   Fd           stdout;
   Fd           stderr;

@@ -57,7 +57,7 @@ i32 main() {
   Byte_Slice data = {0};
 
   if (os_args.len == 2) {
-    data = unwrap_err_msg(read_entire_file_path(LIT("msg.txt"), context.allocator), "Failed to read input file");
+    data = unwrap_err_msg(read_entire_file_path(IDX(os_args, 1), context.allocator), "Failed to read input file");
   } else {
     if (!string_equal(IDX(os_args, 1), LIT("-v"))) {
       fmt_eprintlnc("Usage:");
@@ -69,10 +69,12 @@ i32 main() {
     data = slice_to_bytes(IDX(os_args, 2));
   }
 
+  data = slice_to_bytes(LIT("Hello World"));
+
   Image image;
 
   spall_begin("qr_code_generate_image");
-  qr_code_generate_image(
+  b8 ok = qr_code_generate_image(
     data,
     &image,
     QR_Error_Correction_L,
@@ -80,6 +82,11 @@ i32 main() {
     context.allocator
   );
   spall_end();
+
+  if (!ok) {
+    fmt_eprintln(LIT("Failed to generate QR-Code"));
+    return 1;
+  }
 
   spall_begin("save_png");
   png_save_writer(&std_out, &image);
