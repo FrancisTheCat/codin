@@ -1,9 +1,12 @@
 #include "image.h"
+
 #include "strings.h"
 #include "fmt.h"
+#include "log.h"
+#include "deflate.h"
+#include "hash.h"
 
 // #include "zlib.h"
-#include "deflate.h"
 
 struct IHDR {
   u32 width;
@@ -15,15 +18,15 @@ struct IHDR {
   u8  interlace_method;
 } __attribute__ ((packed));
 
-// internal rawptr z_alloc_proc(rawptr allocator, u32 items, u32 size) {
-//   Allocator *a = (Allocator *)allocator;
-//   return unwrap_err(mem_alloc(items * size, *a));
-// }
+internal rawptr z_alloc_proc(rawptr allocator, u32 items, u32 size) {
+  Allocator *a = (Allocator *)allocator;
+  return unwrap_err(mem_alloc(items * size, *a));
+}
 
-// internal void z_free_proc(rawptr allocator, rawptr address) {
-//   Allocator *a = (Allocator *)allocator;
-//   mem_free(address, 0, *a);
-// }
+internal void z_free_proc(rawptr allocator, rawptr address) {
+  Allocator *a = (Allocator *)allocator;
+  mem_free(address, 0, *a);
+}
 
 internal isize abs_isize(isize x) {
   return x > 0 ? x : -x;
@@ -46,172 +49,113 @@ internal u8 paeth_predictor (u8 a, u8 b, u8 c) {
 
 // #define CHUNK 16384
 
-// internal isize zlib_inflate(Reader source, Writer dest) {
-//     isize ret;
-//     usize have;
-//     z_stream strm;
-//     byte in_buf[CHUNK];
-//     byte out_buf[CHUNK];
-//     Byte_Slice in  = {.data = in_buf,  .len = CHUNK};
-//     Byte_Slice out = {.data = out_buf, .len = CHUNK};
+// internal b8 zlib_inflate(Reader source, Writer dest) {
+//   isize ret;
+//   usize have;
+//   z_stream strm;
+//   byte in_buf[CHUNK];
+//   byte out_buf[CHUNK];
+//   Byte_Slice in  = {.data = in_buf,  .len = CHUNK};
+//   Byte_Slice out = {.data = out_buf, .len = CHUNK};
 
-//     /* allocate inflate state */
-//     strm.zalloc = z_alloc_proc;
-//     strm.zfree = z_free_proc;
-//     strm.opaque = &context.allocator;
-//     strm.avail_in = 0;
-//     strm.next_in = Z_NULL;
-//     ret = inflateInit(&strm);
-//     if (ret != Z_OK)
-//         return ret;
+//   /* allocate inflate state */
+//   strm.zalloc = z_alloc_proc;
+//   strm.zfree = z_free_proc;
+//   strm.opaque = &context.allocator;
+//   strm.avail_in = 0;
+//   strm.next_in = Z_NULL;
+//   ret = inflateInit(&strm);
+//   if (ret != Z_OK) {
+//     return false;
+//   }
 
-//     /* decompress until deflate stream ends or end of file */
+//   /* decompress until deflate stream ends or end of file */
+//   do {
+//     strm.avail_in = or_do(read_bytes(&source, in), {
+//       (void)inflateEnd(&strm);
+//       return false;
+//     });
+//     if (strm.avail_in == 0) {
+//       break;
+//     }
+//     strm.next_in = in.data;
+
+//     /* run inflate() on input until output buffer not full */
 //     do {
-//         strm.avail_in = or_do(read_bytes(&source, in), {
-//           (void)inflateEnd(&strm);
-//           return Z_ERRNO;
-//         });
-//         if (strm.avail_in == 0) {
-//           break;
-//         }
-//         strm.next_in = in.data;
+//       strm.avail_out = CHUNK;
+//       strm.next_out = out.data;
+//       ret = inflate(&strm, Z_NO_FLUSH);
+//       assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
+//       switch (ret) {
+//       case Z_NEED_DICT:
+//       case Z_DATA_ERROR:
+//       case Z_MEM_ERROR:
+//         (void)inflateEnd(&strm);
+//         return false;
+//       }
+//       have = CHUNK - strm.avail_out;
+//       if (or_else(write_bytes(&dest, slice_end(out, have)), -1) != have) {
+//         (void)inflateEnd(&strm);
+//         return false;
+//       }
+//     } while (strm.avail_out == 0);
+//     /* done when inflate() says it's done */
+//   } while (ret != Z_STREAM_END);
 
-//         /* run inflate() on input until output buffer not full */
-//         do {
-//             strm.avail_out = CHUNK;
-//             strm.next_out = out.data;
-//             ret = inflate(&strm, Z_NO_FLUSH);
-//             assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
-//             switch (ret) {
-//             case Z_NEED_DICT:
-//                 ret = Z_DATA_ERROR;     /* and fall through */
-//             case Z_DATA_ERROR:
-//             case Z_MEM_ERROR:
-//                 (void)inflateEnd(&strm);
-//                 return ret;
-//             }
-//             have = CHUNK - strm.avail_out;
-//             if (or_else(write_bytes(&dest, slice_end(out, have)), -1) != have) {
-//               (void)inflateEnd(&strm);
-//               return Z_ERRNO;
-//             }
-//         } while (strm.avail_out == 0);
-
-//         /* done when inflate() says it's done */
-//     } while (ret != Z_STREAM_END);
-
-//     /* clean up and return */
-//     (void)inflateEnd(&strm);
-//     return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
+//   /* clean up and return */
+//   (void)inflateEnd(&strm);
+//   return ret == Z_STREAM_END;
 // }
 
-// internal isize zlib_deflate(Reader source, Writer dest) {
-//     isize ret, flush;
-//     usize have;
-//     z_stream strm;
-//     byte in_buf[CHUNK];
-//     byte out_buf[CHUNK];
-//     Byte_Slice in  = {.data = in_buf,  .len = CHUNK};
-//     Byte_Slice out = {.data = out_buf, .len = CHUNK};
+// internal b8 zlib_deflate(Reader const *source, Writer const *dest) {
+//   isize ret, flush;
+//   usize have;
+//   z_stream strm;
+//   byte in_buf[CHUNK];
+//   byte out_buf[CHUNK];
+//   Byte_Slice in  = {.data = in_buf,  .len = CHUNK};
+//   Byte_Slice out = {.data = out_buf, .len = CHUNK};
 
-//     strm.zalloc = z_alloc_proc;
-//     strm.zfree  = z_free_proc;
-//     strm.opaque = &context.allocator;
+//   strm.zalloc = z_alloc_proc;
+//   strm.zfree  = z_free_proc;
+//   strm.opaque = &context.allocator;
 
-//     strm.avail_in = 0;
-//     strm.next_in  = Z_NULL;
+//   strm.avail_in = 0;
+//   strm.next_in  = Z_NULL;
 
-//     ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
-//     if (ret != Z_OK)
-//         return ret;
+//   ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
+//   if (ret != Z_OK) {
+//     return false;
+//   }
+
+//   do {
+//     strm.avail_in = or_do(read_bytes(source, in), {
+//       (void)deflateEnd(&strm);
+//       return false;
+//     });
+//     flush = strm.avail_in ? Z_NO_FLUSH : Z_FINISH;
+//     strm.next_in = in.data;
 
 //     do {
-//         strm.avail_in = or_do(read_bytes(&source, in), {
-//           (void)deflateEnd(&strm);
-//           return Z_ERRNO;
-//         });
-//         flush = strm.avail_in ? Z_NO_FLUSH : Z_FINISH;
-//         strm.next_in = in.data;
+//       strm.avail_out = CHUNK;
+//       strm.next_out = out.data;
+//       ret = deflate(&strm, flush);
+//       assert(ret != Z_STREAM_ERROR);
+//       have = CHUNK - strm.avail_out;
+//       if (or_else(write_bytes(dest, slice_end(out, have)), -1) != have) {
+//         (void)deflateEnd(&strm);
+//         return false;
+//       }
+//     } while (strm.avail_out == 0);
+//     assert(strm.avail_in == 0);
+//   } while (flush != Z_FINISH);
+//   assert(ret == Z_STREAM_END);
 
-//         do {
-//             strm.avail_out = CHUNK;
-//             strm.next_out = out.data;
-//             ret = deflate(&strm, flush);
-//             assert(ret != Z_STREAM_ERROR);
-//             have = CHUNK - strm.avail_out;
-//             if (or_else(write_bytes(&dest, slice_end(out, have)), -1) != have) {
-//               (void)deflateEnd(&strm);
-//               return Z_ERRNO;
-//             }
-//         } while (strm.avail_out == 0);
-//         assert(strm.avail_in == 0);
-//     } while (flush != Z_FINISH);
-//     assert(ret == Z_STREAM_END);
-
-//     (void)deflateEnd(&strm);
-//     return Z_OK;
+//   (void)deflateEnd(&strm);
+//   return true;
 // }
 
 // #undef CHUNK
-
-/* Table of CRCs of all 8-bit messages. */
-internal u32 crc_table[256];
-
-/* Flag: has the table been computed? Initially false. */
-internal b8 crc_table_computed = 0;
-
-/* Make the table for a fast CRC. */
-internal void init_crc_table() {
- u32 c;
- i32 n, k;
-
- for (n = 0; n < 256; n++) {
-   c = (u32) n;
-   for (k = 0; k < 8; k++) {
-     if (c & 1)
-       c = 0xedb88320L ^ (c >> 1);
-     else
-       c = c >> 1;
-   }
-   crc_table[n] = c;
- }
- crc_table_computed = 1;
-}
-
-/* Update a running CRC with the bytes buf[0..len-1]--the CRC
-  should be initialized to all 1's, and the transmitted value
-  is the 1's complement of the final running CRC (see the
-  crc() routine below)). */
-
-internal u32 update_crc(u32 crc, Reader const *reader) {
- u32 c = crc;
- i32 n;
-
-#define BUF_SIZE 1024
-  byte buf[BUF_SIZE];
-
- if (!crc_table_computed) {
-   init_crc_table();
- }
-
- loop {
-   isize len = or_break(read_bytes(reader, (Byte_Slice){.data = buf, .len = BUF_SIZE}));
-   if (len == 0) {
-     break;
-   }
-   for (n = 0; n < len; n++) {
-     c = crc_table[(c ^ buf[n]) & 0xff] ^ (c >> 8);
-   }
- }
-
-#undef BUF_SIZE
- return c;
-}
-
-/* Return the CRC of the bytes buf[0..len-1]. */
-internal u32 crc(Reader const *reader) {
- return update_crc(~0, reader) ^ ~0;
-}
 
 #define PNG_HEADER LIT("\x89PNG\x0d\x0a\x1a\x0a")
 
@@ -274,23 +218,21 @@ extern b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
   Byte_Buffer pixels = vector_make(Byte_Buffer, 0, data.len, allocator);
 
   Byte_Buffer temp_buffer = vector_make(Byte_Buffer, 0, data.len, allocator);
-  // Writer buffer_writer = writer_from_buffer(&temp_buffer);
+  Writer buffer_writer = writer_from_buffer(&temp_buffer);
 
   Byte_Buffer compressed_data = vector_make(Byte_Buffer, 0, data.len, allocator);
 
-  // Byte_Slice buf;
- 
   while (i < data.len) {
     i += 8;
     Byte_Slice chunk = (Byte_Slice){.data = &data.data[i]};
     chunk.len = endianness_swap(*(u32*)&chunk.data[-8]);
     String type = (String) {.data = (char *)&chunk.data[-4], .len = 4};
 
-    Byte_Slice hash_chunk;
-    hash_chunk.data = &chunk.data[-4];
-    hash_chunk.len = chunk.len + 4;
-    Reader hash_reader = buffer_reader(&hash_chunk);
-    u32 hash = crc(&hash_reader);
+    Byte_Slice hash_chunk = {
+      .data = &chunk.data[-4],
+      .len = chunk.len + 4,
+    };
+    u32 hash = hash_bytes(~0, hash_crc_32, hash_chunk);
 
     if (hash != endianness_swap(*(u32 *)&chunk.data[chunk.len])) {
       goto fail;
@@ -307,7 +249,7 @@ extern b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
     i += chunk.len + 4;
   }
 
-  // buf = vector_to_slice(Byte_Slice, compressed_data);
+  Byte_Slice buf = vector_to_slice(Byte_Slice, compressed_data);
 
   // {
   //   Byte_Slice copy = buf; 
@@ -317,7 +259,7 @@ extern b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
   //   log_infof(LIT("result: %B"), (isize)result);
   // }
 
-  // result = zlib_inflate(buffer_reader(&buf), buffer_writer);
+  // isize result = zlib_inflate(buffer_reader(&buf), buffer_writer);
   // if (buf.len != 0 || result != Z_OK) {
   //   goto fail;
   // }
@@ -396,44 +338,20 @@ fail:
   return false;
 }
 
-typedef struct {
-  u32          *hash;
-  Writer const *next;
-} Passthrough_Hasher;
-
-internal Maybe_Int passthrough_hasher_proc(rawptr data, Byte_Slice buf) {
-  Passthrough_Hasher *hasher = (Passthrough_Hasher *)data;
-  Maybe_Int ret = write_bytes(hasher->next, buf);
-  if (ret.ok) {
-    buf.len = ret.value;
-    Reader reader = buffer_reader(&buf);
-    *hasher->hash = update_crc(*hasher->hash, &reader);
-  }
-  return ret;
-}
-
-internal Writer passthrough_hash_writer(Passthrough_Hasher *hasher) {
-  return (Writer) {
-    .data = hasher,
-    .proc = passthrough_hasher_proc,
-  };
-}
-
-internal Maybe_Int _png_write_chunk(Writer const *writer, String type, Byte_Slice chunk) {
-  u32 hash = 0xffffffff;
-  Passthrough_Hasher hasher = {
+internal void _png_write_chunk(Writer const *writer, String type, Byte_Slice chunk) {
+  u32 hash = ~0;
+  Hashing_Writer_32 hasher = {
     .hash = &hash,
     .next = writer,
+    .proc = hash_crc_32,
   };
-
-  Writer hashing_writer = passthrough_hash_writer(&hasher);
-
+  Writer hashing_writer = hashing_writer_32(&hasher);
   u32 len = endianness_swap((u32)chunk.len);
-  write_bytes(writer, (Byte_Slice){.data = (byte *)&len, .len = 4});
+  write_any(writer, &len);
   write_string(&hashing_writer, type);
   write_bytes(&hashing_writer, chunk);
-  hash = endianness_swap(hash) ^ 0xffffffff;
-  return write_bytes(writer, (Byte_Slice){.data = (byte *)&hash, .len = 4});
+  hash = ~endianness_swap(hash);
+  write_any(writer, &hash);
 }
 
 extern b8 png_save_writer(Writer const *writer, Image const *image) {
@@ -583,7 +501,7 @@ extern b8 png_save_writer(Writer const *writer, Image const *image) {
   Reader compression_reader = buffer_reader(&uncompressed_slice); 
   Writer compression_writer = writer_from_buffer(&compressed);
   b8 result = my_deflate(&compression_reader, &compression_writer);
-  assert(result)
+  assert(result);
 
   _png_write_chunk(writer, LIT("IDAT"), (Byte_Slice){.data = compressed.data, .len = compressed.len});
 

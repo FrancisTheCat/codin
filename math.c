@@ -137,3 +137,6 @@ extern isize log2_isize(isize x) {
   for (; (1 << v) < x; v += 1);
   return v;
 }
+
+extern f32 fract_f32(f32 x) { return x - (isize)x; }
+extern f64 fract_f64(f64 x) { return x - (isize)x; }

@@ -4,8 +4,8 @@
 #include "vec.h"
 #include "os.h"
 
-#define WIDTH   1024
-#define HEIGHT  1024
+#define WIDTH   256
+#define HEIGHT  256
 #define SAMPLES 16
 
 typedef struct {
@@ -32,43 +32,35 @@ typedef struct {
 
 Camera camera;
 
-b8 ray_sphere_hit(Ray ray, Sphere sphere, Hit *restrict hit) {
-    Vec3 o = vec3_sub(ray.position, sphere.position);
+b8 ray_sphere_hit(Ray ray, Sphere sphere, Hit *hit) {
+  Vec3 o = vec3_sub(ray.position, sphere.position);
 
-    float a = vec3_dot(ray.direction, ray.direction);
-    float b = 2 * vec3_dot(ray.direction, o);
-    float c = vec3_dot(o, o) - sphere.radius * sphere.radius;
+  float a = vec3_dot(ray.direction, ray.direction);
+  float b = 2 * vec3_dot(ray.direction, o);
+  float c = vec3_dot(o, o) - sphere.radius * sphere.radius;
 
-    float d = b * b - 4 * a * c;
+  float d = b * b - 4 * a * c;
 
-    if (d < 0) {
-        return false;
-    }
-
-    float d_sqrt   = sqrt_f32(d);
-    float distance = (-b - d_sqrt) / (2 * a);
-
-    if (distance > 100 || distance < 0.01) {
-        return false;
-    }
-
-    hit->distance = distance;
-
-    Vec3 hit_pos  = vec3_scale(ray.direction, distance);
-    hit->position = vec3_add(ray.position, hit_pos);
-
-    Vec3 norm     = vec3_sub(hit->position, sphere.position);
-    hit->normal   = vec3_scale(norm, 1.0 / sphere.radius);
-
-    return true;
-}
-
-f32 abs_f32(f32 x) {
-  if (x < 0) {
-    return -x;
-  } else {
-    return  x;
+  if (d < 0) {
+    return false;
   }
+
+  float d_sqrt   = sqrt_f32(d);
+  float distance = (-b - d_sqrt) / (2 * a);
+
+  if (distance > 100 || distance < 0.01) {
+    return false;
+  }
+
+  hit->distance = distance;
+
+  Vec3 hit_pos  = vec3_scale(ray.direction, distance);
+  hit->position = vec3_add(ray.position, hit_pos);
+
+  Vec3 norm     = vec3_sub(hit->position, sphere.position);
+  hit->normal   = vec3_scale(norm, 1.0 / sphere.radius);
+
+  return true;
 }
 
 Color3 per_pixel(Vec2 uv) {
@@ -86,7 +78,7 @@ Color3 per_pixel(Vec2 uv) {
   for_range(i, 0, 8) {
     if (ray_sphere_hit(ray, sphere, &hit)) {
       accumulated_tint = vec3_mul(accumulated_tint, hit.color);
-      ray.position = hit.position;
+      ray.position  = hit.position;
       ray.direction = vec3_reflect(ray.direction, hit.normal);
     } else {
       Vec3 sky_color = vec3_lerp(vec3(0.5, 0.7, 1), vec3(1, 1, 1), 0.5 * (ray.direction.y + 1));
@@ -125,9 +117,9 @@ i32 main() {
         ));
       }
 
-      image.pixels.data[3 * (x + y * HEIGHT) + 0] = (u8)(color.data[0] / SAMPLES * 255);
-      image.pixels.data[3 * (x + y * HEIGHT) + 1] = (u8)(color.data[1] / SAMPLES * 255);
-      image.pixels.data[3 * (x + y * HEIGHT) + 2] = (u8)(color.data[2] / SAMPLES * 255);
+      IDX(image.pixels, 3 * (x + y * HEIGHT) + 0) = (u8)(color.data[0] / SAMPLES * 255);
+      IDX(image.pixels, 3 * (x + y * HEIGHT) + 1) = (u8)(color.data[1] / SAMPLES * 255);
+      IDX(image.pixels, 3 * (x + y * HEIGHT) + 2) = (u8)(color.data[2] / SAMPLES * 255);
     }
   }
 

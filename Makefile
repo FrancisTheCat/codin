@@ -1,7 +1,7 @@
 CC         = cc
 CFLAGS     = -nostdlib -fno-builtin -I. -fno-stack-protector -O3 -march=native
 OBJS_LINUX = runtime_linux.o os_linux.o thread_linux.o mem_virtual_linux.o
-OBJS       = codin.o strings.o allocators.o os.o log.o time.o fmt.o context.o amd64.o bit_array.o net.o xml.o image.o test.o mem.o math.o unicode.o mem_virtual.o unicode.o $(OBJS_LINUX)
+OBJS       = codin.o strings.o allocators.o os.o log.o time.o fmt.o context.o amd64.o bit_array.o net.o xml.o image.o test.o mem.o math.o unicode.o mem_virtual.o unicode.o deflate.o hash.o $(OBJS_LINUX)
 
 all: lib qr server
 
