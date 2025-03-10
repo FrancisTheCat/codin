@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 #define UTF8_BOM LIT("\xEF\xBB\xBF")
