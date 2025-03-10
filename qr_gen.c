@@ -5,7 +5,7 @@
 #include "os.h"
 #include "spall.h"
 #include "strings.h"
-#include "time_.h"
+#include "time.h"
 
 #define SPALL_PROFILING
 

@@ -18,7 +18,7 @@
 #include "codin.h"
 
 #include "io.h"
-#include "time_.h"
+#include "time.h"
 
 typedef struct {
   isize width;

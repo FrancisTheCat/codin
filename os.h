@@ -5,7 +5,7 @@
 #include "codin.h"
 
 #include "io.h"
-#include "time_.h"
+#include "time.h"
 
 #define FD_STDIN  0
 #define FD_STDOUT 1
