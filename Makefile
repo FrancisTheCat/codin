@@ -2,10 +2,7 @@ CC = cc
 CFLAGS = -nostdlib -fno-builtin -I. -fno-stack-protector -O3 -march=native
 OBJS = codin.o strings.o runtime_linux.o allocators.o os.o os_linux.o log.o time.o fmt.o context.o amd64.o bit_array.o net.o thread_linux.o xml.o image.o test.o mem.o math.o unicode.o mem_virtual.o mem_virtual_linux.o unicode.o
 
-all: lib compiler qr server
-
-compiler: compiler.o $(OBJS)
-	$(CC) $^ -o compiler $(CFLAGS)
+all: lib qr server
 
 qr: qr_gen.o $(OBJS)
 	$(CC) $^ -o qr_gen $(CFLAGS)

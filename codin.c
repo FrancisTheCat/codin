@@ -118,12 +118,6 @@ extern void __write_location(Source_Code_Location location) {
   __write_cstring(")");
 }
 
-extern isize ilog2(isize x) {
-  isize v = 1;
-  for (; (1 << v) < x; v += 1);
-  return v;
-}
-
 extern void __thread_init();
 extern void __runtime_init();
 extern void __thread_cleanup();
