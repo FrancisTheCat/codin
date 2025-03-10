@@ -123,3 +123,17 @@ extern f64 sqrt_f64(f64 x) {
   INSERT_WORDS(z, ix0, ix1);
   return z;
 }
+
+extern f32 abs_f32(f32 x) { return x >= 0 ? x : -x; }
+extern f64 abs_f64(f64 x) { return x >= 0 ? x : -x; }
+extern i8  abs_i8 (i8  x) { return x >= 0 ? x : -x; }
+extern i16 abs_i16(i16 x) { return x >= 0 ? x : -x; }
+extern i32 abs_i32(i32 x) { return x >= 0 ? x : -x; }
+extern i64 abs_i64(i64 x) { return x >= 0 ? x : -x; }
+extern isize abs_isize(isize x) { return x >= 0 ? x : -x; }
+
+extern isize log2_isize(isize x) {
+  isize v = 1;
+  for (; (1 << v) < x; v += 1);
+  return v;
+}

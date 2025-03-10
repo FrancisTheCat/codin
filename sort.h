@@ -4,16 +4,15 @@
   {                                                                            \
     type_of(_slice) __sort_slice_slice = _slice;                               \
     sort_slice_by(__sort_slice_slice, index_i, index_j, ({                     \
-                    __sort_slice_slice.data[index_i] <=                        \
-                        __sort_slice_slice.data[index_j];                      \
-                  }));                                                         \
+      __sort_slice_slice.data[index_i] <=                                      \
+      __sort_slice_slice.data[index_j];                                        \
+    }));                                                                       \
   }
 
 #define sort_slice_by(_slice, index_i, index_j, is_sorted)                     \
   {                                                                            \
     type_of(_slice) __sort_slice_by_slice = _slice;                            \
-    sort_interface(                                                            \
-        index_i, index_j, is_sorted,                                           \
+    sort_interface(index_i, index_j, is_sorted,                                \
         {                                                                      \
           type_of(*__sort_slice_by_slice.data) tmp =                           \
               __sort_slice_by_slice.data[index_i];                             \
@@ -32,7 +31,7 @@
     } _Sort_Range;                                                             \
                                                                                \
     Vector(_Sort_Range) __stack;                                               \
-    vector_init(&__stack, 0, ilog2(_len) * 4, context.temp_allocator);         \
+    vector_init(&__stack, 0, 8, context.temp_allocator);                       \
                                                                                \
     vector_append(&__stack, ((_Sort_Range){.start = 0, .end = _len}));         \
     while (__stack.len) {                                                      \

@@ -38,4 +38,19 @@ extern f32 fract_f32(f32 x);
 extern f64 fract_f64(f64 x);
 
 [[nodiscard]]
-extern isize ilog2(isize x);
+extern f32 abs_f32(f32 x);
+[[nodiscard]]
+extern f64 abs_f64(f64 x);
+[[nodiscard]]
+extern i8 abs_i8(i8 x);
+[[nodiscard]]
+extern i16 abs_i16(i16 x);
+[[nodiscard]]
+extern i32 abs_i32(i32 x);
+[[nodiscard]]
+extern i64 abs_i64(i64 x);
+[[nodiscard]]
+extern isize abs_isize(isize x);
+
+[[nodiscard]]
+extern isize log2_isize(isize x);
