@@ -2277,7 +2277,6 @@ internal isize evaluate_constant_expression(Checker_Context *ctx, Ast_Expr *e) {
 
 internal Type *resolve_ast_type(Checker_Context *ctx, Ast_Expr *t) {
   Allocator allocator = ctx->allocator;
-  Checker_Scope *scope = ctx->scope;
 
   SWITCH (t->ast_type) {
   CASE ANT_Type_Function: {
@@ -2408,8 +2407,6 @@ internal void type_check_decl_type(Checker_Context *ctx, Ast_Decl_Type *type_dec
 
   spall_end_fn();
 }
-
-internal void print_type(Type *type);
 
 internal void type_check_stmt_assign(Checker_Context *ctx, Ast_Stmt_Assign *assign) {
   Type *lhs = type_check_expr(ctx, assign->lhs);
@@ -3061,7 +3058,6 @@ internal Type *_type_check_expr(Checker_Context *ctx, Ast_Expr *expr) {
 
 internal void type_check_file(Checker_Context *ctx) {
   spall_begin_fn();
-  b8 ok = true;
 
   Checker_Scope cs = {0};
   ctx->global_scope = &cs;
@@ -3414,7 +3410,6 @@ internal void code_gen_push_args(Code_Gen_Context *ctx, Field_Vector args) {
 
   isize register_index[enum_len(Argument_Class)] = {0};
   slice_iter_v(args, arg, i, {
-    Ast_Field       *arg = IDX(args, i);
     Argument_Class class = get_type_argument_class(ast_base(arg)->type);
 
     if (ast_base(arg)->type->size <= 8) {
@@ -3443,13 +3438,10 @@ internal void code_gen_push_args(Code_Gen_Context *ctx, Field_Vector args) {
 
 internal void code_gen_load_args(Code_Gen_Context *ctx, Type_Function *fn) {
   spall_begin_fn();
-  Stack_Frame *f = &IDX(ctx->stack, ctx->stack.len - 1);
 
   isize offset = 0;
-
   isize register_index[enum_len(Argument_Class)] = {0};
   slice_iter_v(fn->args, arg, i, {
-    Type_Argument  arg   = IDX(fn->args, i);
     Argument_Class class = get_type_argument_class(arg.type);
 
     if (arg.type->size <= 8) {
