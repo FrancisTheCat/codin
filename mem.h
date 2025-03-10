@@ -53,7 +53,7 @@ typedef struct {
 
 extern void  mem_zero(rawptr data, isize len);
 extern void  mem_copy(rawptr dst, rawptr src, isize len);
-extern bsize mem_compare(rawptr a, rawptr b, isize len);
+extern b8    mem_compare(rawptr a, rawptr b, isize len);
 extern isize required_align_offset(uintptr ptr, isize align);
 
 #define mem_tnew(T, allocator)                                                 \

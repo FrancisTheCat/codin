@@ -12,7 +12,7 @@ extern void mem_copy(rawptr dst, rawptr src, isize len) {
   }
 }
 
-extern bsize mem_compare(rawptr a, rawptr b, isize len) {
+extern b8 mem_compare(rawptr a, rawptr b, isize len) {
   for (int i = 0; i < len; i += 1) {
     if (((byte *)a)[i] != ((byte *)b)[i]) {
       return false;

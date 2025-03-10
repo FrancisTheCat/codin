@@ -111,7 +111,7 @@ i32 main() {
       for_range(sample, 0, SAMPLES) {
         color = vec3_add(color, per_pixel(
           vec2(
-            ((f32)x + hash12(vec2((f32)(x + sample * 50), (f32)y)) - 0.5) / WIDTH - 0.5,
+            ((f32)x + hash12(vec2((f32)(x + sample * 50), (f32)y)) - 0.5) / WIDTH  - 0.5,
             ((f32)y + hash12(vec2((f32)x, (f32)(y + sample * 50))) - 0.5) / HEIGHT - 0.5
           )
         ));

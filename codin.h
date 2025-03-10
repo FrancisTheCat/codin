@@ -156,6 +156,18 @@ typedef signed int      i32;
 typedef signed short    i16;
 typedef signed char     i8;
 
+#define I64_MIN -9223372036854775808ll
+#define I64_MAX  9223372036854775807ll
+
+#define I32_MIN -2147483648
+#define I32_MAX  2147483647
+
+#define I16_MIN -32768
+#define I16_MAX  32767
+
+#define I8_MIN -128
+#define I8_MAX  127
+
 STATIC_ASSERT(size_of(i64) == 8);
 STATIC_ASSERT(size_of(i32) == 4);
 STATIC_ASSERT(size_of(i16) == 2);
@@ -165,6 +177,11 @@ typedef unsigned long int u64;
 typedef unsigned int      u32;
 typedef unsigned short    u16;
 typedef unsigned char     u8;
+
+#define U64_MAX  18446744073709551615ll
+#define U32_MAX  4294967295
+#define U16_MAX  65535
+#define U8_MAX   255
 
 STATIC_ASSERT(size_of(u64) == 8);
 STATIC_ASSERT(size_of(u32) == 4);
@@ -183,14 +200,14 @@ STATIC_ASSERT(size_of(b8)  == 1);
 
 typedef u64   usize;
 typedef i64   isize;
-typedef isize bsize;
+typedef usize bsize;
 
 STATIC_ASSERT(size_of(usize) == size_of(void *));
 STATIC_ASSERT(size_of(isize) == size_of(void *));
 STATIC_ASSERT(size_of(bsize) == size_of(void *));
 
 typedef double f64;
-typedef float f32;
+typedef float  f32;
 
 STATIC_ASSERT(size_of(f64) == 8);
 STATIC_ASSERT(size_of(f32) == 4);

@@ -303,9 +303,13 @@ extern Allocator_Result pool_allocator_proc(
   unreachable();
 }
 
-extern Allocator pool_allocator(Pool_Allocator *pool, isize block_size,
-                                  isize chunk_size, bsize growing,
-                                  Allocator backing_allocator) {
+extern Allocator pool_allocator(
+  Pool_Allocator *pool,
+  isize block_size,
+  isize chunk_size,
+  b8 growing,
+  Allocator backing_allocator
+) {
   block_size = max(block_size, sizeof(Pool_Allocation_Header));
 #define DEFAULT_POOL_CHUNK_SIZE 256
   chunk_size += (chunk_size == 0) * DEFAULT_POOL_CHUNK_SIZE * block_size;
