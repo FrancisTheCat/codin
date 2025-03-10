@@ -53,70 +53,74 @@ typedef Vec3 Color3;
 #define vec4(_x, _y, _z, _w)                                                   \
   (Vec4) { .x = _x, .y = _y, .z = _z, .w = _w }
 
-Vec3 vec3_add(Vec3 a, Vec3 b) {
-  Vec3 c;
-  for_range(i, 0, 3) { c.data[i] = a.data[i] + b.data[i]; }
-  return c;
-}
+#define GENERATE_VECTOR_OPERATIONS(D)                                          \
+  Vec##D vec##D##_add(Vec##D a, Vec##D b) {                                    \
+    Vec##D c;                                                                  \
+    for_range(i, 0, D) { c.data[i] = a.data[i] + b.data[i]; }                  \
+    return c;                                                                  \
+  }                                                                            \
+                                                                               \
+  Vec##D vec##D##_sub(Vec##D a, Vec##D b) {                                    \
+    Vec##D c;                                                                  \
+    for_range(i, 0, D) { c.data[i] = a.data[i] - b.data[i]; }                  \
+    return c;                                                                  \
+  }                                                                            \
+                                                                               \
+  Vec##D vec##D##_mul(Vec##D a, Vec##D b) {                                    \
+    Vec##D c;                                                                  \
+    for_range(i, 0, D) { c.data[i] = a.data[i] * b.data[i]; }                  \
+    return c;                                                                  \
+  }                                                                            \
+                                                                               \
+  Vec##D vec##D##_div(Vec##D a, Vec##D b) {                                    \
+    Vec##D c;                                                                  \
+    for_range(i, 0, D) { c.data[i] = a.data[i] / b.data[i]; }                  \
+    return c;                                                                  \
+  }                                                                            \
+                                                                               \
+  Vec##D vec##D##_scale(Vec##D a, f32 scale) {                                 \
+    for_range(i, 0, D) { a.data[i] *= scale; }                                 \
+    return a;                                                                  \
+  }                                                                            \
+                                                                               \
+  f32 vec##D##_dot(Vec##D a, Vec##D b) {                                       \
+    f32 ret = 0;                                                               \
+    for_range(i, 0, D) { ret += a.data[i] * b.data[i]; }                       \
+    return ret;                                                                \
+  }                                                                            \
+                                                                               \
+  f32 vec##D##_length2(Vec##D v) { return vec##D##_dot(v, v); }                \
+                                                                               \
+  f32 vec##D##_length(Vec##D v) { return sqrt_f32(vec##D##_length2(v)); }      \
+                                                                               \
+  Vec##D vec##D##_normalize(Vec##D v) {                                        \
+    f32 length = vec##D##_length(v);                                           \
+    return vec##D##_scale(v, 1.0 / length);                                    \
+  }                                                                            \
+                                                                               \
+  Vec##D vec##D##_reflect(Vec##D i, Vec##D n) {                                \
+    f32 dot = vec##D##_dot(n, i);                                              \
+    n = vec##D##_scale(n, 2 * dot);                                            \
+    return vec##D##_sub(i, n);                                                 \
+  }                                                                            \
+                                                                               \
+  Vec##D vec##D##_lerp(Vec##D a, Vec##D b, f32 t) {                            \
+    a = vec##D##_scale(a, t);                                                  \
+    b = vec##D##_scale(b, 1 - t);                                              \
+                                                                               \
+    return vec##D##_add(a, b);                                                 \
+  }                                                                            \
+                                                                               \
+  Vec##D vec##D##_fract(Vec##D v) {                                            \
+    for_range(i, 0, D) {                                                       \
+      v.data[i] = fract_f32(v.data[i]);                                        \
+    }                                                                          \
+    return v;                                                                  \
+  }                                                                            \
+                                                                               \
 
-Vec3 vec3_sub(Vec3 a, Vec3 b) {
-  Vec3 c;
-  for_range(i, 0, 3) { c.data[i] = a.data[i] - b.data[i]; }
-  return c;
-}
-
-Vec3 vec3_mul(Vec3 a, Vec3 b) {
-  Vec3 c;
-  for_range(i, 0, 3) { c.data[i] = a.data[i] * b.data[i]; }
-  return c;
-}
-
-Vec3 vec3_div(Vec3 a, Vec3 b) {
-  Vec3 c;
-  for_range(i, 0, 3) { c.data[i] = a.data[i] / b.data[i]; }
-  return c;
-}
-
-Vec3 vec3_scale(Vec3 a, f32 scale) {
-  for_range(i, 0, 3) { a.data[i] *= scale; }
-  return a;
-}
-
-f32 vec3_dot(Vec3 a, Vec3 b) {
-  f32 ret = 0;
-  for_range(i, 0, 3) { ret += a.data[i] * b.data[i]; }
-  return ret;
-}
+GENERATE_VECTOR_OPERATIONS(2)
+GENERATE_VECTOR_OPERATIONS(3)
+GENERATE_VECTOR_OPERATIONS(4)
 
 Vec3 vec3_cross(Vec3 a, Vec3 b) { unimplemented(); }
-
-f32 vec3_length2(Vec3 v) { return vec3_dot(v, v); }
-
-f32 vec3_length(Vec3 v) { return sqrt_f32(vec3_length2(v)); }
-
-Vec3 vec3_normalize(Vec3 v) {
-  f32 length = vec3_length(v);
-  return vec3_scale(v, 1.0 / length);
-}
-
-Vec3 vec3_reflect(Vec3 i, Vec3 n) {
-  f32 dot = vec3_dot(n, i);
-  n = vec3_scale(n, 2 * dot);
-  return vec3_sub(i, n);
-}
-
-Vec3 vec3_lerp(Vec3 a, Vec3 b, f32 t) {
-  a = vec3_scale(a, t);
-  b = vec3_scale(b, 1 - t);
-
-  return vec3_add(a, b);
-}
-
-f32 fract_f32(f32 x) { return x - (f32)(isize)x; }
-
-Vec3 vec3_fract(Vec3 v) {
-  for_range(i, 0, 3) {
-    v.data[i] = fract_f32(v.data[i]);
-  }
-  return v;
-}
