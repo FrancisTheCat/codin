@@ -226,7 +226,6 @@ internal u8 qr__galois_power_2_lut_rev[256] = {0};
 internal u8 qr__bit_order_swap_lut    [256] = {0};
 
 internal void qr__generate_lut() {
-  spall_begin_fn();
   for_range(i, 0, 255) {
     isize value = 1;
     for_range(j, 0, i) {
@@ -245,7 +244,6 @@ internal void qr__generate_lut() {
     qr__bit_order_swap_lut[i] = swap;
   }
   qr__luts_generated = true;
-  spall_end();
 }
 
 internal u8 qr__galois_mul(u8 a, u8 b) {
@@ -262,7 +260,6 @@ typedef Slice(u8) Galois_Polynomial;
 
 // will generate a generator polynomial with degree = p.len - 1
 internal void qr__generate_generator_polynomial(Galois_Polynomial p) {
-  spall_begin_fn();
   assert(qr__luts_generated);
   assert(p.len >= 3);
 
@@ -280,14 +277,12 @@ internal void qr__generate_generator_polynomial(Galois_Polynomial p) {
       p.data[j] = a_ ^ qr__galois_mul(a, qr__galois_power_2_lut[i - 1]);
     }
   }
-  spall_end();
 }
 
 internal void qr__modulo_galois_polynomial(
   Galois_Polynomial dividend,
   Galois_Polynomial divisor
 ) {
-  spall_begin_fn();
   assert(qr__luts_generated);
   for (isize i = dividend.len - 1; i >= 0; i -= 1) {
     if (i + 1 < divisor.len) {
@@ -299,7 +294,6 @@ internal void qr__modulo_galois_polynomial(
       IDX(dividend, i + j - divisor.len + 1) ^= qr__galois_mul(m, IDX(divisor, j));
     }
   }
-  spall_end();
 }
 
 internal void qr__generate_error_correction_codes(
@@ -307,7 +301,6 @@ internal void qr__generate_error_correction_codes(
   Byte_Slice                      data,
   Byte_Buffer                    *ecs
 ) {
-  spall_begin_fn();
   assert(qr__luts_generated);
   assert(data.len == info->data_words);
 
@@ -365,7 +358,6 @@ internal void qr__generate_error_correction_codes(
 
     data_offset += info->data_words_per_block_group2;
   }
-  spall_end();
 }
 
 internal isize qr__required_version(isize data_len, QR_Error_Correction correction_level) {
@@ -397,7 +389,6 @@ internal void qr__generate_data_bits(
   Byte_Slice          data,
   Bit_Array          *ba
 ) {
-  spall_begin_fn();
   assert(ba->len == 0);
 
   bit_array_append_n(ba, QR_BYTE_ENCODING, 4);
@@ -410,7 +401,6 @@ internal void qr__generate_data_bits(
   if (ba->len % 8) {
     bit_array_append_n(ba, 0, 8 - ba->len % 8);
   }
-  spall_end();
 }
 
 internal isize qr__alignment_locations[41][7] = {
@@ -530,7 +520,6 @@ internal u64 qr__version_info_strings[41] = {
 #define QR__FIXED_BIT 0x80
 
 internal void qr__place_fixed_patterns(Image const *image, isize version, QR_Error_Correction level) {
-  spall_begin_fn();
   // Finder Patterns
   #define QR__FINDER_PIXEL(x, y, v)                                                        \
     IDX(image->pixels, x +                     y                      * image->width) = v; \
@@ -607,7 +596,6 @@ internal void qr__place_fixed_patterns(Image const *image, isize version, QR_Err
     IDX(image->pixels, i + image->width * 6) = (i & 1) | QR__FIXED_BIT;
     IDX(image->pixels, i * image->width + 6) = (i & 1) | QR__FIXED_BIT;
   }
-  spall_end();
 }
 
 internal void qr__place_format_and_version_info(
@@ -616,7 +604,6 @@ internal void qr__place_format_and_version_info(
   QR_Error_Correction level,
   isize               mask
 ) {
-  spall_begin_fn();
   // Format Information
   IDX(image->pixels, (image->width - 8) * image->width + 8) = 0 | QR__FIXED_BIT; // doesn't really matter whether its fixed
 
@@ -646,7 +633,6 @@ internal void qr__place_format_and_version_info(
 
   // Version information
   if (version < 7) {
-    spall_end();
     return;
   }
 
@@ -658,7 +644,6 @@ internal void qr__place_format_and_version_info(
     IDX(image->pixels, i / 3 + image->width * (i % 3 + image->height - 11)) = !bit | QR__FIXED_BIT;
     IDX(image->pixels, i % 3 + image->width - 11 + image->width * (i / 3))  = !bit | QR__FIXED_BIT;
   }
-  spall_end();
 }
 
 internal b8 qr__mask(isize mask, isize row, isize column) {
@@ -777,7 +762,6 @@ internal void qr__place_data_bits(
   Byte_Slice                      ecs,
   isize                           mask
 ) {
-  spall_begin_fn();
   isize cursor_x = image->width  - 1;
   isize cursor_y = image->height - 1;
   b8    left     = false;
@@ -820,14 +804,11 @@ internal void qr__place_data_bits(
     qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, 1, mask);
   }
 
-  spall_end();
 }
 
 internal isize qr__evaluate_penalty_consecutive(Image const *image) {
-  spall_begin_fn();
   isize penalty = 0;
 
-  spall_begin("horziontal");
   for_range(row, 0, image->height) {
     isize run = 0;
     u8    run_value = 1;
@@ -844,9 +825,7 @@ internal isize qr__evaluate_penalty_consecutive(Image const *image) {
       }
     }
   }
-  spall_end();
 
-  spall_begin("vertical");
   for_range(col, 0, image->width) {
     isize run = 0;
     u8    run_value = 1;
@@ -863,14 +842,11 @@ internal isize qr__evaluate_penalty_consecutive(Image const *image) {
       }
     }
   }
-  spall_end();
 
-  spall_end();
   return penalty;
 }
 
 internal isize qr__evaluate_penalty_squares(Image const *image) {
-  spall_begin_fn();
   isize penalty = 0;
 
   for_range(row, 0, image->height - 1) {
@@ -891,12 +867,10 @@ internal isize qr__evaluate_penalty_squares(Image const *image) {
     }
   }
 
-  spall_end();
   return penalty;
 }
 
 internal isize qr__evaluate_penalty_weird(Image const *image) {
-  spall_begin_fn();
   isize penalty = 0;
 
   u16 pattern_1 = 0b01000101111;
@@ -928,12 +902,10 @@ internal isize qr__evaluate_penalty_weird(Image const *image) {
     }
   }
 
-  spall_end();
   return penalty;
 }
 
 internal isize qr__evaluate_penalty_balance(Image const *image) {
-  spall_begin_fn();
   isize n_dark = 0;
   slice_iter_v(image->pixels, p, i, {
     if (!(p & 1)) {
@@ -954,7 +926,6 @@ internal isize qr__evaluate_penalty_balance(Image const *image) {
   prev_multiple /= 5;
   next_multiple /= 5;
 
-  spall_end();
   return min(prev_multiple, next_multiple) * 10;
 }
 
@@ -968,9 +939,7 @@ internal isize qr__evaluate_penalty(Image const *image) {
 }
 
 internal void qr__change_mask(Image const *image, isize old_mask, isize new_mask) {
-  spall_begin_fn();
   if (old_mask == new_mask) {
-  //   spall_end();
     return;
   }
 
@@ -981,7 +950,6 @@ internal void qr__change_mask(Image const *image, isize old_mask, isize new_mask
       }
     }
   }
-  spall_end();
 }
 
 #define QR_MASK_AUTOMATIC -1
@@ -1058,11 +1026,9 @@ internal b8 qr_code_generate_image(
     qr__place_data_bits(image, eci, version, raw_data, buffer_to_bytes(ecs), mask);
   }
 
-  spall_begin("transform_pixels");
   slice_iter(image->pixels, p, i, {
     *p = -(*p & 1);
   });
-  spall_end();
   
   bit_array_destroy(&ba);
   return true;

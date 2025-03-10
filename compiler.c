@@ -1,10 +1,12 @@
 #include "codin.h"
-#include "strings.h"
-#include "fmt.h"
-#include "os.h"
+
 #include "allocators.h"
-#include "unicode.h"
+#include "fmt.h"
 #include "log.h"
+#include "mem_virtual.h"
+#include "os.h"
+#include "strings.h"
+#include "unicode.h"
 
 #include "spall.h"
 
@@ -3744,7 +3746,7 @@ i32 main() {
       fmt_eprintflnc("Failed to open source file '%S'", path);
       continue;
     });
-    Byte_Slice file_data = or_do_err(read_entire_file_fd(file, context.temp_allocator), _err, {
+    Byte_Slice file_data = or_do_err(map_entire_file(file), _err, {
       fmt_eprintflnc("Failed to read file '%S'", path);
       continue;
     });

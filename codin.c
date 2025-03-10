@@ -18,65 +18,65 @@ extern rawptr memset(rawptr data, i32 c, usize n) {
 
 [[nodiscard]]
 extern String format_usize_to_buffer(usize value, Byte_Slice buffer) {
-    isize i = 0;
+  isize i = 0;
 
-    do {
-        buffer.data[i] = (value % 10) + '0';
-        i += 1;
-        value /= 10;
-    } while (value > 0);
+  do {
+    buffer.data[i] = (value % 10) + '0';
+    i     += 1;
+    value /= 10;
+  } while (value > 0);
 
-    isize start = 0;
-    isize end = i - 1;
-    while (start < end) {
-        char temp = buffer.data[start];
-        buffer.data[start] = buffer.data[end];
-        buffer.data[end] = temp;
-        start++;
-        end--;
-    }
+  isize start = 0;
+  isize end   = i - 1;
+  while (start < end) {
+    char temp = buffer.data[start];
+    buffer.data[start] = buffer.data[end];
+    buffer.data[end  ] = temp;
+    start++;
+    end--;
+  }
 
-    buffer.data[i] = 0;
+  buffer.data[i] = 0;
 
-    return (String) {
-      .data = (char *)buffer.data,
-      .len = i,
-    };
+  return (String) {
+    .data = (char *)buffer.data,
+    .len  = i,
+  };
 }
 
 extern String format_usize_to_buffer_hex(usize value, Byte_Slice buffer, b8 uppercase) {
-    isize i = 0;
+  isize i = 0;
 
-    if (value == 0) {
-        buffer.data[0] = '0';
-        i += 1;
-    }
+  if (value == 0) {
+    buffer.data[0] = '0';
+    i += 1;
+  }
 
-    while (value > 0) {
-        isize remainder = value % 16;
+  while (value > 0) {
+    isize remainder = value % 16;
 
-        buffer.data[i] = (remainder < 10) ? (remainder + '0') : (remainder - 10 + (uppercase ? 'A': 'a'));
-        i += 1;
+    buffer.data[i] = (remainder < 10) ? (remainder + '0') : (remainder - 10 + (uppercase ? 'A': 'a'));
+    i += 1;
 
-        value /= 16;
-    }
+    value /= 16;
+  }
 
-    buffer.data[i] = 0;
+  buffer.data[i] = 0;
 
-    // Reverse the buffer to get the final result
-    isize start = 0;
-    isize end = i - 1;
-    while (start < end) {
-        char temp = buffer.data[start];
-        buffer.data[start] = buffer.data[end];
-        buffer.data[end] = temp;
-        start++;
-        end--;
-    }
+  // Reverse the buffer to get the final result
+  isize start = 0;
+  isize end = i - 1;
+  while (start < end) {
+    char temp = buffer.data[start];
+    buffer.data[start] = buffer.data[end];
+    buffer.data[end] = temp;
+    start++;
+    end--;
+  }
 
-    return (String) {
-      .data = (char *)buffer.data,
-      .len  = i
+  return (String) {
+    .data = (char *)buffer.data,
+    .len  = i
   };
 }
 
@@ -84,24 +84,19 @@ extern isize cstring_len(cstring s);
 extern void __write_cstring(cstring str) { syscall(SYS_write, 2, str, cstring_len(str)); }
 extern void __write_string(String str) { syscall(SYS_write, 2, str.data, str.len); }
 extern void __write_usize_hex(usize value) {
-#define N 32
-  byte buf[N] = {0};
+  byte buf[32] = {0};
   String str = format_usize_to_buffer_hex(value, slice_array(Byte_Slice, buf), true);
   __write_string(str);
-#undef N
 }
 
 extern void __write_usize(usize value) {
-#define N 32
-  byte buf[N] = {0};
+  byte buf[32] = {0};
   String str = format_usize_to_buffer(value, slice_array(Byte_Slice, buf));
   __write_string(str);
-#undef N
 }
 
 extern void __write_isize(isize value) {
-#define N 32
-  byte buf[N + 1] = {0};
+  byte buf[33] = {0};
   Byte_Slice slice = slice_array(Byte_Slice, buf);
   Byte_Slice buf_ = slice;
   if (value < 0) {
@@ -112,7 +107,6 @@ extern void __write_isize(isize value) {
   }
   (void)format_usize_to_buffer(value, buf_);
   __write_cstring((cstring)buf);
-#undef N
 }
 
 extern void __write_location(Source_Code_Location location) {

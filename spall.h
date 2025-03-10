@@ -43,7 +43,7 @@ TODO: Optional Helper APIs:
 typedef struct SpallHeader {
     u64 magic_header; // = 0x0BADF00D
     u64 version; // = 1
-    f64   timestamp_unit;
+    f64 timestamp_unit;
     u64 must_be_0;
 } __attribute__ ((packed)) SpallHeader;
 
@@ -82,7 +82,7 @@ typedef struct SpallEndEvent {
     u8  type; // = SpallEventType_End
     u32 pid;
     u32 tid;
-    f64   when;
+    f64 when;
 } __attribute__ ((packed)) SpallEndEvent;
 
 typedef struct SpallPadSkipEvent {

@@ -1,13 +1,6 @@
 #include "codin.h"
 
-#ifdef linux
-  #include "mem_virtual_linux.h"
-#endif
+#include "os.h"
 
-internal OS_Result_Bytes map_file(Fd file, uintptr start, uintptr size) {
-  return _map_file(file, start, size);
-}
-
-internal OS_Result_Bytes map_entire_file(Fd file) {
-  return map_file(file, 0, -1);
-}
+extern OS_Result_Bytes map_file(Fd file, uintptr start, uintptr size);
+extern OS_Result_Bytes map_entire_file(Fd file);

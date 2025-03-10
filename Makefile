@@ -1,6 +1,6 @@
 CC = cc
 CFLAGS = -nostdlib -fno-builtin -I. -fno-stack-protector -O3 -march=native
-OBJS = codin.o strings.o runtime_linux.o allocators.o os.o os_linux.o log.o time.o fmt.o context.o amd64.o bit_array.o net.o thread_linux.o xml.o image.o test.o mem.o math.o
+OBJS = codin.o strings.o runtime_linux.o allocators.o os.o os_linux.o log.o time.o fmt.o context.o amd64.o bit_array.o net.o thread_linux.o xml.o image.o test.o mem.o math.o unicode.o mem_virtual.o mem_virtual_linux.o unicode.o
 
 all: minimal generator compiler qr server main
 
@@ -27,6 +27,9 @@ lib: $(OBJS)
 
 install: lib
 	sudo cp libcodin.a /usr/lib/libcodin.a
+	sudo rm -rf /usr/include/codin
+	sudo mkdir  /usr/include/codin
+	sudo cp *.h /usr/include/codin
 	sudo ldconfig
 
 uninstall:
