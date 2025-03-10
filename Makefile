@@ -1,6 +1,7 @@
-CC = cc
-CFLAGS = -nostdlib -fno-builtin -I. -fno-stack-protector -O3 -march=native
-OBJS = codin.o strings.o runtime_linux.o allocators.o os.o os_linux.o log.o time.o fmt.o context.o amd64.o bit_array.o net.o thread_linux.o xml.o image.o test.o mem.o math.o unicode.o mem_virtual.o mem_virtual_linux.o unicode.o
+CC         = cc
+CFLAGS     = -nostdlib -fno-builtin -I. -fno-stack-protector -O3 -march=native
+OBJS_LINUX = runtime_linux.o os_linux.o thread_linux.o mem_virtual_linux.o
+OBJS       = codin.o strings.o allocators.o os.o log.o time.o fmt.o context.o amd64.o bit_array.o net.o xml.o image.o test.o mem.o math.o unicode.o mem_virtual.o unicode.o $(OBJS_LINUX)
 
 all: lib qr server
 
@@ -21,6 +22,7 @@ install: lib
 	sudo ldconfig
 
 uninstall:
+	sudo rm -rf /usr/include/codin
 	sudo rm /usr/lib/libcodin.a
 	sudo ldconfig
 
