@@ -2,13 +2,7 @@ CC = cc
 CFLAGS = -nostdlib -fno-builtin -I. -fno-stack-protector -O3 -march=native
 OBJS = codin.o strings.o runtime_linux.o allocators.o os.o os_linux.o log.o time.o fmt.o context.o amd64.o bit_array.o net.o thread_linux.o xml.o image.o test.o mem.o math.o unicode.o mem_virtual.o mem_virtual_linux.o unicode.o
 
-all: minimal generator compiler qr server main
-
-minimal: minimal.o $(OBJS)
-	$(CC) $^ -o minimal $(CFLAGS)
-
-generator: generator.o $(OBJS)
-	$(CC) $^ -o generator $(CFLAGS)
+all: lib compiler qr server
 
 compiler: compiler.o $(OBJS)
 	$(CC) $^ -o compiler $(CFLAGS)
@@ -18,9 +12,6 @@ qr: qr_gen.o $(OBJS)
 
 server: server.o $(OBJS)
 	$(CC) $^ -o server $(CFLAGS)
-
-main: main.o $(OBJS)
-	$(CC) $^ -o main $(CFLAGS)
 
 lib: $(OBJS)
 	ar rcs libcodin.a $(OBJS)
@@ -40,4 +31,4 @@ uninstall:
 	$(CC) -c $< -o $@ $(CFLAGS)
 
 clean:
-	rm -f *.o minimal generator compiler qr_gen server main libcodin.a
+	rm -f *.o compiler qr_gen server libcodin.a
