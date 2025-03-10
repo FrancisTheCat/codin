@@ -1,7 +1,7 @@
 #include "codin.h"
 
 #include "image.h"
-#include "vec.h"
+#include "linalg.h"
 #include "os.h"
 
 #define WIDTH   256
