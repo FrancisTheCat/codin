@@ -1,4 +1,4 @@
-#include "syscalls.h"
+#include "syscalls_linux_amd64.h"
 
 .intel_syntax 
 .text
