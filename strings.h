@@ -64,6 +64,8 @@ extern b8 cstring_compare_lexicographic(cstring a, cstring b);
 
 [[nodiscard]]
 extern isize string_index_byte(String str, byte b);
+[[nodiscard]]
+extern isize string_index_rune(String str, rune r);
 
 [[nodiscard]]
 extern Maybe_Int parse_isize(String str);

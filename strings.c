@@ -1,6 +1,8 @@
 #include "codin.h"
 
-[[nodiscard]]
+#include "unicode.h"
+#include "strings.h"
+
 extern Byte_Slice string_to_bytes(String str) {
   return (Byte_Slice) {
     .data = (byte *)str.data,
@@ -8,7 +10,6 @@ extern Byte_Slice string_to_bytes(String str) {
   };
 }
 
-[[nodiscard]]
 extern String bytes_to_string(Byte_Slice bytes) {
   return (String) {
     .data = (char *)bytes.data,
@@ -16,27 +17,22 @@ extern String bytes_to_string(Byte_Slice bytes) {
   };
 }
 
-[[nodiscard]]
 extern b8 rune_is_upper(rune r) {
   return 'A' <= r && r <= 'Z';
 }
 
-[[nodiscard]]
 extern b8 rune_is_lower(rune r) {
   return 'a' <= r && r <= 'z';
 }
 
-[[nodiscard]]
 extern b8 rune_is_alpha(rune r) {
   return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z');
 }
 
-[[nodiscard]]
 extern b8 rune_is_numeric(rune r) {
   return '0' <= r && r <= '9';
 }
 
-[[nodiscard]]
 extern b8 rune_is_alpha_numeric(rune r) {
   return rune_is_alpha(r) || rune_is_numeric(r);
 }
@@ -45,7 +41,6 @@ extern Allocator_Error string_delete(String s, Allocator allocator) {
   return mem_free((rawptr)s.data, s.len, allocator);
 }
 
-[[nodiscard]]
 extern isize cstring_len(cstring s) {
   if (!s) {
     return 0;
@@ -61,15 +56,13 @@ extern Allocator_Error cstring_delete(cstring s, Allocator allocator) {
   return mem_free((rawptr)s, cstring_len(s), allocator);
 }
 
-[[nodiscard]]
 extern String cstring_to_string(cstring c) {
-  String s;
-  s.data = c;
-  s.len = cstring_len(c);
-  return s;
+  return (String) {
+    .data = c,
+    .len  = cstring_len(c),
+  };
 }
 
-[[nodiscard]]
 extern String cstring_to_string_clone(cstring c, Allocator allocator) {
   String s;
   s.len = cstring_len(c);
@@ -77,10 +70,8 @@ extern String cstring_to_string_clone(cstring c, Allocator allocator) {
   return s;
 }
 
-[[nodiscard]]
 extern cstring string_to_cstring_unsafe(String s) { return s.data; }
 
-[[nodiscard]]
 extern cstring string_to_cstring_clone(String s, Allocator allocator) {
   char *data = (char *)unwrap_err(mem_alloc(s.len + 1, allocator));
   mem_tcopy(data, s.data, s.len);
@@ -88,22 +79,18 @@ extern cstring string_to_cstring_clone(String s, Allocator allocator) {
   return data;
 }
 
-[[nodiscard]]
 extern String string_clone(String s, Allocator allocator) {
-  String ret;
-  ret.data =
-      (const char *)unwrap_err(mem_clone((rawptr)s.data, s.len, allocator));
-  ret.len = s.len;
-  return ret;
+  return (String) {
+    .data = (const char *)unwrap_err(mem_clone((rawptr)s.data, s.len, allocator)),
+    .len  = s.len,
+  };
 }
 
-[[nodiscard]]
 extern String strings_concatenate(String a, String b, Allocator allocator) {
   Byte_Slice tmp = bytes_concatenate(string_to_bytes(a), string_to_bytes(b), allocator);
   return bytes_to_string(tmp);
 }
 
-[[nodiscard]]
 extern b8 cstring_equal(cstring a, cstring b) {
   if ((a == nil) || (b == nil)) {
     return a == b;
@@ -117,7 +104,6 @@ extern b8 cstring_equal(cstring a, cstring b) {
   return a[i] == b[i];
 }
 
-[[nodiscard]]
 extern b8 string_equal(String a, String b) {
   if (a.len != b.len) {
     return false;
@@ -132,7 +118,6 @@ extern b8 string_equal(String a, String b) {
   return true;
 }
 
-[[nodiscard]]
 extern b8 string_compare_lexicographic(String a, String b) {
   slice_iter(a, c, i, {
     if (i >= b.len) {
@@ -145,14 +130,12 @@ extern b8 string_compare_lexicographic(String a, String b) {
   return true;
 }
 
-[[nodiscard]]
 extern b8 cstring_compare_lexicographic(cstring a, cstring b) {
   return string_compare_lexicographic(cstring_to_string(a), cstring_to_string(b));
 }
 
 #define string_range(str, start, end) slice_range(str, start, end)
 
-[[nodiscard]]
 extern isize string_index_byte(String str, byte b) {
   slice_iter(str, c, i, {
     if (*c == b) {
@@ -162,7 +145,15 @@ extern isize string_index_byte(String str, byte b) {
   return -1;
 }
 
-[[nodiscard]]
+extern isize string_index_rune(String str, rune r) {
+  string_iter(str, c, i, {
+    if (c == r) {
+      return i;
+    }
+  });
+  return -1;
+}
+
 extern Maybe_Int parse_isize(String str) {
   if (str.len == 0) {
     return (Maybe_Int){};
@@ -196,7 +187,6 @@ extern isize string_copy(String dst, String src) {
   return bytes_copy(string_to_bytes(dst), string_to_bytes(src));
 }
 
-[[nodiscard]]
 extern isize string_index(String str, String substr) {
   if (str.len < substr.len) {
     return -1;
@@ -211,7 +201,6 @@ extern isize string_index(String str, String substr) {
   return -1;
 }
 
-[[nodiscard]]
 extern String string_to_lower(String str, Allocator allocator) {
   Slice(char) out = slice_make(type_of(out), str.len, allocator);
   slice_iter(out, c, i, {
@@ -223,7 +212,6 @@ extern String string_to_lower(String str, Allocator allocator) {
   return transmute(String, out);
 }
 
-[[nodiscard]]
 extern String_Slice string_split(String str, String split, Allocator allocator) {
   Vector(String) splits;
   vector_init(&splits, 0, 8, allocator);
