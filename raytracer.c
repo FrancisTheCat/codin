@@ -1,6 +1,8 @@
 #include "codin.h"
+
 #include "image.h"
 #include "vec.h"
+#include "os.h"
 
 #define WIDTH   1024
 #define HEIGHT  1024
@@ -8,9 +10,9 @@
 
 typedef struct {
   Color3 color;
-  Vec3 position;
-  Vec3 normal;
-  f32  distance;
+  Vec3   position;
+  Vec3   normal;
+  f32    distance;
 } Hit;
 
 typedef struct {
@@ -100,7 +102,7 @@ f32 hash12(Vec2 p) {
   return fract_f32((p3.x + p3.y + dot * 2) * (p3.z + dot));
 }
 
-int main(Arg_Slice _args) {
+i32 main() {
   Image image = {
     .components = 3,
     .pixel_type = PT_u8,
@@ -129,8 +131,7 @@ int main(Arg_Slice _args) {
     }
   }
 
-  OS_Error err = _remove(LIT("output.png"));
-  assert(err == nil);
+  file_remove(LIT("output.png"));
   Fd output_file = unwrap_err(file_open(LIT("output.png"), FP_Read_Write | FP_Create | FP_Truncate));
   Writer output_writer = writer_from_handle(output_file);
   assert(png_save_writer(&output_writer, &image));

@@ -1,6 +1,8 @@
 #pragma once
 #include "codin.h"
 
+#include "math.h"
+
 typedef union {
   struct {
     f32 x;
@@ -87,8 +89,6 @@ f32 vec3_dot(Vec3 a, Vec3 b) {
 }
 
 Vec3 vec3_cross(Vec3 a, Vec3 b) { unimplemented(); }
-
-f32 sqrt_f32(f32 x) { return __builtin_sqrtf(x); }
 
 f32 vec3_length2(Vec3 v) { return vec3_dot(v, v); }
 

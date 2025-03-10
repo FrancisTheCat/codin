@@ -178,25 +178,25 @@ extern OS_Result_Dir directory_read_fd(Fd fd, Allocator allocator) {
   return result;
 }
 
-extern OS_Error _remove(String path) {
+extern OS_Error file_remove(String path) {
   cstring cpath = string_to_cstring_clone(path, context.temp_allocator);
   syscall_or_return_err(SYS_unlink, cpath);
   return OSE_None;
 }
 
-extern OS_Error _remove_at(Fd dir, String path) {
+extern OS_Error file_remove_at(Fd dir, String path) {
   cstring cpath = string_to_cstring_clone(path, context.temp_allocator);
   syscall_or_return_err(SYS_unlinkat, dir, cpath, 0);
   return OSE_None;
 }
 
-extern OS_Error _remove_dir(String path) {
+extern OS_Error directory_remove(String path) {
   cstring cpath = string_to_cstring_clone(path, context.temp_allocator);
   syscall_or_return_err(SYS_rmdir, cpath);
   return OSE_None;
 }
 
-extern OS_Error _remove_dir_at(Fd dir, String path) {
+extern OS_Error directory_remove_at(Fd dir, String path) {
   cstring cpath = string_to_cstring_clone(path, context.temp_allocator);
   syscall_or_return_err(SYS_unlinkat, dir, cpath, AT_REMOVEDIR);
   return OSE_None;
