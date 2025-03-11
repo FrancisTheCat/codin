@@ -69,7 +69,7 @@ internal Writer null_writer() {
 typedef Maybe_Int (*Reader_Proc)(rawptr, Byte_Slice);
 
 typedef struct {
-  rawptr data;
+  rawptr      data;
   Reader_Proc proc;
 } Reader;
 
@@ -78,16 +78,17 @@ typedef struct {
   read_bytes(r, (Byte_Slice){.data = (byte *)_v, .len = size_of(*_v)})
 
 /// T read_t(const Reader *r, type T)
-#define read_t(r, T)                                                       \
+#define read_t(r, T) ({                                                    \
   T __read_t_result;                                                       \
   read_bytes(                                                              \
     r,                                                                     \
     (Byte_Slice) {                                                         \
       .data = (byte *)&__read_t_result,                                    \
-      .len = size_of(__read_t_result)                                      \
+      .len  = size_of(__read_t_result)                                     \
     }                                                                      \
   );                                                                       \
-  __read_t_result;
+  __read_t_result;                                                         \
+})
 
 [[nodiscard]]
 internal Maybe_Int read_bytes(const Reader *reader, Byte_Slice buf) {
