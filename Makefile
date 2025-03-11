@@ -1,21 +1,79 @@
-CC         = cc
-CFLAGS     = -nostdlib -fno-builtin -I. -fno-stack-protector -O3 -march=native
-OBJS_LINUX = runtime_linux.o os_linux.o thread_linux.o mem_virtual_linux.o
-OBJS       = codin.o strings.o allocators.o os.o log.o time.o fmt.o context.o amd64.o bit_array.o net.o xml.o image.o test.o mem.o math.o unicode.o mem_virtual.o unicode.o deflate.o hash.o $(OBJS_LINUX)
+CC := gcc
+AS := gcc
+CFLAGS  := -nostdlib -fno-builtin -I. -fno-stack-protector
+ASFLAGS := $(CFLAGS)
 
-all: lib qr server
+SRC := $(wildcard *.c) $(wildcard *.S)
 
-qr: qr_gen.o $(OBJS)
-	$(CC) $^ -o qr_gen $(CFLAGS)
+PLATFORMS := linux windows macos FreeBSD OpenBSD
 
-server: server.o $(OBJS)
-	$(CC) $^ -o server $(CFLAGS)
+PLATFORM_SPECIFIC := $(foreach plat, $(PLATFORMS), \
+    $(filter %_$(plat).c %_$(plat).S, $(SRC)) \
+)
 
-lib: $(OBJS)
-	ar rcs libcodin.a $(OBJS)
+SRC := $(filter-out $(PLATFORM_SPECIFIC), $(SRC))
 
-install: lib
-	sudo cp libcodin.a /usr/lib/libcodin.a
+PLATFORM ?= linux
+
+SRC += $(wildcard *$(PLATFORM).c) $(wildcard *$(PLATFORM).S)
+
+ifdef MODE
+    ifeq ($(MODE),release)
+        CFLAGS += -O3
+        MODE_FLAG := release
+    else ifeq ($(MODE),debug)
+        CFLAGS += -g
+        MODE_FLAG := debug
+    else
+        CFLAGS += -O2
+        MODE_FLAG := default
+    endif
+else
+    CFLAGS += -O2
+    MODE_FLAG := default
+endif
+
+MODE_FLAG += $(PLATFORM)
+
+OBJ_DIR := obj
+OBJ := $(patsubst %.c, $(OBJ_DIR)/%.o, $(filter %.c, $(SRC))) \
+       $(patsubst %.S, $(OBJ_DIR)/%.o, $(filter %.S, $(SRC)))
+
+MODE_FILE := $(OBJ_DIR)/.mode
+
+OUT := libcodin.a
+
+all: build
+
+build: check_mode $(OUT)
+
+.NOTPARALLEL: check_mode
+.NOTPARALLEL: build
+
+check_mode:
+	@if [ -f "$(MODE_FILE)" ] && [ "$$(cat $(MODE_FILE))" != "$(MODE_FLAG)" ]; then \
+	    echo "Mode changed! Cleaning..."; \
+	    $(MAKE) clean; \
+	    $(MAKE) --no-print-directory build; \
+	    exit 0; \
+	fi
+	@mkdir -p $(OBJ_DIR)
+	@echo "$(MODE_FLAG)" > $(MODE_FILE)
+
+$(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
+	$(AS) $(ASFLAGS) -c $< -o $@
+
+$(OBJ_DIR):
+	mkdir -p $(OBJ_DIR)
+
+$(OUT): $(OBJ)
+	ar rcs $(OUT) $(OBJ)
+
+install: build
+	sudo cp $(OUT) /usr/lib/$(OUT)
 	sudo rm -rf /usr/include/codin
 	sudo mkdir  /usr/include/codin
 	sudo cp *.h /usr/include/codin
@@ -23,11 +81,8 @@ install: lib
 
 uninstall:
 	sudo rm -rf /usr/include/codin
-	sudo rm /usr/lib/libcodin.a
+	sudo rm /usr/lib/$(OUT)
 	sudo ldconfig
 
-%.o: %.c
-	$(CC) -c $< -o $@ $(CFLAGS)
-
 clean:
-	rm -f *.o compiler qr_gen server libcodin.a
+	rm -rf $(OBJ_DIR) $(OUT)
