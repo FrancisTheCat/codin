@@ -123,7 +123,6 @@ i32 main() {
     }
   }
 
-  file_remove(LIT("output.png"));
   Fd output_file = unwrap_err(file_open(LIT("output.png"), FP_Read_Write | FP_Create | FP_Truncate));
   Writer output_writer = writer_from_handle(output_file);
   assert(png_save_writer(&output_writer, &image));
