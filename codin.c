@@ -80,7 +80,6 @@ extern String format_usize_to_buffer_hex(usize value, Byte_Slice buffer, b8 uppe
   };
 }
 
-extern isize cstring_len(cstring s);
 extern void __write_cstring(cstring str) { syscall(SYS_write, 2, str, cstring_len(str)); }
 extern void __write_string(String str) { syscall(SYS_write, 2, str.data, str.len); }
 extern void __write_usize_hex(usize value) {

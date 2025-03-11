@@ -2,9 +2,6 @@
 
 #include "codin.h"
 
-#define c_array_to_slice(arr) ((Slice(typeof(*arr))) { .data = arr, .len = count_of(arr) })
-#define c_array_to_slice_t(T, arr) ((T) { .data = arr, .len = count_of(arr) })
-
 #define alloca_slice(T, size) ((T) {                                           \
   .data = (type_of(((T){0}).data))alloca(size * size_of(*(((T){0}).data))),    \
   .len = size                                                                  \

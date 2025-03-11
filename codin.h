@@ -268,9 +268,6 @@ extern String format_usize_to_buffer_hex(usize value, Byte_Slice buffer, b8 uppe
  .len  = count_of(array),                                                      \
 })
 
-[[nodiscard]]
-extern isize cstring_len(cstring s);
-
 extern void __write_cstring(cstring str);
 extern void __write_string(String str);
 extern void __write_usize(usize value);

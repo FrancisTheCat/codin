@@ -361,7 +361,7 @@ internal void qr__generate_error_correction_codes(
 }
 
 internal isize qr__required_version(isize data_len, QR_Error_Correction correction_level) {
-  Slice(isize) capacities = c_array_to_slice_t(type_of(capacities), qr__code_capacities[correction_level]);
+  Slice(isize) capacities = slice_array(type_of(capacities), qr__code_capacities[correction_level]);
   slice_iter_v(capacities, cap, version, {
     if (data_len <= cap) {
       return version + 1;
