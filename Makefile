@@ -5,15 +5,19 @@ ASFLAGS := $(CFLAGS)
 
 SRC := $(wildcard *.c) $(wildcard *.S)
 
+PLATFORM ?= linux
+
 PLATFORMS := linux windows macos FreeBSD OpenBSD
 
 PLATFORM_SPECIFIC := $(foreach plat, $(PLATFORMS), \
     $(filter %_$(plat).c %_$(plat).S, $(SRC)) \
 )
 
-SRC := $(filter-out $(PLATFORM_SPECIFIC), $(SRC))
+ifneq ($(filter $(PLATFORM), $(PLATFORMS)), $(PLATFORM))
+    $(error "$(PLATFORM) is not a known platform")
+endif
 
-PLATFORM ?= linux
+SRC := $(filter-out $(PLATFORM_SPECIFIC), $(SRC))
 
 SRC += $(wildcard *$(PLATFORM).c) $(wildcard *$(PLATFORM).S)
 
@@ -25,8 +29,7 @@ ifdef MODE
         CFLAGS += -g
         MODE_FLAG := debug
     else
-        CFLAGS += -O2
-        MODE_FLAG := default
+    	$(error "$(MODE) is not a known mode")
     endif
 else
     CFLAGS += -O2
