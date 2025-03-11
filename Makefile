@@ -25,6 +25,9 @@ ifdef MODE
     ifeq ($(MODE),release)
         CFLAGS += -O3
         MODE_FLAG := release
+    else ifeq ($(MODE),release-native)
+        CFLAGS += -O3 -march=native
+        MODE_FLAG := release-native
     else ifeq ($(MODE),debug)
         CFLAGS += -g
         MODE_FLAG := debug
