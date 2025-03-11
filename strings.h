@@ -2,6 +2,8 @@
 
 #include "codin.h"
 
+#include "unicode.h"
+
 [[nodiscard]]
 extern Byte_Slice string_to_bytes(String str);
 
