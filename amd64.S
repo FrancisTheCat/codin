@@ -2,7 +2,7 @@
 
 .intel_syntax 
 .text
-.globl _start, __syscall0, __get_fs_register, __call_main
+.globl _start, __syscall0, __get_fs_register, __call_main, syscall
 .globl __syscall1, __syscall2, __syscall3, __syscall4, __syscall5, __syscall6, __clone3, __go_unmap_urself
 
 
@@ -87,6 +87,7 @@ __syscall5:
 
         ret
 
+syscall:
 __syscall6:
         mov %rax, %rdi
         mov %rdi, %rsi

@@ -58,7 +58,6 @@ build: check_mode $(OUT)
 
 check_mode:
 	@if [ -f "$(MODE_FILE)" ] && [ "$$(cat $(MODE_FILE))" != "$(MODE_FLAG)" ]; then \
-	    echo "Mode changed! Cleaning..."; \
 	    $(MAKE) clean; \
 	    $(MAKE) --no-print-directory build; \
 	    exit 0; \
