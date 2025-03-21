@@ -7,11 +7,14 @@
   .len = size                                                                  \
 })
 
-internal void _do_bounds_check(isize index, isize len, Source_Code_Location location) {
+internal void _do_bounds_check(isize index, isize len, String expr, Source_Code_Location location) {
   if (index < 0) {
     __write_location(location);
     __write_cstring(": Bounds checking failure: ");
     __write_isize(index);
+    __write_cstring(" (");
+    __write_string(expr);
+    __write_cstring(")");
     __write_cstring(" < 0\n");
     trap();
   }
@@ -19,14 +22,17 @@ internal void _do_bounds_check(isize index, isize len, Source_Code_Location loca
     __write_location(location);
     __write_cstring(": Bounds checking failure: ");
     __write_isize(index);
-    __write_cstring(" > ");
+    __write_cstring(" (");
+    __write_string(expr);
+    __write_cstring(")");
+    __write_cstring(" >= ");
     __write_isize(len);
     __write_cstring("\n");
     trap();
   }
 }
 
-#define IDX(arr, i) (arr).data[({ _do_bounds_check((i), (arr).len, CALLER_LOCATION); }), (i)]
+#define IDX(arr, i) (arr).data[({ _do_bounds_check((i), (arr).len, LIT(#i), CALLER_LOCATION); }), (i)]
 
 #define Array(T, N) struct {                                                   \
   T data[N];                                                                   \
@@ -59,12 +65,12 @@ internal void _do_bounds_check(isize index, isize len, Source_Code_Location loca
 #define slice_make(type, length, ally)                                         \
   ({                                                                           \
     type slice;                                                                \
-    slice_init(&slice, length, ally);                                          \
+    slice_init(&slice, (length), (ally));                                      \
     slice;                                                                     \
   })
 
-#define slice_delete(slice, allocator)                                         \
-  { mem_free((rawptr)slice.data, slice.len * sizeof(slice.data[0]), allocator); }
+#define slice_delete(slice, allocator) \
+  mem_free((rawptr)(slice).data, (slice).len * sizeof((slice).data[0]), allocator);
 
 #define slice_from_pointer(pointer, _len)                                      \
   ({                                                                           \
@@ -209,3 +215,9 @@ internal isize bytes_copy(Byte_Slice dst, Byte_Slice src) {
 
 #define slice_copy(DST, SRC) \
   mem_copy(DST.data, SRC.data, min(DST.len, SRC.len) * size_of(*DST.data))
+
+#define slice_clone(SRC, ALLOCATOR)                                                                              \
+  (type_of(SRC)) {                                                                                               \
+    .data = (type_of((SRC).data))unwrap_err(mem_clone((SRC).data, (SRC).len * size_of(*(SRC).data), allocator)), \
+    .len  = (SRC).len,                                                                                           \
+  }

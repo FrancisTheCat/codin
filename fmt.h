@@ -18,6 +18,8 @@
 #include "codin.h"
 
 #include "io.h"
+#include "os.h"
+#include "strings.h"
 #include "time.h"
 
 typedef struct {
@@ -39,42 +41,198 @@ extern User_Formatter_Proc register_user_formatter(rune verb, User_Formatter_Pro
 // internal isize fmt_location_w(const Writer *w, Source_Code_Location const *location);
 // internal isize fmt_time_w(const Writer *w, Timestamp time);
 
-extern isize fmt_wprintf_va(const Writer *w, String format, va_list va_args);
+#define FMT_FAMILY(RETURN, ARG_TYPE, ARG, PREFIX)                              \
+  extern RETURN _fmt_##PREFIX##printf_va(                                      \
+    ARG_TYPE ARG,                                                              \
+    String   format,                                                           \
+    va_list  va_args,                                                          \
+    b8       newline                                                           \
+  );                                                                           \
+                                                                               \
+  internal RETURN fmt_##PREFIX##printf_va(                                     \
+    ARG_TYPE ARG,                                                              \
+    String   format,                                                           \
+    va_list  va_args                                                           \
+  ) {                                                                          \
+    return _fmt_##PREFIX##printf_va(ARG, format, va_args, false);              \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##PREFIX##printf(ARG_TYPE ARG, String format, ...) {     \
+    RETURN ret;                                                                \
+    va_list va_args;                                                           \
+    va_start(va_args, format);                                                 \
+                                                                               \
+    ret = _fmt_##PREFIX##printf_va(ARG, format, va_args, false);               \
+                                                                               \
+    va_end(va_args);                                                           \
+    return ret;                                                                \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##PREFIX##printfc(ARG_TYPE ARG, cstring format, ...) {   \
+    RETURN ret;                                                                \
+    va_list va_args;                                                           \
+    va_start(va_args, format);                                                 \
+                                                                               \
+    ret = _fmt_##PREFIX##printf_va(                                            \
+      ARG,                                                                     \
+      cstring_to_string(format),                                               \
+      va_args,                                                                 \
+      false                                                                    \
+    );                                                                         \
+                                                                               \
+    va_end(va_args);                                                           \
+    return ret;                                                                \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##PREFIX##printfln(ARG_TYPE ARG, String format, ...) {   \
+    RETURN ret;                                                                \
+    va_list va_args;                                                           \
+    va_start(va_args, format);                                                 \
+                                                                               \
+    ret = _fmt_##PREFIX##printf_va(ARG, format, va_args, true);                \
+                                                                               \
+    va_end(va_args);                                                           \
+    return ret;                                                                \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##PREFIX##printflnc(ARG_TYPE ARG, cstring format, ...) { \
+    RETURN ret;                                                                \
+    va_list va_args;                                                           \
+    va_start(va_args, format);                                                 \
+                                                                               \
+    ret = _fmt_##PREFIX##printf_va(                                            \
+      ARG,                                                                     \
+      cstring_to_string(format),                                               \
+      va_args,                                                                 \
+      true                                                                     \
+    );                                                                         \
+                                                                               \
+    va_end(va_args);                                                           \
+    return ret;                                                                \
+  }                                                                            \
+                                                                               \
+  internal RETURN _fmt_##PREFIX##print(ARG_TYPE ARG, String str, b8 newline) { \
+    if (newline) {                                                             \
+      return fmt_##PREFIX##printfln(ARG, LIT("%S"), str);                      \
+    } else {                                                                   \
+      return fmt_##PREFIX##printf(ARG, LIT("%S"), str);                        \
+    }                                                                          \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##PREFIX##print(ARG_TYPE ARG, String str) {              \
+    return _fmt_##PREFIX##print(ARG, str, false);                              \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##PREFIX##printc(ARG_TYPE ARG, cstring str) {            \
+    return _fmt_##PREFIX##print(ARG, cstring_to_string(str), false);           \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##PREFIX##println(ARG_TYPE ARG, String str) {            \
+    return _fmt_##PREFIX##print(ARG, str, true);                               \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##PREFIX##printlnc(ARG_TYPE ARG, cstring str) {          \
+    return _fmt_##PREFIX##print(ARG, cstring_to_string(str), true);            \
+  }
 
-#define fmt_wprintfc(w, format, ...) fmt_wprintf(w, LIT(format), __VA_ARGS__)
-#define fmt_wprintc( w, str        ) fmt_wprintf(w, LIT("%s"  ), str        )
+FMT_FAMILY(isize,   Writer const *, w, w );
+FMT_FAMILY(String,  Allocator,      a, a );
+FMT_FAMILY(cstring, Allocator,      a, ca);
+FMT_FAMILY(isize,   Builder *,      b, sb);
+FMT_FAMILY(String,  Byte_Slice,     b, b );
+FMT_FAMILY(isize,   Fd,             f, f );
 
-extern isize fmt_wprintf(const Writer *w, String format, ...);
+#define FMT_FAMILY_DEFAULT_ARG(RETURN, BASE, NAME, ARG)                        \
+  internal RETURN fmt_##NAME##printf_va(                                       \
+    String   format,                                                           \
+    va_list  va_args                                                           \
+  ) {                                                                          \
+    return fmt_##BASE##printf_va(ARG, format, va_args);                        \
+  }                                                                            \
+                                                                               \
+  internal RETURN _fmt_##NAME##printf_va(                                      \
+    String   format,                                                           \
+    va_list  va_args,                                                          \
+    b8       newline                                                           \
+  ) {                                                                          \
+    return _fmt_##BASE##printf_va(ARG, format, va_args, newline);              \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##NAME##printf(String format, ...) {                     \
+    RETURN ret;                                                                \
+    va_list va_args;                                                           \
+    va_start(va_args, format);                                                 \
+                                                                               \
+    ret = _fmt_##BASE##printf_va(ARG, format, va_args, false);                 \
+                                                                               \
+    va_end(va_args);                                                           \
+    return ret;                                                                \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##NAME##printfc(cstring format, ...) {                   \
+    RETURN ret;                                                                \
+    va_list va_args;                                                           \
+    va_start(va_args, format);                                                 \
+                                                                               \
+    ret = _fmt_##BASE##printf_va(                                              \
+      ARG,                                                                     \
+      cstring_to_string(format),                                               \
+      va_args,                                                                 \
+      false                                                                    \
+    );                                                                         \
+                                                                               \
+    va_end(va_args);                                                           \
+    return ret;                                                                \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##NAME##printfln(String format, ...) {                   \
+    RETURN ret;                                                                \
+    va_list va_args;                                                           \
+    va_start(va_args, format);                                                 \
+                                                                               \
+    ret = _fmt_##BASE##printf_va(ARG, format, va_args, true);                  \
+                                                                               \
+    va_end(va_args);                                                           \
+    return ret;                                                                \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##NAME##printflnc(cstring format, ...) {                 \
+    RETURN ret;                                                                \
+    va_list va_args;                                                           \
+    va_start(va_args, format);                                                 \
+                                                                               \
+    ret = _fmt_##BASE##printf_va(                                              \
+      ARG,                                                                     \
+      cstring_to_string(format),                                               \
+      va_args,                                                                 \
+      true                                                                     \
+    );                                                                         \
+                                                                               \
+    va_end(va_args);                                                           \
+    return ret;                                                                \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##NAME##print(String str) {                              \
+    return _fmt_##BASE##print(ARG, str, false);                                \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##NAME##printc(cstring str) {                            \
+    return _fmt_##BASE##print(ARG, cstring_to_string(str), false);             \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##NAME##println(String str) {                            \
+    return _fmt_##BASE##print(ARG, str, true);                                 \
+  }                                                                            \
+                                                                               \
+  internal RETURN fmt_##NAME##printlnc(cstring str) {                          \
+    return _fmt_##BASE##print(ARG, cstring_to_string(str), true);              \
+  }
 
-extern isize fmt_sbprintf_va(Builder *b, String format, va_list va_args);
 
-extern isize fmt_sbprintf(Builder *b, String format, ...);
-
-[[nodiscard]]
-extern String fmt_aprintf_va(Allocator allocator, String format, va_list va_args);
-[[nodiscard]]
-extern String fmt_aprintf(Allocator allocator, String format, ...);
-[[nodiscard]]
-extern cstring fmt_caprintf_va(Allocator allocator, String format, va_list va_args);
-[[nodiscard]]
-extern cstring fmt_caprintf(Allocator allocator, String format, ...);
-
-#define fmt_tprintf(format, ...)                                               \
-  fmt_aprintf(context.temp_allocator, format, __VA_ARGS__)
-#define fmt_tprintf_va(format, va_args)                                        \
-  fmt_aprintf_va(context.temp_allocator, format, va_args)
-  
-#define fmt_ctprintf(format, ...)                                              \
-  fmt_caprintf(context.temp_allocator, format, __VA_ARGS__)
-#define fmt_ctprintf_va(format, va_args)                                       \
-  fmt_caprintf_va(context.temp_allocator, format, va_args)
-
-[[nodiscard]]
-extern String fmt_bprintf_va(Byte_Slice buffer, String format, va_list va_args);
-[[nodiscard]]
-extern String fmt_bprintf(Byte_Slice buffer, String format, ...);
-extern isize fmt_fprintf_va(Fd f, String format, va_list va_args);
-extern isize fmt_fprintf(Fd f, String format, ...);
+FMT_FAMILY_DEFAULT_ARG(cstring, ca, ct, context.temp_allocator);
+FMT_FAMILY_DEFAULT_ARG(String,   a,  t, context.temp_allocator);
+FMT_FAMILY_DEFAULT_ARG(isize,    w,  e, &std_err);
+FMT_FAMILY_DEFAULT_ARG(isize,    w,   , &std_out);
 
 #define fmt_debug(value, verb)                                                 \
   fmt_eprintf(LIT(#value ": %" verb "\n"), value);                             \
@@ -82,35 +240,7 @@ extern isize fmt_fprintf(Fd f, String format, ...);
 // extern void tracking_allocator_fmt_results_w(
 //   const Writer *w,
 //   const Tracking_Allocator *t
-// ) {
-//   fmt_wprintf(w, LIT("Failed Allocations: %d\n"), t->failed_allocations.len);
-//   vector_iter(t->failed_allocations, fa, i, {
-//     fmt_wprintf(
-//       w,
-//       LIT("Allocation(id: %d):\nError: %S\nMode:  %S\nSize: %d\nPtr:   %x\nLoc:   %L\n\n"),
-//       fa->id,
-//       enum_to_string(Allocator_Error, fa->error),
-//       enum_to_string(Allocator_Mode, fa->mode),
-//       fa->size,
-//       fa->ptr,
-//       fa->location
-//     );
-//   });
-//   fmt_wprintf(w, LIT("\n"));
-//   fmt_wprintf(w, LIT("Leaked Allocations: %d\n"), t->allocations.len);
-//   hash_map_iter(t->allocations, ptr, fa, {
-//     fmt_wprintf(
-//         w,
-//         LIT("Allocation(id: %d):\nError: %S\nMode:  %S\nSize:  %d\nPtr:   %x\nLoc:   %L\n\n"),
-//         fa->id,
-//         enum_to_string(Allocator_Error, fa->error),
-//         enum_to_string(Allocator_Mode, fa->mode),
-//         fa->size,
-//         ptr,
-//         fa->location
-//       );
-//   });
-// }
+// );
 
 #define fmt_slice_w(_w, _slice, _format)                                       \
   {                                                                            \
@@ -128,72 +258,10 @@ extern isize fmt_fprintf(Fd f, String format, ...);
     fmt_wprintf(_fmt_slice_w_w, LIT("]"));                                     \
   }
 
-//NOLINTBEGIN
-
-#define fmt_wprint(w, str) fmt_wprintf(w, LIT("%S"), str)
-#define fmt_wprintln(w, str) fmt_wprintf(w, LIT("%S\n"), str)
-// #define fmt_wprintfln(w, format, ...)                                          \
-//   (fmt_wprintf(w, format, __VA_ARGS__) + fmt_wprintf(w, LIT("\n")))
-
-#define fmt_bprint(w, str) fmt_bprintf(w, LIT("%S"), str)
-#define fmt_bprintln(w, str) fmt_bprintf(w, LIT("%S\n"), str)
-// #define fmt_bprintfln(w, format, ...)                                          \
-//   (fmt_bprintf(w, format, __VA_ARGS__) + fmt_bprintf(w, LIT("\n")))
-
-#define fmt_sbprint(w, str) fmt_sbprintf(w, LIT("%S"), str)
-#define fmt_sbprintln(w, str) fmt_sbprintf(w, LIT("%S\n"), str)
-// #define fmt_sbprintfln(w, format, ...)                                         \
-//   (fmt_sbprintf(w, format, __VA_ARGS__) + fmt_sbprintf(w, LIT("\n")))
-
-#define fmt_caprint(w, str) fmt_caprintf(w, LIT("%S"), str)
-#define fmt_caprintln(w, str) fmt_caprintf(w, LIT("%S\n"), str)
-// #define fmt_caprintfln(w, format, ...)                                         \
-//   (fmt_caprintf(w, format, __VA_ARGS__) + fmt_caprintf(w, LIT("\n")))
-
-#define fmt_ctprint(w, str) fmt_ctprintf(w, LIT("%S"), str)
-#define fmt_ctprintln(w, str) fmt_ctprintf(w, LIT("%S\n"), str)
-// #define fmt_ctprintfln(w, format, ...)                                         \
-//   (fmt_ctprintf(w, format, __VA_ARGS__) + fmt_ctprintf(w, LIT("\n")))
-
-#define fmt_tprint(w, str) fmt_tprintf(w, LIT("%S"), str)
-#define fmt_tprintln(w, str) fmt_tprintf(w, LIT("%S\n"), str)
-// #define fmt_tprintfln(w, format, ...)                                          \
-//   (fmt_tprintf(w, format, __VA_ARGS__) + fmt_tprintf(w, LIT("\n")))
-
-#define fmt_aprint(w, str) fmt_aprintf(w, LIT("%S"), str)
-#define fmt_aprintln(w, str) fmt_aprintf(w, LIT("%S\n"), str)
-// #define fmt_aprintfln(w, format, ...)                                          \
-//   (fmt_aprintf(w, format, __VA_ARGS__) + fmt_aprintf(w, LIT("\n")))
-
-#define fmt_fprint(w, str) fmt_fprintf(w, LIT("%S"), str)
-#define fmt_fprintln(w, str) fmt_fprintf(w, LIT("%S\n"), str)
-// #define fmt_fprintfln(w, format, ...)                                          \
-//   (fmt_fprintf(w, format, __VA_ARGS__) + fmt_fprintf(w, LIT("\n")))
-
-//NOLINTEND
-
-#define fmt_printc(format) fmt_print(LIT((format)))
-extern isize fmt_print(String str);
-#define fmt_printlnc(format) fmt_println(LIT(format))
-extern isize fmt_println(String str);
-#define fmt_printfc(format, ...) fmt_printf(LIT(format), __VA_ARGS__)
-extern isize fmt_printf(String format, ...);
-#define fmt_printflnc(format, ...) fmt_printfln(LIT(format), __VA_ARGS__)
-extern isize fmt_printfln(String format, ...);
-
-#define fmt_eprintc(format) fmt_eprint(LIT(format))
-extern isize fmt_eprint(String str);
-#define fmt_eprintlnc(format) fmt_eprintln(LIT(format))
-extern isize fmt_eprintln(String str);
-#define fmt_eprintfc(format, ...) fmt_eprintf(LIT(format), __VA_ARGS__)
-extern isize fmt_eprintf(String format, ...);
-#define fmt_eprintflnc(format, ...) fmt_eprintfln(LIT(format), __VA_ARGS__)
-extern isize fmt_eprintfln(String format, ...);
-
 #define fmt_panicf(...)                                                        \
   {                                                                            \
-    fmt_wprintf(&stderr, LIT("Panic: "));                                      \
-    fmt_wprintf(&stderr, __VA_ARGS__);                                         \
-    fmt_wprintf(&stderr, LIT("\n"));                                           \
+    fmt_wprintf(&std_err, LIT("Panic: "));                                     \
+    fmt_wprintf(&std_err, __VA_ARGS__);                                        \
+    fmt_wprintf(&std_err, LIT("\n"));                                          \
     trap();                                                                    \
   }

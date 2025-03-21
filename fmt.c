@@ -1,4 +1,5 @@
 #include "fmt.h"
+#include "io.h"
 #include "os.h"
 #include "strings.h"
 
@@ -63,8 +64,7 @@ internal String __format_float_to_buffer(f64 value, Byte_Slice buffer, isize pre
       comma_value += 1;
     }
 
-    isize n_comma =
-      format_usize_to_buffer((usize)comma_value, slice_start(buffer, n)).len;
+    isize n_comma = format_usize_to_buffer((usize)comma_value, slice_start(buffer, n)).len;
     for_range(i, n_comma, precision) { buffer.data[i + n] = '0'; }
     n += precision;
   }
@@ -135,7 +135,7 @@ internal isize fmt_file_size_w(const Writer *w, isize size);
 internal isize fmt_location_w(const Writer *w, Source_Code_Location const *location);
 internal isize fmt_time_w(const Writer *w, Timestamp time);
 
-extern isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
+extern isize _fmt_wprintf_va(const Writer *w, String format, va_list va_args, b8 newline) {
   _Formatter_Context ctx;
   union {
     b32 b32;
@@ -471,151 +471,66 @@ extern isize fmt_wprintf_va(const Writer *w, String format, va_list va_args) {
     }
   }
 
+  if (newline) {
+    n += or_return(write_byte(w, '\n'), n);
+  }
+
   return n;
 }
 
-#define fmt_wprintfc(w, format, ...) fmt_wprintf(w, LIT(format), __VA_ARGS__)
-#define fmt_wprintc( w, str        ) fmt_wprintf(w, LIT("%s"  ), str        )
-
-extern isize fmt_wprintf(const Writer *w, String format, ...) {
-  isize result;
-  va_list va_args;
-  va_start(va_args, format);
-
-  result = fmt_wprintf_va(w, format, va_args);
-
-  va_end(va_args);
-  return result;
-}
-
-extern isize fmt_sbprintf_va(Builder *b, String format, va_list va_args) {
-  Writer w;
-  w = writer_from_builder(b);
-  return fmt_wprintf_va(&w, format, va_args);
-}
-
-extern isize fmt_sbprintf(Builder *b, String format, ...) {
-  isize ret;
-  va_list va_args;
-  va_start(va_args, format);
-
-  ret = fmt_sbprintf_va(b, format, va_args);
-
-  va_end(va_args);
-  return ret;
-}
-
-extern String fmt_aprintf_va(Allocator allocator, String format, va_list va_args) {
+extern String _fmt_aprintf_va(Allocator allocator, String format, va_list va_args, b8 newline) {
   Builder b;
   Writer w;
 
   builder_init(&b, 0, 8, allocator);
   w = writer_from_builder(&b);
-  fmt_wprintf_va(&w, format, va_args);
+  _fmt_wprintf_va(&w, format, va_args, newline);
 
   return builder_to_string(b);
 }
 
-extern String fmt_aprintf(Allocator allocator, String format, ...) {
-  String str;
-  va_list va_args;
-  va_start(va_args, format);
-
-  str = fmt_aprintf_va(allocator, format, va_args);
-
-  va_end(va_args);
-  return str;
-}
-
-extern cstring fmt_caprintf_va(Allocator allocator, String format, va_list va_args) {
+extern cstring _fmt_caprintf_va(Allocator allocator, String format, va_list va_args, b8 newline) {
   Builder b;
   Writer w;
 
   builder_init(&b, 0, 8, allocator);
   w = writer_from_builder(&b);
-  fmt_wprintf_va(&w, format, va_args);
+  _fmt_wprintf_va(&w, format, va_args, newline);
 
   return builder_to_cstring(&b);
 }
 
-extern cstring fmt_caprintf(Allocator allocator, String format, ...) {
-  cstring str;
-  va_list va_args;
-  va_start(va_args, format);
-
-  str = fmt_caprintf_va(allocator, format, va_args);
-
-  va_end(va_args);
-  return str;
-}
-
-#define fmt_tprintf(format, ...)                                               \
-  fmt_aprintf(context.temp_allocator, format, __VA_ARGS__)
-#define fmt_tprintf_va(format, va_args)                                        \
-  fmt_aprintf_va(context.temp_allocator, format, va_args)
-  
-#define fmt_ctprintf(format, ...)                                              \
-  fmt_caprintf(context.temp_allocator, format, __VA_ARGS__)
-#define fmt_ctprintf_va(format, va_args)                                       \
-  fmt_caprintf_va(context.temp_allocator, format, va_args)
-  
-
-extern String fmt_bprintf_va(Byte_Slice buffer, String format, va_list va_args) {
-  Builder b;
+extern isize _fmt_sbprintf_va(Builder *b, String format, va_list va_args, b8 newline) {
   Writer w;
-  String str;
-
-  builder_init(&b, 0, 8, context.temp_allocator);
-  w = writer_from_builder(&b);
-  fmt_wprintf_va(&w, format, va_args);
-
-  mem_copy(buffer.data, b.data, min(b.len, buffer.len));
-
-  str.data = (char *)buffer.data;
-  str.len = min(b.len, buffer.len);
-
-  return str;
+  w = writer_from_builder(b);
+  return _fmt_wprintf_va(&w, format, va_args, newline);
 }
 
-extern String fmt_bprintf(Byte_Slice buffer, String format, ...) {
-  va_list va_args;
-  String str;
-  va_start(va_args, format);
-
-  str = fmt_bprintf_va(buffer, format, va_args);
-
-  va_end(va_args);
-  return str;
-}
-
-extern isize fmt_fprintf_va(Fd f, String format,
-                               va_list va_args) {
-  Writer w = writer_from_handle(f);
-  String s = fmt_tprintf_va(format, va_args);
-  return or_else(write_string(&w, s), -1);
-}
-
-extern isize fmt_fprintf(Fd f, String format, ...) {
-  isize ret;
-  va_list va_args;
-  va_start(va_args, format);
-
-  ret = fmt_fprintf_va(f, format, va_args);
-
-  va_end(va_args);
+extern String _fmt_bprintf_va(Byte_Slice buffer, String format, va_list va_args, b8 newline) {
+  Writer w = buffer_writer(&buffer);
+  String ret = { .data = (char *)buffer.data };
+  ret.len =  _fmt_wprintf_va(&w, format, va_args, newline);
   return ret;
 }
 
+extern isize _fmt_fprintf_va(Fd f, String format, va_list va_args, b8 newline) {
+  Writer w = writer_from_handle(f);
+  String s = _fmt_tprintf_va(format, va_args, newline);
+  return or_else(write_string(&w, s), -1);
+}
+
 internal isize fmt_location_w(
-  const Writer *w,
+  Writer               const *w,
   Source_Code_Location const *loc
 ) {
   return fmt_wprintf(w, LIT("%S:%S(%d)"), loc->file, loc->proc, loc->line);
 }
 
 internal isize fmt_file_size_w(const Writer *w, isize size) {
-  String file_size_prefixes[] = {LIT("b"),  LIT("Kb"), LIT("Mb"),
-                                 LIT("Gb"), LIT("Tb"), LIT("Pb")};
+  String file_size_prefixes[] = {
+    LIT("b"),  LIT("Kb"), LIT("Mb"),
+    LIT("Gb"), LIT("Tb"), LIT("Pb"),
+  };
   isize i = 0;
   isize s = 1;
   for (; (1000 * s <= size) && (i < 6);) {
@@ -677,133 +592,3 @@ internal isize fmt_time_w(const Writer *w, Timestamp time) {
 //       );
 //   });
 // }
-
-#define fmt_slice_w(_w, _slice, _format)                                       \
-  {                                                                            \
-    type_of(_slice) _fmt_slice_w_slice = _slice;                               \
-    type_of(_w) _fmt_slice_w_w = _w;                                           \
-    fmt_wprintf(_fmt_slice_w_w, LIT("["));                                     \
-    String format = fmt_tprintf(LIT("%s, "), _format);                         \
-    slice_iter(_fmt_slice_w_slice, elem, i, {                                  \
-      if (i != _fmt_slice_w_slice.len - 1) {                                   \
-        fmt_wprintf(_fmt_slice_w_w, format, *elem);                            \
-      } else {                                                                 \
-        fmt_wprintf(_fmt_slice_w_w, _format, *elem);                           \
-      }                                                                        \
-    });                                                                        \
-    fmt_wprintf(_fmt_slice_w_w, LIT("]"));                                     \
-  }
-
-//NOLINTBEGIN
-
-#define fmt_wprint(w, str) fmt_wprintf(w, LIT("%S"), str)
-#define fmt_wprintln(w, str) fmt_wprintf(w, LIT("%S\n"), str)
-// #define fmt_wprintfln(w, format, ...)                                          \
-//   (fmt_wprintf(w, format, __VA_ARGS__) + fmt_wprintf(w, LIT("\n")))
-
-#define fmt_bprint(w, str) fmt_bprintf(w, LIT("%S"), str)
-#define fmt_bprintln(w, str) fmt_bprintf(w, LIT("%S\n"), str)
-// #define fmt_bprintfln(w, format, ...)                                          \
-//   (fmt_bprintf(w, format, __VA_ARGS__) + fmt_bprintf(w, LIT("\n")))
-
-#define fmt_sbprint(w, str) fmt_sbprintf(w, LIT("%S"), str)
-#define fmt_sbprintln(w, str) fmt_sbprintf(w, LIT("%S\n"), str)
-// #define fmt_sbprintfln(w, format, ...)                                         \
-//   (fmt_sbprintf(w, format, __VA_ARGS__) + fmt_sbprintf(w, LIT("\n")))
-
-#define fmt_caprint(w, str) fmt_caprintf(w, LIT("%S"), str)
-#define fmt_caprintln(w, str) fmt_caprintf(w, LIT("%S\n"), str)
-// #define fmt_caprintfln(w, format, ...)                                         \
-//   (fmt_caprintf(w, format, __VA_ARGS__) + fmt_caprintf(w, LIT("\n")))
-
-#define fmt_ctprint(w, str) fmt_ctprintf(w, LIT("%S"), str)
-#define fmt_ctprintln(w, str) fmt_ctprintf(w, LIT("%S\n"), str)
-// #define fmt_ctprintfln(w, format, ...)                                         \
-//   (fmt_ctprintf(w, format, __VA_ARGS__) + fmt_ctprintf(w, LIT("\n")))
-
-#define fmt_tprint(w, str) fmt_tprintf(w, LIT("%S"), str)
-#define fmt_tprintln(w, str) fmt_tprintf(w, LIT("%S\n"), str)
-// #define fmt_tprintfln(w, format, ...)                                          \
-//   (fmt_tprintf(w, format, __VA_ARGS__) + fmt_tprintf(w, LIT("\n")))
-
-#define fmt_aprint(w, str) fmt_aprintf(w, LIT("%S"), str)
-#define fmt_aprintln(w, str) fmt_aprintf(w, LIT("%S\n"), str)
-// #define fmt_aprintfln(w, format, ...)                                          \
-//   (fmt_aprintf(w, format, __VA_ARGS__) + fmt_aprintf(w, LIT("\n")))
-
-#define fmt_fprint(w, str) fmt_fprintf(w, LIT("%S"), str)
-#define fmt_fprintln(w, str) fmt_fprintf(w, LIT("%S\n"), str)
-// #define fmt_fprintfln(w, format, ...)                                          \
-//   (fmt_fprintf(w, format, __VA_ARGS__) + fmt_fprintf(w, LIT("\n")))
-
-//NOLINTEND
-
-#define fmt_printc(format) fmt_print(LIT((format)))
-extern isize fmt_print(String str) {
-  Builder b = builder_make(0, 8, context.temp_allocator);
-  (void)fmt_sbprintf(&b, LIT("%S"), str);
-  return or_else(write_bytes(&std_out, builder_to_bytes(b)), -1);
-}
-
-#define fmt_printlnc(format) fmt_println(LIT(format))
-extern isize fmt_println(String str) {
-  Builder b = builder_make(0, 8, context.temp_allocator);
-  (void)fmt_sbprintf(&b, LIT("%S\n"), str);
-  return or_else(write_bytes(&std_out, builder_to_bytes(b)), -1);
-}
-
-#define fmt_printfc(format, ...) fmt_printf(LIT(format), __VA_ARGS__)
-extern isize fmt_printf(String format, ...) {
-  Builder b = builder_make(0, 8, context.temp_allocator);
-  va_list va_args;
-  va_start(va_args, format);
-  (void)fmt_sbprintf_va(&b, format, va_args);
-  va_end(va_args);
-  return or_else(write_bytes(&std_out, builder_to_bytes(b)), -1);
-}
-
-#define fmt_printflnc(format, ...) fmt_printfln(LIT(format), __VA_ARGS__)
-extern isize fmt_printfln(String format, ...) {
-  Builder b = builder_make(0, 8, context.temp_allocator);
-  va_list va_args;
-  va_start(va_args, format);
-  (void)fmt_sbprintf_va(&b, format, va_args);
-  va_end(va_args);
-  vector_append(&b, '\n');
-  return or_else(write_bytes(&std_out, builder_to_bytes(b)), -1);
-}
-
-#define fmt_eprintc(format) fmt_eprint(LIT(format))
-extern isize fmt_eprint(String str) {
-  Builder b = builder_make(0, 8, context.temp_allocator);
-  (void)fmt_sbprintf(&b, LIT("%S"), str);
-  return or_else(write_bytes(&std_err, builder_to_bytes(b)), -1);
-}
-
-#define fmt_eprintlnc(format) fmt_eprintln(LIT(format))
-extern isize fmt_eprintln(String str) {
-  Builder b = builder_make(0, 8, context.temp_allocator);
-  (void)fmt_sbprintf(&b, LIT("%S\n"), str);
-  return or_else(write_bytes(&std_err, builder_to_bytes(b)), -1);
-}
-
-#define fmt_eprintfc(format, ...) fmt_eprintf(LIT(format), __VA_ARGS__)
-extern isize fmt_eprintf(String format, ...) {
-  Builder b = builder_make(0, 8, context.temp_allocator);
-  va_list va_args;
-  va_start(va_args, format);
-  (void)fmt_sbprintf_va(&b, format, va_args);
-  va_end(va_args);
-  return or_else(write_bytes(&std_err, builder_to_bytes(b)), -1);
-}
-
-#define fmt_eprintflnc(format, ...) fmt_eprintfln(LIT(format), __VA_ARGS__)
-extern isize fmt_eprintfln(String format, ...) {
-  Builder b = builder_make(0, 8, context.temp_allocator);
-  va_list va_args;
-  va_start(va_args, format);
-  (void)fmt_sbprintf_va(&b, format, va_args);
-  va_end(va_args);
-  vector_append(&b, '\n');
-  return or_else(write_bytes(&std_err, builder_to_bytes(b)), -1);
-}

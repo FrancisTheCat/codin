@@ -113,3 +113,22 @@ internal Reader buffer_reader(Byte_Slice *buffer) {
       .proc = buffer_reader_proc,
   };
 }
+
+internal Maybe_Int buffer_writer_proc(rawptr data, Byte_Slice buf) {
+  Byte_Slice *src = (Byte_Slice *)data;
+  if (!src->len) {
+    return (Maybe_Int){.value = 0, .ok = true};
+  }
+  isize n = bytes_copy(*src, buf);
+  src->data += n;
+  src->len -= n;
+  return (Maybe_Int){.value = n, .ok = true};
+}
+
+[[nodiscard]]
+internal Writer buffer_writer(Byte_Slice *buffer) {
+  return (Writer){
+      .data = buffer,
+      .proc = buffer_writer_proc,
+  };
+}
