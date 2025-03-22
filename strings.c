@@ -57,6 +57,9 @@ extern Allocator_Error cstring_delete(cstring s, Allocator allocator) {
 }
 
 extern String cstring_to_string(cstring c) {
+  if (!c) {
+    return (String){0};
+  }
   return (String) {
     .data = c,
     .len  = cstring_len(c),

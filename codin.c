@@ -3,7 +3,6 @@
 #include "allocators.h"
 #include "log.h"
 #include "os.h"
-#include "runtime_linux.h"
 #include "strings.h"
 
 thread_local Growing_Arena_Allocator _default_temp_allocator_arena;
@@ -80,8 +79,6 @@ extern String format_usize_to_buffer_hex(usize value, Byte_Slice buffer, b8 uppe
   };
 }
 
-extern void __write_cstring(cstring str) { syscall(SYS_write, 2, str, cstring_len(str)); }
-extern void __write_string(String str) { syscall(SYS_write, 2, str.data, str.len); }
 extern void __write_usize_hex(usize value) {
   byte buf[32] = {0};
   String str = format_usize_to_buffer_hex(value, slice_array(Byte_Slice, buf), true);

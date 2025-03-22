@@ -1,6 +1,5 @@
 #include "os.h"
 
-#include "runtime_linux.h"
 #include "strings.h"
 
 Reader std_in;
@@ -106,22 +105,6 @@ extern Reader reader_from_handle(Fd handle) {
       .data = *(rawptr *)&handle,
       .proc = file_reader_proc,
   };
-}
-
-extern rawptr os_pages_allocate(isize n) {
-  return (rawptr)syscall(
-    SYS_mmap,
-    0,
-    n * OS_PAGE_SIZE,
-    PROT_READ | PROT_WRITE,
-    MAP_PRIVATE | MAP_ANONYMOUS,
-    0,
-    0
-  );
-}
-
-extern b8 os_pages_deallocate(rawptr p, isize n) {
-  return syscall(SYS_munmap, p, n * OS_PAGE_SIZE) == 0;
 }
 
 extern Maybe_Int writer_file_proc(rawptr handle, Byte_Slice data) {

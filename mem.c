@@ -72,6 +72,9 @@ extern Allocator_Error _mem_free(
   Allocator            allocator,
   Source_Code_Location location
 ) {
+  if (!ptr) {
+    return AE_None;
+  }
   // if (!allocator.proc) {
   //   allocator = context.allocator;
   // }

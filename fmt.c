@@ -2,6 +2,7 @@
 #include "io.h"
 #include "os.h"
 #include "strings.h"
+#include "time.h"
 
 internal Hash_Map(rune, User_Formatter_Proc) _fmt_user_formatters = {0};
 
@@ -138,15 +139,15 @@ internal isize fmt_time_w(const Writer *w, Timestamp time);
 extern isize _fmt_wprintf_va(const Writer *w, String format, va_list va_args, b8 newline) {
   _Formatter_Context ctx;
   union {
-    b32 b32;
-    f64 f64;
-    i32 character;
-    Timestamp time;
-    isize isize;
-    String string;
-    rawptr pointer;
-    cstring cstring;
-    Void_Slice slice;
+    b32                  b32;
+    f64                  f64;
+    i32                  character;
+    isize                isize;
+    String               string;
+    rawptr               pointer;
+    cstring              cstring;
+    Timestamp            time;
+    Void_Slice           slice;
     Source_Code_Location location;
   } tp;
   Byte_Slice tmp_buf;
@@ -232,6 +233,9 @@ extern isize _fmt_wprintf_va(const Writer *w, String format, va_list va_args, b8
           i += 1;
           ctx.complete = true;
           break;
+
+        default:
+          fmt_panicf(LIT("Unknown format verb: '%c' (0x%x at offset %d in format string \"%S\")"), format.data[i], format.data[i], i, format);
         }
       }
 
@@ -559,36 +563,3 @@ internal isize fmt_time_w(const Writer *w, Timestamp time) {
     (isize)tv.second
   );
 }
-
-// extern void tracking_allocator_fmt_results_w(
-//   const Writer *w,
-//   const Tracking_Allocator *t
-// ) {
-//   fmt_wprintf(w, LIT("Failed Allocations: %d\n"), t->failed_allocations.len);
-//   vector_iter(t->failed_allocations, fa, i, {
-//     fmt_wprintf(
-//       w,
-//       LIT("Allocation(id: %d):\nError: %S\nMode:  %S\nSize: %d\nPtr:   %x\nLoc:   %L\n\n"),
-//       fa->id,
-//       enum_to_string(Allocator_Error, fa->error),
-//       enum_to_string(Allocator_Mode, fa->mode),
-//       fa->size,
-//       fa->ptr,
-//       fa->location
-//     );
-//   });
-//   fmt_wprintf(w, LIT("\n"));
-//   fmt_wprintf(w, LIT("Leaked Allocations: %d\n"), t->allocations.len);
-//   hash_map_iter(t->allocations, ptr, fa, {
-//     fmt_wprintf(
-//         w,
-//         LIT("Allocation(id: %d):\nError: %S\nMode:  %S\nSize:  %d\nPtr:   %x\nLoc:   %L\n\n"),
-//         fa->id,
-//         enum_to_string(Allocator_Error, fa->error),
-//         enum_to_string(Allocator_Mode, fa->mode),
-//         fa->size,
-//         ptr,
-//         fa->location
-//       );
-//   });
-// }

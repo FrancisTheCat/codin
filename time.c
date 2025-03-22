@@ -1,36 +1,11 @@
 #include "time.h"
 
-#include "runtime_linux.h"
-
 extern void time_get_value(Timestamp time, Time_Value *value) {
   time_precise_clock(time, &value->hour, &value->minute, &value->second, &value->nanosecond);
   value->microsecond = (value->nanosecond / Microsecond) % 1000;
   value->millisecond = (value->nanosecond / Millisecond) % 1000;
   isize _yday;
   time_date(time, true, &value->year, &value->month, &value->day, &_yday);
-}
-
-[[nodiscard]]
-extern Timestamp time_now() {
-  struct {
-    i64 seconds;
-    i64 nanoseconds;
-  } _time = {0};
-  u64 status = syscall(SYS_clock_gettime, 0, &_time);
-  assert(status == 0);
-  return _time.nanoseconds + Second * _time.seconds;
-}
-
-extern void time_sleep(Duration duration) {
-  struct {
-    i64 seconds;
-    i64 nanoseconds;
-  } _time = {
-    .seconds     = duration / Second,
-    .nanoseconds = duration % Second,
-  };
-  u64 status = syscall(SYS_nanosleep, &_time, nil);
-  assert(status == 0);
 }
 
 /*

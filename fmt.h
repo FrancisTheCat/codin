@@ -20,7 +20,6 @@
 #include "io.h"
 #include "os.h"
 #include "strings.h"
-#include "time.h"
 
 typedef struct {
   isize width;

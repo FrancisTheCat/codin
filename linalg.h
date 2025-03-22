@@ -4,10 +4,7 @@
 #include "math.h"
 
 typedef union {
-  struct {
-    f32 x;
-    f32 y;
-  };
+  struct { f32 x, y; };
   f32 data[2];
 } Vec2;
 
@@ -15,16 +12,8 @@ typedef union {
   (Vec2) { .x = _x, .y = _y }
 
 typedef union {
-  struct {
-    f32 x;
-    f32 y;
-    f32 z;
-  };
-  struct {
-    f32 r;
-    f32 g;
-    f32 b;
-  };
+  struct { f32 x, y, z; };
+  struct { f32 r, g, b; };
   f32 data[3];
 } Vec3;
 
@@ -32,18 +21,8 @@ typedef union {
   (Vec3) { .x = _x, .y = _y, .z = _z }
 
 typedef union {
-  struct {
-    f32 x;
-    f32 y;
-    f32 z;
-    f32 w;
-  };
-  struct {
-    f32 r;
-    f32 g;
-    f32 b;
-    f32 a;
-  };
+  struct { f32 x, y, z, w; };
+  struct { f32 r, g, b, a; };
   f32 data[4];
 } Vec4;
 

@@ -72,6 +72,33 @@ typedef struct {
   Allocator_Mode       mode;
 } Tracked_Allocation;
 
+/*
+fmt_printflnc("Failed Allocations: %d", t->failed_allocations.len);
+vector_iter(t->failed_allocations, fa, i, {
+  fmt_printflnc(
+    "Allocation(id: %d):\nError: %S\nMode:  %S\nSize: %d\nPtr:   %x\nLoc:   %L\n",
+    fa->id,
+    enum_to_string(Allocator_Error, fa->error),
+    enum_to_string(Allocator_Mode, fa->mode),
+    fa->size,
+    fa->ptr,
+    fa->location
+  );
+});
+fmt_printflnc("");
+fmt_printflnc("Leaked Allocations: %d", t->allocations.len);
+hash_map_iter(t->allocations, ptr, fa, {
+  fmt_printflnc(
+    "Allocation(id: %d):\nError: %S\nMode:  %S\nSize:  %d\nPtr:   %x\nLoc:   %L\n",
+    fa->id,
+    enum_to_string(Allocator_Error, fa->error),
+    enum_to_string(Allocator_Mode, fa->mode),
+    fa->size,
+    ptr,
+    fa->location
+  );
+});
+*/
 typedef struct {
   Hash_Map(rawptr, Tracked_Allocation) allocations;
   Vector(Tracked_Allocation)           failed_allocations;
