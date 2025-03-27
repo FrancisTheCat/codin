@@ -8,8 +8,8 @@ typedef union {
   f32 data[2];
 } Vec2;
 
-#define vec2(_x, _y)                                                           \
-  (Vec2) { .x = _x, .y = _y }
+#define vec2(...)                                                              \
+  (Vec2) { {__VA_ARGS__} }
 
 typedef union {
   struct { f32 x, y, z; };
@@ -17,8 +17,8 @@ typedef union {
   f32 data[3];
 } Vec3;
 
-#define vec3(_x, _y, _z)                                                       \
-  (Vec3) { .x = _x, .y = _y, .z = _z }
+#define vec3(...)                                                              \
+  (Vec3) { {__VA_ARGS__} }
 
 typedef union {
   struct { f32 x, y, z, w; };
@@ -29,8 +29,8 @@ typedef union {
 typedef Vec4 Color4;
 typedef Vec3 Color3;
 
-#define vec4(_x, _y, _z, _w)                                                   \
-  (Vec4) { .x = _x, .y = _y, .z = _z, .w = _w }
+#define vec4(...)                                                              \
+  (Vec4) { {__VA_ARGS__} }
 
 #define GENERATE_VECTOR_OPERATIONS(D)                                          \
   internal Vec##D vec##D##_add(Vec##D a, Vec##D b) {                           \
@@ -97,6 +97,21 @@ typedef Vec3 Color3;
   internal Vec##D vec##D##_fract(Vec##D v) {                                   \
     for_range(i, 0, D) {                                                       \
       v.data[i] = fract_f32(v.data[i]);                                        \
+    }                                                                          \
+    return v;                                                                  \
+  }                                                                            \
+                                                                               \
+  internal Vec##D vec##D##_clamp(Vec##D x, Vec##D a, Vec##D b) {               \
+    for_range(i, 0, D) {                                                       \
+      x.data[i] = clamp(x.data[i], a.data[i], b.data[i]);                      \
+    }                                                                          \
+    return x;                                                                  \
+  }                                                                            \
+                                                                               \
+  internal Vec##D vec##D##_broadcast(f32 a) {                                  \
+    Vec##D v;                                                                  \
+    for_range(i, 0, D) {                                                       \
+      v.data[i] = a;                                                           \
     }                                                                          \
     return v;                                                                  \
   }                                                                            \

@@ -35,9 +35,34 @@ extern f32 cos_f32(f32 x);
 extern f64 cos_f64(f64 x);
 
 [[nodiscard]]
-extern f32 pow_f32(f32 x, f64 e);
+extern f32 tan_f32(f32 x);
 [[nodiscard]]
-extern f64 pow_f64(f64 x, f64 e);
+extern f64 tan_f64(f64 x);
+
+[[nodiscard]]
+extern f32 asin_f32(f32 x);
+[[nodiscard]]
+extern f64 asin_f64(f64 x);
+
+[[nodiscard]]
+extern f32 acos_f32(f32 x);
+[[nodiscard]]
+extern f64 acos_f64(f64 x);
+
+[[nodiscard]]
+extern f32 atan_f32(f32 x);
+[[nodiscard]]
+extern f64 atan_f64(f64 x);
+
+[[nodiscard]]
+extern f32 atan2_f32(f32 x, f32 y);
+[[nodiscard]]
+extern f64 atan2_f64(f64 x, f64 y);
+
+[[nodiscard]]
+extern f32 pow_f32(f32 x, f32 y);
+[[nodiscard]]
+extern f64 pow_f64(f64 x, f64 y);
 
 [[nodiscard]]
 extern f32 log_f32(f32 x, f64 base);

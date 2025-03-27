@@ -22,14 +22,14 @@ extern void bit_array_append_u16(Bit_Array *ba, u16 value);
 extern void bit_array_append_u32(Bit_Array *ba, u32 value);
 extern void bit_array_append_u64(Bit_Array *ba, u64 value);
 
-#define bit_array_iter(ba, b, i, BLOCK) {                                      \
+#define bit_array_iter(ba, b, i, BLOCK...) {                                   \
   for (isize i = 0; i < (ba).len; i += 1) {                                    \
     b8 b = bit_array_get(&ba, i);                                              \
     { BLOCK; }                                                                 \
   }                                                                            \
 }                                                                              \
 
-#define bit_array_iter_set(ba, i, BLOCK) {                                     \
+#define bit_array_iter_set(ba, i, BLOCK...) {                                  \
   for (isize i = 0; i < (ba).len; i += 1) {                                    \
     if (bit_array_get(&ba, i)) {                                               \
       BLOCK;                                                                   \
@@ -37,7 +37,7 @@ extern void bit_array_append_u64(Bit_Array *ba, u64 value);
   }                                                                            \
 }                                                                              \
 
-#define bit_array_iter_unset(ba, i, BLOCK) {                                   \
+#define bit_array_iter_unset(ba, i, BLOCK...) {                                \
   for (isize i = 0; i < (ba).len; i += 1) {                                    \
     if (!bit_array_get(&ba, i)) {                                              \
       BLOCK;                                                                   \

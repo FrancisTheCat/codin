@@ -89,7 +89,18 @@ extern Allocator_Error _mem_resize(
   Allocator            allocator,
   Source_Code_Location location
 ) {
-  Allocator_Error err;
+  return _mem_resize_aligned(data, old_size, new_size, MAX_ALIGN, allocator, location);
+}
+
+extern Allocator_Error _mem_resize_aligned(
+  rawptr              *data,
+  isize                old_size,
+  isize                new_size,
+  isize                align,
+  Allocator            allocator,
+  Source_Code_Location location
+) {
+  Allocator_Error err = {0};
   // if (!allocator.proc) {
   //   allocator = context.allocator;
   // }
@@ -101,7 +112,7 @@ extern Allocator_Error _mem_resize(
     }
     return err;
   }
-  rawptr new_data = or_return_err_v(_mem_alloc(new_size, allocator, location));
+  rawptr new_data = or_return_err_v(_mem_alloc_aligned(new_size, align, allocator, location));
   mem_copy(new_data, *data, old_size);
   if (old_size) {
     err = _mem_free(*data, old_size, allocator, location);

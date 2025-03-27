@@ -27,8 +27,8 @@ extern OS_Result_Bytes read_entire_file_fd(Fd fd, Allocator allocator) {
   if (result.err) {
     return result;
   }
-  slice_init(&result.value, fi.size, allocator);
 
+  result.value     = slice_make(Byte_Slice, fi.size, allocator);
   result.value.len = or_return_err(file_read(fd, result.value));
 
   return result;

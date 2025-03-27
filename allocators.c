@@ -112,11 +112,11 @@ extern void arena_allocator_destroy(Arena_Allocator arena,
 }
 
 extern Allocator_Result growing_arena_allocator_proc(
-  rawptr data,
-  Allocator_Mode mode,
-  isize size,
-  isize align,
-  rawptr old_memory,
+  rawptr               data,
+  Allocator_Mode       mode,
+  isize                size,
+  isize                align,
+  rawptr               old_memory,
   Source_Code_Location location
 ) {
   (void)location;
@@ -571,6 +571,8 @@ extern Allocator_Result default_allocator_proc(
     size_category = 1;
   }
 
+  uintptr offset, base;
+
   switch (mode) {
   case AM_Alloc:
     switch (size_category) {
@@ -588,14 +590,13 @@ extern Allocator_Result default_allocator_proc(
       mem_zero(result.value, size);
       return result;
     case 5:
-      result.value = os_pages_allocate((size + sizeof(Default_Allocator_Page_Header) + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE);
-      assert(align <= sizeof(Default_Allocator_Page_Header));
-      old_memory   = result.value;
-      *(Default_Allocator_Page_Header *)result.value = (Default_Allocator_Page_Header) {
+      offset = max(sizeof(Default_Allocator_Page_Header), align);
+      base   = (uintptr)os_pages_allocate((size + offset + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE);
+      result.value = (rawptr)(base + offset);
+      ((Default_Allocator_Page_Header *)result.value)[-1] = (Default_Allocator_Page_Header) {
         .size = (size + MAX_ALIGN + OS_PAGE_SIZE - 1) / OS_PAGE_SIZE,
-        .page = old_memory,
+        .page = (rawptr)base,
       };
-      *(Default_Allocator_Page_Header **)&result.value += 1;
       return result;
     }
 
@@ -613,7 +614,6 @@ extern Allocator_Result default_allocator_proc(
       return result;
     case 5:
       page_header = &((Default_Allocator_Page_Header *)old_memory)[-1];
-      assert(page_header == page_header->page);
       assert(page_header->size < 100000);
       assert(os_pages_deallocate(page_header->page, page_header->size));
       return result;

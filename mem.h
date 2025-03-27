@@ -47,8 +47,8 @@ typedef struct {
 
 #define mem_tcopy(dst, src, len)                                               \
   ({                                                                           \
-    assert(sizeof(dst[0]) == sizeof(src[0]));                                  \
-    mem_copy((rawptr)dst, (rawptr)src, len * size_of(dst[0]));                 \
+    STATIC_ASSERT(sizeof((dst)[0]) == sizeof((src)[0]));                       \
+    mem_copy((rawptr)(dst), (rawptr)(src), len * size_of((dst)[0]));           \
   })
 
 extern void  mem_zero(rawptr data, isize len);
@@ -91,6 +91,17 @@ extern Allocator_Result _mem_clone(
 extern Allocator_Error _mem_free(
   rawptr               ptr,
   isize                size,
+  Allocator            allocator,
+  Source_Code_Location location
+);
+
+#define mem_resize_aligned(data, old_size, new_size, align, allocator)         \
+  _mem_resize_aligned(data, old_size, new_size, align, allocator, CALLER_LOCATION)
+extern Allocator_Error _mem_resize_aligned(
+  rawptr              *data,
+  isize                old_size,
+  isize                new_size,
+  isize                align,
   Allocator            allocator,
   Source_Code_Location location
 );

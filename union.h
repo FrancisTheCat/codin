@@ -46,15 +46,15 @@
     (u)->variant.__##T;                                                        \
   })
 
-#define UNION_SWITCH(u, BLOCK)                                                 \
+#define UNION_SWITCH(u, BLOCK...)                                              \
   {                                                                            \
     type_of(u) *__union_switch_T = &u;                                         \
     switch (__union_switch_T->tag) { BLOCK; }                                  \
   }
 
-#define UNION_CASE(T, v, BLOCK)                                                \
+#define UNION_CASE(T, v, BLOCK...)                                             \
   {                                                                            \
-  case (offset_of(type_of(**((__union_switch_T)->__info)), __##T)): {                                                    \
+  case (offset_of(type_of(**((__union_switch_T)->__info)), __##T)): {          \
     T *v = &__union_switch_T->variant.__##T;                                   \
     BLOCK;                                                                     \
   } break;                                                                     \

@@ -14,7 +14,7 @@
     rb->cursor = (rb->cursor + 1) % N;                                         \
   }
 
-#define ring_buffer_iter(_rb, elem, i, BLOCK)                                  \
+#define ring_buffer_iter(_rb, elem, i, BLOCK...)                               \
   {                                                                            \
     type_of(_rb) rb = _rb;                                                     \
     for (isize i = 0; i < rb->len; i += 1) {                                   \

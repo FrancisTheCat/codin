@@ -6,7 +6,7 @@
 #include "deflate.h"
 #include "hash.h"
 
-// #include "zlib.h"
+#include "zlib.h"
 
 struct IHDR {
   u32 width;
@@ -47,65 +47,65 @@ internal u8 paeth_predictor (u8 a, u8 b, u8 c) {
   }
 }
 
-// #define CHUNK 16384
+#define CHUNK 16384
 
-// internal b8 zlib_inflate(Reader source, Writer dest) {
-//   isize ret;
-//   usize have;
-//   z_stream strm;
-//   byte in_buf[CHUNK];
-//   byte out_buf[CHUNK];
-//   Byte_Slice in  = {.data = in_buf,  .len = CHUNK};
-//   Byte_Slice out = {.data = out_buf, .len = CHUNK};
+internal b8 zlib_inflate(Reader source, Writer dest) {
+  isize ret;
+  usize have;
+  z_stream strm;
+  byte in_buf[CHUNK];
+  byte out_buf[CHUNK];
+  Byte_Slice in  = {.data = in_buf,  .len = CHUNK};
+  Byte_Slice out = {.data = out_buf, .len = CHUNK};
 
-//   /* allocate inflate state */
-//   strm.zalloc = z_alloc_proc;
-//   strm.zfree = z_free_proc;
-//   strm.opaque = &context.allocator;
-//   strm.avail_in = 0;
-//   strm.next_in = Z_NULL;
-//   ret = inflateInit(&strm);
-//   if (ret != Z_OK) {
-//     return false;
-//   }
+  /* allocate inflate state */
+  strm.zalloc = z_alloc_proc;
+  strm.zfree = z_free_proc;
+  strm.opaque = &context.allocator;
+  strm.avail_in = 0;
+  strm.next_in = Z_NULL;
+  ret = inflateInit(&strm);
+  if (ret != Z_OK) {
+    return false;
+  }
 
-//   /* decompress until deflate stream ends or end of file */
-//   do {
-//     strm.avail_in = or_do(read_bytes(&source, in), {
-//       (void)inflateEnd(&strm);
-//       return false;
-//     });
-//     if (strm.avail_in == 0) {
-//       break;
-//     }
-//     strm.next_in = in.data;
+  /* decompress until deflate stream ends or end of file */
+  do {
+    strm.avail_in = or_do(read_bytes(&source, in), {
+      (void)inflateEnd(&strm);
+      return false;
+    });
+    if (strm.avail_in == 0) {
+      break;
+    }
+    strm.next_in = in.data;
 
-//     /* run inflate() on input until output buffer not full */
-//     do {
-//       strm.avail_out = CHUNK;
-//       strm.next_out = out.data;
-//       ret = inflate(&strm, Z_NO_FLUSH);
-//       assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
-//       switch (ret) {
-//       case Z_NEED_DICT:
-//       case Z_DATA_ERROR:
-//       case Z_MEM_ERROR:
-//         (void)inflateEnd(&strm);
-//         return false;
-//       }
-//       have = CHUNK - strm.avail_out;
-//       if (or_else(write_bytes(&dest, slice_end(out, have)), -1) != have) {
-//         (void)inflateEnd(&strm);
-//         return false;
-//       }
-//     } while (strm.avail_out == 0);
-//     /* done when inflate() says it's done */
-//   } while (ret != Z_STREAM_END);
+    /* run inflate() on input until output buffer not full */
+    do {
+      strm.avail_out = CHUNK;
+      strm.next_out = out.data;
+      ret = inflate(&strm, Z_NO_FLUSH);
+      assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
+      switch (ret) {
+      case Z_NEED_DICT:
+      case Z_DATA_ERROR:
+      case Z_MEM_ERROR:
+        (void)inflateEnd(&strm);
+        return false;
+      }
+      have = CHUNK - strm.avail_out;
+      if (or_else(write_bytes(&dest, slice_end(out, have)), -1) != have) {
+        (void)inflateEnd(&strm);
+        return false;
+      }
+    } while (strm.avail_out == 0);
+    /* done when inflate() says it's done */
+  } while (ret != Z_STREAM_END);
 
-//   /* clean up and return */
-//   (void)inflateEnd(&strm);
-//   return ret == Z_STREAM_END;
-// }
+  /* clean up and return */
+  (void)inflateEnd(&strm);
+  return ret == Z_STREAM_END;
+}
 
 // internal b8 zlib_deflate(Reader const *source, Writer const *dest) {
 //   isize ret, flush;
@@ -232,7 +232,7 @@ extern b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
       .data = &chunk.data[-4],
       .len = chunk.len + 4,
     };
-    u32 hash = hash_bytes(~0, hash_crc_32, hash_chunk);
+    u32 hash = ~hash_bytes(~0, hash_crc_32, hash_chunk);
 
     if (hash != endianness_swap(*(u32 *)&chunk.data[chunk.len])) {
       goto fail;
@@ -259,10 +259,10 @@ extern b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
   //   log_infof(LIT("result: %B"), (isize)result);
   // }
 
-  // isize result = zlib_inflate(buffer_reader(&buf), buffer_writer);
-  // if (buf.len != 0 || result != Z_OK) {
-  //   goto fail;
-  // }
+  b8 inflate_ok = zlib_inflate(buffer_reader(&buf), buffer_writer);
+  if (buf.len != 0 || !inflate_ok) {
+    goto fail;
+  }
   
   for_range(y, 0, ihdr.height) {
     byte filter = temp_buffer.data[bpp * y * ihdr.width + y];

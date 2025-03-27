@@ -22,7 +22,8 @@ typedef Vector(byte) Byte_Buffer;
     vector->cap = capacity;                                                    \
     vector->allocator = ally;                                                  \
     vector->data = (type_of(vector->data))unwrap_err(                          \
-        mem_alloc(capacity * sizeof(vector->data[0]), ally));                  \
+        mem_alloc_aligned(capacity * sizeof(vector->data[0]),                  \
+                          align_of(vector->data[0]), (ally)));                 \
   }
 #define vector_make(type, length, capacity, ally)                              \
   ({                                                                           \
@@ -66,9 +67,10 @@ internal void byte_buffer_destroy(Byte_Buffer *bb) {
     }                                                                          \
     if (vector->len == vector->cap) {                                          \
       isize new_cap = max(vector->cap * 2, 8);                                 \
-      mem_resize((rawptr *)&vector->data,                                      \
+      mem_resize_aligned((rawptr *)&vector->data,                              \
                  vector->cap * sizeof(vector->data[0]),                        \
-                 new_cap * sizeof(vector->data[0]), vector->allocator);        \
+                 new_cap * sizeof(vector->data[0]), align_of(vector->data[0]), \
+                 vector->allocator);        \
       vector->cap = new_cap;                                                   \
     }                                                                          \
     vector->data[vector->len] = (elem);                                        \

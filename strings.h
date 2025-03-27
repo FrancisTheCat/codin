@@ -80,7 +80,7 @@ extern isize string_index(String str, String substr);
 [[nodiscard]]
 extern String string_to_lower(String str, Allocator allocator);
 
-#define string_iter(string, elem, i, BLOCK) {                                  \
+#define string_iter(string, elem, i, BLOCK...) {                               \
   isize  _string_iter_n      = 0;                                              \
   String _string_iter_string = string;                                         \
   for (isize i = 0; i < _string_iter_string.len; i += _string_iter_n) {        \
@@ -99,7 +99,7 @@ extern String_Slice string_split(String str, String split, Allocator allocator);
 
 #define STRING_SWITCH(s) { String _string_switch_string = s;
 
-#define string_lines_iterator(string, line, i, BLOCK) {                          \
+#define string_lines_iterator(string, line, i, BLOCK...) {                       \
   String _string_lines_iterator_data = string;                                   \
   String line;                                                                   \
   isize i = 0;                                                                   \

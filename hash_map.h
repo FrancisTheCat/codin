@@ -204,7 +204,7 @@
     }                                                                          \
   }
 
-#define hash_map_iter(map, key_, value_, BLOCK)                                \
+#define hash_map_iter(map, key_, value_, BLOCK...)                             \
   for_range(_hash_map_iter_index, 0, (map).cap) {                              \
     type_of(map.data) _hash_map_iter_entry =                                   \
       &map.data[_hash_map_iter_index];                                         \

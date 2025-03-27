@@ -206,8 +206,11 @@ STATIC_ASSERT(size_of(usize) == size_of(void *));
 STATIC_ASSERT(size_of(isize) == size_of(void *));
 STATIC_ASSERT(size_of(bsize) == size_of(void *));
 
-typedef double f64;
 typedef float  f32;
+typedef double f64;
+
+#define F32_INFINITY __builtin_inff()
+#define F64_INFINITY __builtin_inf()
 
 STATIC_ASSERT(size_of(f64) == 8);
 STATIC_ASSERT(size_of(f32) == 4);

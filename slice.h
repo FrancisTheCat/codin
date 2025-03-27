@@ -54,18 +54,29 @@ internal void _do_bounds_check(isize index, isize len, String expr, Source_Code_
     slice;                                                                     \
   })
 
-#define slice_init(_slice, length, ally)                                       \
-  {                                                                            \
-    type_of(_slice) __slice_init_slice = _slice;                               \
-    __slice_init_slice->len = length;                                          \
-    __slice_init_slice->data = (type_of(__slice_init_slice->data))unwrap_err(  \
-        mem_alloc((length) * size_of(*(__slice_init_slice->data)), ally));     \
-  }
+#define slice_init(slice, length, ally)                                        \
+  slice_init_aligned((slice), (length), align_of(*((slice)->data)), ally)
 
 #define slice_make(type, length, ally)                                         \
   ({                                                                           \
     type slice;                                                                \
     slice_init(&slice, (length), (ally));                                      \
+    slice;                                                                     \
+  })
+
+#define slice_init_aligned(_slice, length, align, ally)                        \
+  {                                                                            \
+    type_of(_slice) __slice_init_slice = _slice;                               \
+    __slice_init_slice->len = length;                                          \
+    __slice_init_slice->data = (type_of(__slice_init_slice->data))unwrap_err(  \
+        mem_alloc_aligned((length) * size_of(*(__slice_init_slice->data)),     \
+                          (align), (ally)));                                   \
+  }
+
+#define slice_make_aligned(type, length, align, ally)                          \
+  ({                                                                           \
+    type slice;                                                                \
+    slice_init_aligned(&slice, (length), (align), (ally));                     \
     slice;                                                                     \
   })
 
@@ -172,13 +183,13 @@ internal Byte_Slice pointer_to_bytes(rawptr data, isize size, isize count) {
 #define slice_to_bytes(slice)                                                  \
   pointer_to_bytes((rawptr)(slice).data, size_of((slice).data[0]), (slice).len)
 
-#define slice_iter(slice, elem, i, BLOCK)                                      \
+#define slice_iter(slice, elem, i, BLOCK...)                                   \
   for (isize i = 0; i < (slice).len; i++) {                                    \
     type_of((slice).data) elem = &(slice).data[i];                             \
     { BLOCK; }                                                                 \
   }                                                                            \
   
-#define slice_iter_v(slice, elem, i, BLOCK)                                    \
+#define slice_iter_v(slice, elem, i, BLOCK...)                                 \
   for (isize i = 0; i < (slice).len; i++) {                                    \
     type_of(*(slice).data) elem = (slice).data[i];                             \
     { BLOCK; }                                                                 \

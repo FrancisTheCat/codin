@@ -1,10 +1,16 @@
 #include "math.h"
 
+extern f64 sqrt(f64);
+extern f32 sqrtf(f32);
+
 extern f32 sqrt_f32(f32 x) {
-  return sqrt_f64(x);
+  return sqrtf(x);
+  // return sqrt_f64(x);
 }
 
 extern f64 sqrt_f64(f64 x) {
+  return sqrt(x);
+
   internal const double tiny = 1.0e-300;
 
   f64 z;
@@ -140,3 +146,78 @@ extern isize log2_isize(isize x) {
 
 extern f32 fract_f32(f32 x) { return x - (isize)x; }
 extern f64 fract_f64(f64 x) { return x - (isize)x; }
+
+extern f32 sinf(f32);
+extern f64 sin(f64);
+extern f32 cosf(f32);
+extern f64 cos(f64);
+extern f32 tanf(f32);
+extern f64 tan(f64);
+
+extern f32 asinf(f32);
+extern f64 asin(f64);
+extern f32 acosf(f32);
+extern f64 acos(f64);
+extern f32 atanf(f32);
+extern f64 atan(f64);
+extern f32 atan2f(f32, f32);
+extern f64 atan2(f64, f64);
+
+extern f32 sin_f32(f32 x) {
+  return sinf(x);
+}
+extern f64 sin_f64(f64 x) {
+  return sin(x);
+}
+
+extern f32 cos_f32(f32 x) {
+  return cosf(x);
+}
+extern f64 cos_f64(f64 x) {
+  return cos(x);
+}
+
+extern f32 tan_f32(f32 x) {
+  return tanf(x);
+}
+extern f64 tan_f64(f64 x) {
+  return tan(x);
+}
+
+extern f32 asin_f32(f32 x) {
+  return asinf(x);
+}
+extern f64 asin_f64(f64 x) {
+  return asin(x);
+}
+
+extern f32 acos_f32(f32 x) {
+  return acosf(x);
+}
+extern f64 acos_f64(f64 x) {
+  return acos(x);
+}
+
+extern f32 atan_f32(f32 x) {
+  return atanf(x);
+}
+extern f64 atan_f64(f64 x) {
+  return atan(x);
+}
+
+extern f32 atan2_f32(f32 x, f32 y) {
+  return atan2f(x, y);
+}
+extern f64 atan2_f64(f64 x, f64 y) {
+  return atan2(x, y);
+}
+
+extern f32 powf(f32, f32);
+extern f64 pow(f64, f64);
+
+extern f32 pow_f32(f32 x, f32 y) {
+  return powf(x, y);
+}
+extern f64 pow_f64(f64 x, f64 y) {
+  return pow(x, y);
+}
