@@ -88,8 +88,8 @@ typedef Vec3 Color3;
   }                                                                            \
                                                                                \
   internal Vec##D vec##D##_lerp(Vec##D a, Vec##D b, f32 t) {                   \
-    a = vec##D##_scale(a, t);                                                  \
-    b = vec##D##_scale(b, 1 - t);                                              \
+    a = vec##D##_scale(a, 1 - t);                                              \
+    b = vec##D##_scale(b,     t);                                              \
                                                                                \
     return vec##D##_add(a, b);                                                 \
   }                                                                            \
