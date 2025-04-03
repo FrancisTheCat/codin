@@ -327,6 +327,8 @@ extern b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
 
   image->pixels.data = pixels.data;
   image->pixels.len  = pixels.len;
+
+  image->stride = image->width;
   
   return true;
 
@@ -431,15 +433,15 @@ extern b8 png_save_writer(Writer const *writer, Image const *image) {
       case 3:
         for_range(x, 0, image->width * bpp) {
           u8 up   = (y == 0) ? 0 : prev_row.data[x];
-          u8 left = (x >= bpp) ?   current_row.data[x - bpp] : 0;
+          u8 left = (x >= bpp) ? current_row.data[x - bpp] : 0;
           histogram[(u8)(current_row.data[x] - (u8)(((u16)up + (u16)left) / 2))] += 1;
         }
         break;
       case 4:
         for_range(x, 0, image->width * bpp) {
-          u8 up      = (y == 0) ? 0 :           prev_row.data[x];
+          u8 up      = (y == 0) ? 0 : prev_row.data[x];
           u8 up_left = (y == 0) ? 0 : (x >= bpp) ? prev_row.data[x - bpp] : 0;
-          u8 left    = (x >= bpp) ?   current_row.data[x - bpp] : 0;
+          u8 left    = (x >= bpp) ? current_row.data[x - bpp] : 0;
 
           histogram[(u8)(current_row.data[x] - paeth_predictor(left, up, up_left))] += 1;
         }
@@ -478,15 +480,15 @@ extern b8 png_save_writer(Writer const *writer, Image const *image) {
       case 3:
         for_range(x, 0, image->width * bpp) {
           u8 up   = (y == 0) ? 0 : prev_row.data[x];
-          u8 left = (x >= bpp) ?      current_row.data[x - bpp] : 0;
+          u8 left = (x >= bpp) ? current_row.data[x - bpp] : 0;
           vector_append(&uncompressed, current_row.data[x] - (u8)(((u16)up + (u16)left) / 2));
         }
         break;
       case 4:
         for_range(x, 0, image->width * bpp) {
-          u8 up      = (y == 0) ? 0 :           prev_row.data[x];
+          u8 up      = (y == 0) ? 0 : prev_row.data[x];
           u8 up_left = (y == 0) ? 0 : (x >= bpp) ? prev_row.data[x - bpp] : 0;
-          u8 left    = (x >= bpp) ?      current_row.data[x - bpp] : 0;
+          u8 left    = (x >= bpp) ? current_row.data[x - bpp] : 0;
 
           vector_append(&uncompressed, current_row.data[x] - paeth_predictor(left, up, up_left));
         }
@@ -554,6 +556,7 @@ extern b8 ppm_load_bytes(Byte_Slice data, Image *image) {
       break;
     }
   }
+  image->stride = image->width;
   
   for (; i < data.len; i += 1) {
     b8 stop = false;
@@ -611,10 +614,11 @@ extern b8 ppm_load_bytes(Byte_Slice data, Image *image) {
 }
 
 extern void image_clone_to_rgba8(Image const *in, Image *out, Allocator allocator) {
-  *out = *in;
-
   assert(in->pixel_type == PT_u8);
   assert(in->components == 3);
+
+  *out = *in;
+  out->stride = 0;
 
   out->components = 4;
   out->pixel_type = PT_u8;
@@ -623,9 +627,9 @@ extern void image_clone_to_rgba8(Image const *in, Image *out, Allocator allocato
 
   for_range(y, 0, in->height) {
     for_range(x, 0, in->width) {
-      u8 b = in->pixels.data[(x + y * in->width) * in->components + 0];
-      u8 r = in->pixels.data[(x + y * in->width) * in->components + 1];
-      u8 g = in->pixels.data[(x + y * in->width) * in->components + 2];
+      u8 b = in->pixels.data[(x + y * in->stride) * in->components + 0];
+      u8 r = in->pixels.data[(x + y * in->stride) * in->components + 1];
+      u8 g = in->pixels.data[(x + y * in->stride) * in->components + 2];
 
       ((u32 *)out->pixels.data)[x + y * out->width] = (0xFF << 24) | (r << 16) | (g << 8) | b;
     }

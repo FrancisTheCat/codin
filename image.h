@@ -16,11 +16,9 @@ typedef enum {
 } Pixel_Type;
 
 typedef struct {
-  isize      width;
-  isize      height;
-  isize      components;
-  Pixel_Type pixel_type;
+  isize      width, height, stride, components;
   Byte_Slice pixels;
+  u8         pixel_type;
 } Image;
 
 extern b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator);
