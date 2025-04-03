@@ -123,7 +123,7 @@ GENERATE_VECTOR_OPERATIONS(3)
 GENERATE_VECTOR_OPERATIONS(4)
 // NOLINTEND
 
-Vec3 vec3_cross(Vec3 a, Vec3 b) {
+internal Vec3 vec3_cross(Vec3 a, Vec3 b) {
   return (Vec3) {
     .x = a.y * b.z - a.z * b.y,
     .y = a.z * b.x - a.x * b.z,

@@ -35,7 +35,7 @@ ifdef MODE
     	$(error "$(MODE) is not a known mode")
     endif
 else
-    CFLAGS += -O2
+    CFLAGS += -O2 -g
     MODE_FLAG := default
 endif
 
