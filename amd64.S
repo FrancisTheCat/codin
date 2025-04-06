@@ -1,5 +1,7 @@
 #include "syscalls_linux_amd64.h"
 
+.section .note.GNU-stack,"",@progbits
+
 .intel_syntax 
 .text
 .globl _start, __syscall0, __get_fs_register, __call_main, syscall
