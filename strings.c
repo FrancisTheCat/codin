@@ -33,6 +33,17 @@ extern b8 rune_is_numeric(rune r) {
   return '0' <= r && r <= '9';
 }
 
+extern b8 rune_is_whitespace(rune r) {
+  switch (r) {
+  case ' ':
+  case '\n':
+  case '\r':
+  case '\t':
+    return true;
+  }
+  return false;
+}
+
 extern b8 rune_is_alpha_numeric(rune r) {
   return rune_is_alpha(r) || rune_is_numeric(r);
 }
@@ -230,6 +241,33 @@ extern String_Slice string_split(String str, String split, Allocator allocator) 
   }
   
   return vector_to_slice(String_Slice, splits);
+}
+
+extern b8 string_has_prefix(String str, String prefix) {
+  if (str.len < prefix.len) {
+    return false;
+  }
+  return string_equal(string_range(str, 0, prefix.len), prefix);
+}
+
+extern String string_trim_whitespace(String str) {
+  return string_trim_whitespace_end(string_trim_whitespace_start(str));
+}
+
+extern String string_trim_whitespace_end(String str) {
+  String ret = str;
+  while (ret.len && rune_is_whitespace(ret.data[ret.len - 1])) {
+    ret = slice_end(ret, ret.len - 1);
+  }
+  return ret;
+}
+
+extern String string_trim_whitespace_start(String str) {
+  String ret = str;
+  while (ret.len && rune_is_whitespace(ret.data[0])) {
+    ret = slice_start(ret, 1);
+  }
+  return ret;
 }
 
 extern isize builder_write_bytes(Builder *b, Byte_Slice data) {

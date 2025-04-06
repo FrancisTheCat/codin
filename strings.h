@@ -25,6 +25,9 @@ extern b8 rune_is_numeric(rune r);
 [[nodiscard]]
 extern b8 rune_is_alpha_numeric(rune r);
 
+[[nodiscard]]
+extern b8 rune_is_whitespace(rune r);
+
 extern Allocator_Error string_delete(String s, Allocator allocator);
 
 [[nodiscard]]
@@ -89,6 +92,16 @@ extern String string_to_lower(String str, Allocator allocator);
     { BLOCK }                                                                  \
   }                                                                            \
 }
+
+[[nodiscard]]
+extern b8 string_has_prefix(String str, String prefix);
+
+[[nodiscard]]
+extern String string_trim_whitespace(String str);
+[[nodiscard]]
+extern String string_trim_whitespace_end(String str);
+[[nodiscard]]
+extern String string_trim_whitespace_start(String str);
 
 [[nodiscard]]
 extern String_Slice string_split(String str, String split, Allocator allocator);
