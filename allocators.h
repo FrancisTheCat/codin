@@ -156,3 +156,8 @@ typedef struct {
 
 [[nodiscard]]
 extern Allocator default_allocator_init(Default_Allocator *a);
+
+#define ARENA_INIT_STACK(ARENA, SIZE) ({                                       \
+  Byte_Slice data = alloca_slice(Byte_Slice, (SIZE));                          \
+  arena_allocator_init(&(ARENA), data);                                        \
+})

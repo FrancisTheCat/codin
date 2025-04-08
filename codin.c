@@ -121,7 +121,7 @@ extern void __runtime_cleanup();
 
 extern void __thread_init() {
   context.allocator      = default_allocator_init(&_default_heap_allocator);
-  context.temp_allocator = growing_arena_allocator_init(&_default_temp_allocator_arena, 1 << 20, context.allocator);
+  context.temp_allocator = growing_arena_allocator_init(&_default_temp_allocator_arena, 64 * Kibibyte, context.allocator);
   context.logger         = create_file_logger(FD_STDERR);
 }
 
