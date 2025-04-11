@@ -613,6 +613,85 @@ extern b8 ppm_load_bytes(Byte_Slice data, Image *image) {
   return true;
 }
 
+internal u16 read_u16(Byte_Slice data, isize *cursor) {
+  u16 value = (IDX(data, *cursor) << 8) + IDX(data, *cursor + 1);
+  *cursor  += 2;
+  return value;
+}
+
+extern b8 jpeg_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
+  if (data.len < 2 + 2 + 2 + 2 + 5 + 2 + 1 + 2 + 2 + 1 + 1) {
+    return false;
+  }
+
+  isize cursor = 0;
+
+  if (IDX(data, cursor + 0) != 0xFF) {
+    return false;
+  }
+  if (IDX(data, cursor + 1) != 0xD8) { // SOI
+    return false;
+  }
+  cursor += 2;
+  
+  if (IDX(data, cursor + 0) != 0xFF) {
+    return false;
+  }
+  if (IDX(data, cursor + 1) != 0xE0) { // APP0
+    return false;
+  }
+  cursor += 2;
+  
+  isize app0_start = cursor;
+  u16 app0_len = read_u16(data, &cursor);
+
+  if (app0_len < 2 + 5 + 2 + 1 + 2 + 2 + 1 + 1) {
+    return false;
+  }
+
+  if (!string_equal((String) { .data = (char *)data.data + cursor, .len = 5, }, LIT("JFIF\00"))) {
+    return false;
+  }
+  cursor += 5;
+
+  u16 app0_version = read_u16(data, &cursor);
+  u8  app0_units   = IDX(data, cursor);
+  cursor += 1;
+
+  u16 app0_x_density = read_u16(data, &cursor);
+  u16 app0_y_density = read_u16(data, &cursor);
+
+  u8 app0_thumbnail_x = IDX(data, cursor);
+  cursor += 1;
+
+  u8 app0_thumbnail_y = IDX(data, cursor);
+  cursor += 1;
+
+  fmt_printflnc("version: 0x%x, units: %d, x: %d y: %d", app0_version, app0_units, app0_thumbnail_x, app0_thumbnail_y);
+
+  cursor += app0_thumbnail_x * app0_thumbnail_y * 3;
+  if (cursor != app0_start + app0_len) {
+    return false;
+  }
+
+  while (cursor < data.len) {
+    if (IDX(data, cursor) != 0xFF) {
+      return false;
+    }
+    cursor += 1;
+
+    u8 marker = IDX(data, cursor);
+    cursor += 1;
+
+    fmt_printflnc("next: %x", marker);
+    // if (marker == 0xDB || marker == 0xC0) {
+    // }
+    cursor += read_u16(data, &cursor) - 2;
+  }
+
+  return true;
+}
+
 extern void image_clone_to_rgba8(Image const *in, Image *out, Allocator allocator) {
   assert(in->pixel_type == PT_u8);
   assert(in->components == 3);
