@@ -106,6 +106,7 @@ internal void parse_material_file(String data, Obj_File *o) {
       mtl->illumination_model = parse_int(&line);
     CASE 'a':
       expect_prefix("aniso ");
+      mtl->is_pbr = true;
       mtl->pbr.anisotropic = parse_float(&line);
     CASE 'm':
       expect_prefix("map_");
@@ -135,6 +136,7 @@ internal void parse_material_file(String data, Obj_File *o) {
       }
     CASE 'n':
       expect_prefix("norm ");
+      mtl->is_pbr = true;
       parse_texture(line, &mtl->pbr.texture_normal);
     CASE 'b':
       expect_prefix("bump ");
@@ -287,24 +289,15 @@ extern b8 obj_load(String data, Obj_File *o, b8 load_materials, Allocator alloca
   slice_init(&o->triangles, faces.len, allocator);
 
   slice_iter_v(faces, face, i, {
-    IDX(o->triangles, i) = ((Obj_Triangle) {
-      .a = (Obj_Vertex) {
-        .position   = IDX(positions,  face.vertices  [0] - 1),
-        .normal     = IDX(normals,    face.normals   [0] - 1),
-        .tex_coords = IDX(tex_coords, face.tex_coords[0] - 1),
-      },
-      .b = (Obj_Vertex) {
-        .position   = IDX(positions,  face.vertices  [1] - 1),
-        .normal     = IDX(normals,    face.normals   [1] - 1),
-        .tex_coords = IDX(tex_coords, face.tex_coords[1] - 1),
-      },
-      .c = (Obj_Vertex) {
-        .position   = IDX(positions,  face.vertices  [2] - 1),
-        .normal     = IDX(normals,    face.normals   [2] - 1),
-        .tex_coords = IDX(tex_coords, face.tex_coords[2] - 1),
-      },
-      .material = face.material_id,
-    });
+    Obj_Triangle t = { .material = face.material_id, };
+    for_range(j, 0, 3) {
+      t.vertices[j] = (Obj_Vertex) {
+        .position   = IDX(positions,  face.vertices  [j] - 1),
+        .normal     = IDX(normals,    face.normals   [j] - 1),
+        .tex_coords = IDX(tex_coords, face.tex_coords[j] - 1),
+      };
+    }
+    IDX(o->triangles, i) = t;
   });
 
   if (load_materials) {

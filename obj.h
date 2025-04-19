@@ -8,7 +8,7 @@ typedef struct {
 } Obj_Vertex;
 
 typedef struct {
-  Obj_Vertex a, b, c;
+  Obj_Vertex vertices[3];
   i32        material;
 } Obj_Triangle;
 
@@ -34,7 +34,6 @@ typedef struct {
       Obj_Texture texture_metallic;
       Obj_Texture texture_normal;
       Obj_Texture texture_sheen;
-      Obj_Texture texture_base;
     } pbr;
   };
   Color3      diffuse;

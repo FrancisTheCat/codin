@@ -6,6 +6,31 @@
 #include "deflate.h"
 #include "hash.h"
 
+#define STBI_NO_STDIO
+#define STBI_NO_HDR
+#define STBI_NO_LINEAR
+#define STBI_ASSERT(x) assert(x)
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
+
+extern b8 stb_image_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
+  i32 x, y, c;
+  image->pixels.data = stbi_load_from_memory(data.data, data.len, &x, &y, &c, 0);
+  if (!image->pixels.data) {
+    return false;
+  }
+
+  image->width      = x;
+  image->stride     = x;
+  image->height     = y;
+  image->components = c;
+  image->pixel_type = PT_u8;
+  image->pixels.len = x * y * c;
+
+  return true;
+}
+
 #include "zlib.h"
 
 struct IHDR {
