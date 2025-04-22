@@ -155,7 +155,7 @@ extern Json_Status json_parser_advance(Json_Parser *parser) {
     parser->value.kind    = Json_Value_Number;
     parser->value.integer = negative ? -integer : integer;
     parser->value.number  = negative ? -integer : integer;
-    if (utf8_rune_at(parser->data, parser->current, nil) == '.') {
+    if (r == '.') {
       parser->current += 1;
       f64 decimal = integer;
       f64 weight  = 1;
@@ -167,6 +167,40 @@ extern Json_Status json_parser_advance(Json_Parser *parser) {
       }
 
       parser->value.number = negative ? -decimal : decimal;
+    }
+
+    if (r == 'e' || r == 'E') {
+      b8 exponent_negative = false;
+      isize exponent = 0;
+
+      parser->current += 1;
+      r = utf8_rune_at(parser->data, parser->current, nil);
+      if (r == '+') {
+        parser->current += 1;
+        r = utf8_rune_at(parser->data, parser->current, nil);
+      } else if (r == '-') {
+        exponent_negative = true;
+        parser->current += 1;
+        r = utf8_rune_at(parser->data, parser->current, nil);
+      }
+
+      for (; '0' <= r && r <= '9'; r = utf8_rune_at(parser->data, parser->current, nil)) {
+        exponent        *= 10;
+        exponent        += r - '0';
+        parser->current += 1;
+      }
+
+      if (exponent_negative) {
+        for_range(i, 0, exponent) {
+          parser->value.integer /= 10;
+          parser->value.number  *= 0.1f;
+        }
+      } else {
+        for_range(i, 0, exponent) {
+          parser->value.integer *= 10;
+          parser->value.number  *= 10;
+        }
+      }
     }
   }
 
