@@ -638,80 +638,118 @@ extern b8 ppm_load_bytes(Byte_Slice data, Image *image) {
   return true;
 }
 
-internal u16 read_u16(Byte_Slice data, isize *cursor) {
-  u16 value = (IDX(data, *cursor) << 8) + IDX(data, *cursor + 1);
-  *cursor  += 2;
+typedef struct {
+  Byte_Slice data;
+  isize      cursor;
+  union {
+    Slice(u8)  bit8;
+    Slice(u16) bit16;
+  } quantization_tables[4];
+} Jpeg_Context;
+
+[[nodiscard]]
+internal u16 read_u16(Jpeg_Context *ctx) {
+  u16 value = (IDX(ctx->data, ctx->cursor) << 8) + IDX(ctx->data, ctx->cursor + 1);
+  ctx->cursor += 2;
+  return value;
+}
+
+[[nodiscard]]
+internal u8 read_u8(Jpeg_Context *ctx) {
+  u8 value = IDX(ctx->data, ctx->cursor);
+  ctx->cursor += 1;
   return value;
 }
 
 extern b8 jpeg_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
+  *image = (Image) {0};
+
   if (data.len < 2 + 2 + 2 + 2 + 5 + 2 + 1 + 2 + 2 + 1 + 1) {
     return false;
   }
 
-  isize cursor = 0;
+  Jpeg_Context ctx = {
+    .data = data,
+  };
 
-  if (IDX(data, cursor + 0) != 0xFF) {
+  if (read_u8(&ctx) != 0xFF) {
     return false;
   }
-  if (IDX(data, cursor + 1) != 0xD8) { // SOI
+  if (read_u8(&ctx) != 0xD8) { // SOI
     return false;
   }
-  cursor += 2;
   
-  if (IDX(data, cursor + 0) != 0xFF) {
+  if (read_u8(&ctx) != 0xFF) {
     return false;
   }
-  if (IDX(data, cursor + 1) != 0xE0) { // APP0
+  if (read_u8(&ctx) != 0xE0) { // APP0
     return false;
   }
-  cursor += 2;
   
-  isize app0_start = cursor;
-  u16 app0_len = read_u16(data, &cursor);
+  isize app0_start = ctx.cursor;
+  u16   app0_len   = read_u16(&ctx);
 
   if (app0_len < 2 + 5 + 2 + 1 + 2 + 2 + 1 + 1) {
     return false;
   }
 
-  if (!string_equal((String) { .data = (char *)data.data + cursor, .len = 5, }, LIT("JFIF\00"))) {
+  if (!string_equal((String) { .data = (char *)data.data + ctx.cursor, .len = 5, }, LIT("JFIF\00"))) {
     return false;
   }
-  cursor += 5;
+  ctx.cursor += 5;
 
-  u16 app0_version = read_u16(data, &cursor);
-  u8  app0_units   = IDX(data, cursor);
-  cursor += 1;
+  u16 app0_version = read_u16(&ctx);
+  u8  app0_units   = read_u8(&ctx);
 
-  u16 app0_x_density = read_u16(data, &cursor);
-  u16 app0_y_density = read_u16(data, &cursor);
+  u16 app0_x_density = read_u16(&ctx);
+  u16 app0_y_density = read_u16(&ctx);
 
-  u8 app0_thumbnail_x = IDX(data, cursor);
-  cursor += 1;
-
-  u8 app0_thumbnail_y = IDX(data, cursor);
-  cursor += 1;
+  u8 app0_thumbnail_x = read_u8(&ctx);
+  u8 app0_thumbnail_y = read_u8(&ctx);
 
   fmt_printflnc("version: 0x%x, units: %d, x: %d y: %d", app0_version, app0_units, app0_thumbnail_x, app0_thumbnail_y);
 
-  cursor += app0_thumbnail_x * app0_thumbnail_y * 3;
-  if (cursor != app0_start + app0_len) {
+  ctx.cursor += app0_thumbnail_x * app0_thumbnail_y * 3;
+  if (ctx.cursor != app0_start + app0_len) {
     return false;
   }
 
-  while (cursor < data.len) {
-    if (IDX(data, cursor) != 0xFF) {
+  while (ctx.cursor < data.len) {
+    if (read_u8(&ctx) != 0xFF) {
       return false;
     }
-    cursor += 1;
 
-    u8 marker = IDX(data, cursor);
-    cursor += 1;
+    u8  marker = read_u8(&ctx);
+    u16 length = read_u16(&ctx);
+    isize end  = ctx.cursor + length - 2;
 
-    fmt_printflnc("next: %x", marker);
-    // if (marker == 0xDB || marker == 0xC0) {
-    // }
-    cursor += read_u16(data, &cursor) - 2;
+    fmt_printflnc("marker: %X", marker);
+
+    switch (marker) {
+    CASE 0xDB: {
+      u8 pqtq = read_u8(&ctx);
+      u8 pq   = pqtq >> 4;
+      u8 tq   = pqtq &  0xF;
+
+      fmt_printflnc("DQT: %x %x", pq, tq);
+
+      if (tq >= 4) {
+        return false;
+      }
+
+      if (pq == 0) {
+        ctx.quantization_tables[tq].bit8.len  = length - 1;
+        ctx.quantization_tables[tq].bit8.data = &IDX(data, ctx.cursor);
+      } else if (pq == 1) {
+        ctx.quantization_tables[tq].bit16.len  = length - 1 / 2;
+        ctx.quantization_tables[tq].bit16.data = (u16 *)&IDX(data, ctx.cursor);
+      } else {
+        return false;
+      }
+    }
+    DEFAULT: {}
+    }
+    ctx.cursor = end;
   }
 
   return true;
