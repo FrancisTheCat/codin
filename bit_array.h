@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 typedef struct {
@@ -13,6 +15,9 @@ extern Byte_Slice bit_array_to_bytes(Bit_Array *ba);
 
 extern b8   bit_array_get(Bit_Array const *ba, isize index);
 extern void bit_array_set(Bit_Array const *ba, isize index, b8 value);
+
+extern u64  bit_array_get_n(Bit_Array const *ba, isize index, isize n);
+extern void bit_array_set_n(Bit_Array const *ba, isize index, u64 value, isize n);
 
 extern void bit_array_append  (Bit_Array *ba, b8  value);
 extern void bit_array_append_n(Bit_Array *ba, u64 value, isize n);

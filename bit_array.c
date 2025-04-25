@@ -23,6 +23,21 @@ extern b8 bit_array_get(Bit_Array const *ba, isize index) {
   return value != 0;
 }
 
+extern u64 bit_array_get_n(Bit_Array const *ba, isize index, isize n) {
+  u64 value = 0;
+  for_range(i, 0, n) {
+    value <<= 1;
+    value  |= bit_array_get(ba, index + i);
+  }
+  return value;
+}
+
+extern void bit_array_set_n(Bit_Array const *ba, isize index, u64 value, isize n) {
+  for_range(i, 0, n) {
+    bit_array_set(ba, index + i, (value >> i) & 1);
+  }
+}
+
 extern void bit_array_set(Bit_Array const *ba, isize index, b8 value) {
   assert(index >= 0);
   assert(index < ba->len);
