@@ -10,7 +10,7 @@ PLATFORM ?= linux
 PLATFORMS := linux windows macos FreeBSD OpenBSD
 
 PLATFORM_SPECIFIC := $(foreach plat, $(PLATFORMS), \
-    $(filter %_$(plat).c %_$(plat).S, $(SRC)) \
+    $(filter src/%_$(plat).c src/%_$(plat).S, $(SRC)) \
 )
 
 ifneq ($(filter $(PLATFORM), $(PLATFORMS)), $(PLATFORM))
@@ -19,7 +19,7 @@ endif
 
 SRC := $(filter-out $(PLATFORM_SPECIFIC), $(SRC))
 
-SRC += $(wildcard *$(PLATFORM).c) $(wildcard *$(PLATFORM).S)
+SRC += $(wildcard src/*$(PLATFORM).c) $(wildcard src/*$(PLATFORM).S)
 
 ifdef MODE
     ifeq ($(MODE),release)
