@@ -2,6 +2,8 @@
 
 #include "strings.h"
 
+#include "immintrin.h"
+
 extern Byte_Slice string_to_bytes(String str) {
   return (Byte_Slice) {
     .data = (byte *)str.data,
@@ -55,11 +57,28 @@ extern isize cstring_len(cstring s) {
   if (!s) {
     return 0;
   }
+
   isize len = 0;
-  for (; *s; s += 1) {
+  while ((uintptr)s % 16) {
+    if (!*s) {
+      return len;
+    }
     len += 1;
+    s   += 1;
   }
-  return len;
+
+  __m128i zeroes = _mm_setzero_si128();
+  loop {
+    __m128i data = _mm_load_si128((__m128i *)s);
+    __m128i cmp  = _mm_cmpeq_epi8(data, zeroes);
+    u32     mask = _mm_movemask_epi8(cmp);
+    if (mask) {
+      return len + __builtin_ctz(mask);
+    }
+
+    s   += 16;
+    len += 16;
+  }
 }
 
 extern Allocator_Error cstring_delete(cstring s, Allocator allocator) {
@@ -122,11 +141,29 @@ extern bool string_equal(String a, String b) {
     return false;
   }
 
-  slice_iter_v(a, c, i, {
-    if (c != b.data[i]) {
+  isize i;
+  // align for performance
+  for (i = 0; ((uintptr)a.data + i) % 16; i += 1) {
+    if (a.data[i] != b.data[i]) {
       return false;
     }
-  });
+  }
+
+  for (; i < (a.len & ~15ul); i += 16) {
+    __m128i data_a = _mm_loadu_si128((__m128i *)&a.data[i]);
+    __m128i data_b = _mm_loadu_si128((__m128i *)&b.data[i]);
+    __m128i cmp    = _mm_cmpeq_epi8(data_a, data_b);
+    u32     mask   = _mm_movemask_epi8(cmp);
+    if (mask != 0xFFFF) {
+      return false;
+    }
+  }
+
+  for (; i < a.len; i += 1) {
+    if (a.data[i] != b.data[i]) {
+      return false;
+    }
+  }
 
   return true;
 }
@@ -146,10 +183,6 @@ extern bool string_compare_lexicographic(String a, String b) {
 extern bool cstring_compare_lexicographic(cstring a, cstring b) {
   return string_compare_lexicographic(cstring_to_string(a), cstring_to_string(b));
 }
-
-#define string_range(str, start, end) slice_range(str, start, end)
-
-#include "immintrin.h"
 
 extern isize string_index_byte(String str, byte b) {
   isize i;
@@ -186,10 +219,28 @@ extern isize string_index_rune(String str, rune r) {
   char  buf[4];
   isize n = utf8_rune_encode(r, buf);
 
+  #define CHECK_REMAINING(offset)               \
+      if ((offset) + n > str.len) {             \
+        return -1;                              \
+      }                                         \
+                                                \
+      bool match = true;                        \
+      for (isize j = 1; j < n; j += 1) {        \
+        if (str.data[(offset) + j] != buf[j]) { \
+          match = false;                        \
+          break;                                \
+        }                                       \
+      }                                         \
+                                                \
+      if (match) {                              \
+        return (offset);                        \
+      }                                         \
+
   isize i;
   for (i = 0; ((uintptr)str.data + i) % 16; i += 1) {
     if (str.data[i] == buf[0]) {
-      return i;
+      CHECK_REMAINING(i);
+      i += n - 1;
     }
   }
 
@@ -200,29 +251,15 @@ extern isize string_index_rune(String str, rune r) {
     u32     mask = _mm_movemask_epi8(cmp);
     while (mask != 0) {
       isize offset = i + __builtin_ctz(mask);
-      if (offset + n > str.len) {
-        return false;
-      }
-
-      bool match = true;
-      for (isize j = 1; j < n; j += 1) {
-        if (str.data[offset + j] != buf[j]) {
-          match = false;
-          break;
-        }
-      }
-
-      if (match) {
-        return offset;
-      }
-
+      CHECK_REMAINING(offset);
       mask -= 1 << __builtin_ctz(mask);
     }
   }
 
   for (; i < str.len; i += 1) {
     if (str.data[i] == buf[0]) {
-      return i;
+      CHECK_REMAINING(i);
+      i += n - 1;
     }
   }
 
@@ -308,7 +345,7 @@ extern bool string_has_prefix(String str, String prefix) {
   if (str.len < prefix.len) {
     return false;
   }
-  return string_equal(string_range(str, 0, prefix.len), prefix);
+  return string_equal(slice_range(str, 0, prefix.len), prefix);
 }
 
 extern String string_trim_whitespace(String str) {

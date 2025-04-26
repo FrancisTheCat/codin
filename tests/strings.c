@@ -1,6 +1,38 @@
 #include "codin/strings.h"
 #include "codin/test.h"
 
+bool cstring_len_test() {
+  test_expect(cstring_len(nil)  == 0);
+  test_expect(cstring_len("")   == 0);
+  test_expect(cstring_len("\0") == 0);
+  test_expect(cstring_len("0")  == 1);
+
+  test_expect(cstring_len("1234567890") == 10);
+  test_expect(cstring_len("12345678901234567890") == 20);
+  test_expect(cstring_len("1234567890123456789012345678901234567890") == 40);
+  test_expect(cstring_len("0123456789_öüä!") == 21);
+
+  return true;
+}
+
+bool string_equal_test() {
+  test_expect(string_equal(LIT("asdf"), LIT("asdf")));
+  test_expect(string_equal(LIT("1234567890"), LIT("1234567890")));
+  test_expect(
+    string_equal(
+      LIT("12345678901234567890123456789012345678901234567890"),
+      LIT("12345678901234567890123456789012345678901234567890")
+    )
+  );
+  test_expect(string_equal(LIT("0123456789_öüä!"), LIT("0123456789_öüä!")));
+
+  test_expect(!string_equal(LIT("asdf"), LIT("asdf\0")));
+  test_expect(!string_equal(LIT("asdf"), LIT("asd\0")));
+  test_expect(!string_equal(LIT("0123456789_öüä"), LIT("0123456789_öüä")));
+
+  return true;
+}
+
 bool string_iter_test() {
   String str       = LIT("0123456789_öüä!");
   rune   runes[17] = {
@@ -96,6 +128,8 @@ bool utf8_encode_test() {
 void strings_add_tests(Test_Context *ctx) {
   test_add(ctx, utf8_encode_test);
 
+  test_add(ctx, cstring_len_test);
+  test_add(ctx, string_equal_test);
   test_add(ctx, string_iter_test);
   test_add(ctx, string_index_byte_test);
   test_add(ctx, string_index_rune_test);

@@ -65,8 +65,6 @@ extern bool string_compare_lexicographic(String a, String b);
 [[nodiscard]]
 extern bool cstring_compare_lexicographic(cstring a, cstring b);
 
-#define string_range(str, start, end) slice_range(str, start, end)
-
 [[nodiscard]]
 extern isize string_index_byte(String str, byte b);
 [[nodiscard]]
