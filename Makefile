@@ -81,7 +81,7 @@ install: build
 	sudo cp $(OUT) /usr/lib/$(OUT)
 	sudo rm -rf /usr/include/codin
 	sudo mkdir  /usr/include/codin
-	sudo cp *.h /usr/include/codin
+	sudo cp include/*.h /usr/include/codin
 	sudo ldconfig
 
 uninstall:
