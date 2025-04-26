@@ -1,9 +1,9 @@
 CC := gcc
 AS := gcc
-CFLAGS  := -nostdlib -fno-builtin -I. -fno-stack-protector
+CFLAGS  := -nostdlib -fno-builtin -I./include -fno-stack-protector
 ASFLAGS := $(CFLAGS)
 
-SRC := $(wildcard *.c) $(wildcard *.S)
+SRC := $(wildcard src/*.c) $(wildcard src/*.S)
 
 PLATFORM ?= linux
 
@@ -42,8 +42,8 @@ endif
 MODE_FLAG += $(PLATFORM)
 
 OBJ_DIR := obj
-OBJ := $(patsubst %.c, $(OBJ_DIR)/%.o, $(filter %.c, $(SRC))) \
-       $(patsubst %.S, $(OBJ_DIR)/%.o, $(filter %.S, $(SRC)))
+OBJ := $(patsubst %.c, $(OBJ_DIR)/%.o, $(notdir $(filter %.c, $(SRC)))) \
+       $(patsubst %.S, $(OBJ_DIR)/%.o, $(notdir $(filter %.S, $(SRC))))
 
 MODE_FILE := $(OBJ_DIR)/.mode
 
@@ -65,10 +65,10 @@ check_mode:
 	@mkdir -p $(OBJ_DIR)
 	@echo "$(MODE_FLAG)" > $(MODE_FILE)
 
-$(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: src/%.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: src/%.S | $(OBJ_DIR)
 	$(AS) $(ASFLAGS) -c $< -o $@
 
 $(OBJ_DIR):
