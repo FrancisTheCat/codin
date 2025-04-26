@@ -16,19 +16,32 @@ bool cstring_len_test() {
 }
 
 bool string_equal_test() {
-  test_expect(string_equal(LIT("asdf"), LIT("asdf")));
-  test_expect(string_equal(LIT("1234567890"), LIT("1234567890")));
-  test_expect(
-    string_equal(
-      LIT("12345678901234567890123456789012345678901234567890"),
-      LIT("12345678901234567890123456789012345678901234567890")
-    )
-  );
-  test_expect(string_equal(LIT("0123456789_öüä!"), LIT("0123456789_öüä!")));
+  #define STR_SELF_COMPARE(str)                                                \
+    test_expect(string_equal(LIT(str), LIT(str)));                             \
+    test_expect(cstring_equal(str, str));
 
-  test_expect(!string_equal(LIT("asdf"), LIT("asdf\0")));
-  test_expect(!string_equal(LIT("asdf"), LIT("asd\0")));
-  test_expect(!string_equal(LIT("0123456789_öüä"), LIT("0123456789_öüä")));
+  #define STR_EXPECT_DIFFERENT(a, b)                                            \
+    test_expect(!string_equal(LIT(a), LIT(b)));                                 \
+    test_expect(!cstring_equal(a, b));
+
+  STR_SELF_COMPARE("asdf");
+  STR_SELF_COMPARE("1234567890");
+  STR_SELF_COMPARE("0123456789_öüä!");
+  STR_SELF_COMPARE("0123456789_öüä!\0!");
+  STR_SELF_COMPARE("12345678901234567890123456789012345678901234567890");
+  STR_SELF_COMPARE("12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+
+  STR_EXPECT_DIFFERENT("asdf", "asdf\0");
+  STR_EXPECT_DIFFERENT("asdf", "asd\0");
+  STR_EXPECT_DIFFERENT("0123456789_öüä", "0123456789_öüä");
+  STR_EXPECT_DIFFERENT(
+    "0123456789_öüä0123456789_öüä0123456789_öüä!",
+    "0123456789_öüä0123456789_öüä0123456789_öüä"
+  );
+  STR_EXPECT_DIFFERENT(
+    "0123456789_öüä0123456789_öüä0123456789_öüä!",
+    "0123456789_öüä0123456789_öüä0123456789_öüä1"
+  );
 
   return true;
 }

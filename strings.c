@@ -127,13 +127,46 @@ extern bool cstring_equal(cstring a, cstring b) {
   if ((a == nil) || (b == nil)) {
     return a == b;
   }
-  isize i = 0;
-  for (; a[i] && b[i]; i += 1) {
-    if (a[i] != b[i]) {
-      return false;
+
+  if (((uintptr)a - (uintptr)b) % 16 == 0) {
+    while ((uintptr)a % 16) {
+      if (*a != *b) {
+        return false;
+      }
+      if (!*a) {
+        return true;
+      }
+
+      a += 1;
+      b += 1;
+    }
+
+    __m128i zeroes = _mm_setzero_si128();
+    loop {
+      __m128i data_a = _mm_load_si128((__m128i *)a);
+      __m128i data_b = _mm_load_si128((__m128i *)b);
+
+      __m128i cmp_a  = _mm_cmpeq_epi8(data_a, zeroes);
+      u32     mask_a = _mm_movemask_epi8(cmp_a);
+
+      if (mask_a) {
+        __m128i cmp_b  = _mm_cmpeq_epi8(data_b, zeroes);
+        u32     mask_b = _mm_movemask_epi8(cmp_b);
+        return __builtin_ctz(mask_a) == __builtin_ctz(mask_b);
+      }
+
+      __m128i cmp  = _mm_cmpeq_epi8(data_a, data_b);
+      u32     mask = _mm_movemask_epi8(cmp);
+      if (mask != 0xFFFF) {
+        return false;
+      }
+
+      a += 16;
+      b += 16;
     }
   }
-  return a[i] == b[i];
+  
+  return string_equal(cstring_to_string(a), cstring_to_string(b));
 }
 
 extern bool string_equal(String a, String b) {
