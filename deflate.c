@@ -3,7 +3,7 @@
 #include "hash.h"
 #include "io.h"
 
-extern b8 my_inflate(Reader const *source, Writer const *dest) {
+extern bool my_inflate(Reader const *source, Writer const *dest) {
   struct {
     u8 CMF;
     u8 FLG;
@@ -22,7 +22,7 @@ extern b8 my_inflate(Reader const *source, Writer const *dest) {
   // log_infof(LIT("Info:   %04b"), (isize)compression_info  );
 
   isize check  = (isize)(header.CMF << 8) + (isize)header.FLG;
-  b8    fdict  = !!(header.FLG & (1 << 5));
+  bool  fdict  = !!(header.FLG & (1 << 5));
   u8    flevel = header.FLG >> 6;
 
   // log_infof(LIT("Check:  %d, %d"), check, check % 31);
@@ -38,7 +38,7 @@ extern b8 my_inflate(Reader const *source, Writer const *dest) {
   isize current_bit  = 0;
 
 #define read_bit() ({                                                          \
-  b8 ret = !!(in_buffer.data[current_bit >> 3] & (1 << (current_bit & 0x7)));  \
+  bool ret = !!(in_buffer.data[current_bit >> 3] & (1 << (current_bit & 0x7)));  \
   current_bit += 1;                                                            \
   ret;                                                                         \
 })
@@ -46,8 +46,8 @@ extern b8 my_inflate(Reader const *source, Writer const *dest) {
   in_buffer.len = or_return(read_bytes(source, in_buffer), false);
 
   loop {
-    b8 final = read_bit();
-    u8 type  = read_bit() + (read_bit() << 1);
+    bool final = read_bit();
+    u8   type  = read_bit() + (read_bit() << 1);
     if (final) {
       return true;
     }
@@ -96,7 +96,7 @@ extern b8 my_inflate(Reader const *source, Writer const *dest) {
 #undef read_bit
 }
 
-extern b8 my_deflate(Reader const *source, Writer const *dest) {
+extern bool my_deflate(Reader const *source, Writer const *dest) {
   struct {
     u8 CMF;
     u8 FLG;

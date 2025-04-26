@@ -9,7 +9,7 @@ extern void test_context_destroy(Test_Context tc) { vector_delete(tc.tests); }
 
 extern void test_context_execute(Test_Context *tc) {
   vector_iter(tc->tests, test, i, {
-    b8 result = test->proc();
+    bool result = test->proc();
     fmt_printf(LIT("Test: '%S' "), test->name);
     if (result) {
       fmt_println(LIT("Succeeded\n"));

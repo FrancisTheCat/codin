@@ -264,7 +264,7 @@ extern OS_Error _wait_process(Pid pid) {
 
 extern diverging process_exit(isize code) { syscall(SYS_exit_group, (i32)code); }
 
-extern b8 file_exists(String path) {
+extern bool file_exists(String path) {
   struct stat stat;
   return syscall(SYS_stat, string_to_cstring_clone(path, context.temp_allocator), &stat) == 0;
 }
@@ -304,6 +304,6 @@ extern rawptr os_pages_allocate(isize n) {
   );
 }
 
-extern b8 os_pages_deallocate(rawptr p, isize n) {
+extern bool os_pages_deallocate(rawptr p, isize n) {
   return syscall(SYS_munmap, p, n * OS_PAGE_SIZE) == 0;
 }

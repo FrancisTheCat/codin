@@ -25,7 +25,7 @@ typedef struct {
   i32 decender;
 } BMF_Font_Header;
 
-internal b8 bmf_load_font(Byte_Slice data, BMF_Font *font) {
+internal bool bmf_load_font(Byte_Slice data, BMF_Font *font) {
   BMF_Font_Header header;
   if (size_of(header) > data.len) {
     return false;
@@ -173,7 +173,7 @@ internal isize bmf_get_quad_index(rune c) {
 }
 
 // returns false if the character was not found
-internal b8 bmf_get_baked_quad(BMF_Font const *font, rune c, f32 *x, f32 *y, BMF_Baked_Quad *quad) {
+internal bool bmf_get_baked_quad(BMF_Font const *font, rune c, f32 *x, f32 *y, BMF_Baked_Quad *quad) {
   if (c == ' ') {
     *x += (f32)(font->single_w + font->spacing);
     mem_zero(quad, size_of(*quad));
@@ -213,7 +213,7 @@ internal b8 bmf_get_baked_quad(BMF_Font const *font, rune c, f32 *x, f32 *y, BMF
 }
 
 // returns false if the character was not found
-internal b8 bmf_get_baked_quad_i(BMF_Font const *font, rune c, isize *x, isize *y, BMF_Baked_Quad_I *quad) {
+internal bool bmf_get_baked_quad_i(BMF_Font const *font, rune c, isize *x, isize *y, BMF_Baked_Quad_I *quad) {
   if (c == ' ') {
     *x += font->single_w + font->spacing;
     mem_zero(quad, size_of(*quad));

@@ -1,6 +1,6 @@
 #include "codin.h"
 
-b8 _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
+bool _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
   Fd fd = or_do_err(file_open(path, FP_Read), _err, {
     return false;
   });
@@ -476,7 +476,7 @@ b8 _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
   return true;
 }
 
-b8 _dynlib_unload(rawptr mapping, isize size) {
+bool _dynlib_unload(rawptr mapping, isize size) {
   (void)mapping;
   (void)size;
 

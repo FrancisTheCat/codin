@@ -49,7 +49,7 @@ typedef Result(Connection, Net_Error) Net_Result_Connection;
 typedef Result(Socket,     Net_Error) Net_Result_Socket;
 
 [[nodiscard]]
-extern Net_Result_Socket socket_create(u16 port, b8 blocking);
+extern Net_Result_Socket socket_create(u16 port, bool blocking);
 [[nodiscard]]
 extern Net_Result_Connection socket_accept(Socket socket);
 [[nodiscard]]

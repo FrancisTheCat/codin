@@ -1,6 +1,5 @@
 #include "codin.h"
 
-#include "unicode.h"
 #include "strings.h"
 
 extern Byte_Slice string_to_bytes(String str) {
@@ -17,23 +16,23 @@ extern String bytes_to_string(Byte_Slice bytes) {
   };
 }
 
-extern b8 rune_is_upper(rune r) {
+extern bool rune_is_upper(rune r) {
   return 'A' <= r && r <= 'Z';
 }
 
-extern b8 rune_is_lower(rune r) {
+extern bool rune_is_lower(rune r) {
   return 'a' <= r && r <= 'z';
 }
 
-extern b8 rune_is_alpha(rune r) {
+extern bool rune_is_alpha(rune r) {
   return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z');
 }
 
-extern b8 rune_is_numeric(rune r) {
+extern bool rune_is_numeric(rune r) {
   return '0' <= r && r <= '9';
 }
 
-extern b8 rune_is_whitespace(rune r) {
+extern bool rune_is_whitespace(rune r) {
   switch (r) {
   case ' ':
   case '\n':
@@ -44,7 +43,7 @@ extern b8 rune_is_whitespace(rune r) {
   return false;
 }
 
-extern b8 rune_is_alpha_numeric(rune r) {
+extern bool rune_is_alpha_numeric(rune r) {
   return rune_is_alpha(r) || rune_is_numeric(r);
 }
 
@@ -105,7 +104,7 @@ extern String strings_concatenate(String a, String b, Allocator allocator) {
   return bytes_to_string(tmp);
 }
 
-extern b8 cstring_equal(cstring a, cstring b) {
+extern bool cstring_equal(cstring a, cstring b) {
   if ((a == nil) || (b == nil)) {
     return a == b;
   }
@@ -118,13 +117,13 @@ extern b8 cstring_equal(cstring a, cstring b) {
   return a[i] == b[i];
 }
 
-extern b8 string_equal(String a, String b) {
+extern bool string_equal(String a, String b) {
   if (a.len != b.len) {
     return false;
   }
 
-  slice_iter(a, c, i, {
-    if (*c != b.data[i]) {
+  slice_iter_v(a, c, i, {
+    if (c != b.data[i]) {
       return false;
     }
   });
@@ -132,7 +131,7 @@ extern b8 string_equal(String a, String b) {
   return true;
 }
 
-extern b8 string_compare_lexicographic(String a, String b) {
+extern bool string_compare_lexicographic(String a, String b) {
   slice_iter(a, c, i, {
     if (i >= b.len) {
       return false;
@@ -144,27 +143,89 @@ extern b8 string_compare_lexicographic(String a, String b) {
   return true;
 }
 
-extern b8 cstring_compare_lexicographic(cstring a, cstring b) {
+extern bool cstring_compare_lexicographic(cstring a, cstring b) {
   return string_compare_lexicographic(cstring_to_string(a), cstring_to_string(b));
 }
 
 #define string_range(str, start, end) slice_range(str, start, end)
 
+#include "immintrin.h"
+
 extern isize string_index_byte(String str, byte b) {
-  slice_iter(str, c, i, {
-    if (*c == b) {
+  isize i;
+  for (i = 0; ((uintptr)str.data + i) % 16; i += 1) {
+    if (str.data[i] == b) {
       return i;
     }
-  });
+  }
+
+  __m128i comparator = _mm_set1_epi8(b);
+  for (; i < (str.len & ~15ul); i += 16) {
+    __m128i data = _mm_load_si128((__m128i *)&str.data[i]);
+    __m128i cmp  = _mm_cmpeq_epi8(data, comparator);
+    u32     mask = _mm_movemask_epi8(cmp);
+    if (mask != 0) {
+      return i + __builtin_ctz(mask);
+    }
+  }
+
+  for (; i < str.len; i += 1) {
+    if (str.data[i] == b) {
+      return i;
+    }
+  }
+
   return -1;
 }
 
 extern isize string_index_rune(String str, rune r) {
-  string_iter(str, c, i, {
-    if (c == r) {
+  if (r < 128) {
+    return string_index_byte(str, r);
+  }
+
+  char  buf[4];
+  isize n = utf8_rune_encode(r, buf);
+
+  isize i;
+  for (i = 0; ((uintptr)str.data + i) % 16; i += 1) {
+    if (str.data[i] == buf[0]) {
       return i;
     }
-  });
+  }
+
+  __m128i comparator = _mm_set1_epi8(buf[0]);
+  for (; i < (str.len & ~15ul); i += 16) {
+    __m128i data = _mm_load_si128((__m128i *)&str.data[i]);
+    __m128i cmp  = _mm_cmpeq_epi8(data, comparator);
+    u32     mask = _mm_movemask_epi8(cmp);
+    while (mask != 0) {
+      isize offset = i + __builtin_ctz(mask);
+      if (offset + n > str.len) {
+        return false;
+      }
+
+      bool match = true;
+      for (isize j = 1; j < n; j += 1) {
+        if (str.data[offset + j] != buf[j]) {
+          match = false;
+          break;
+        }
+      }
+
+      if (match) {
+        return offset;
+      }
+
+      mask -= 1 << __builtin_ctz(mask);
+    }
+  }
+
+  for (; i < str.len; i += 1) {
+    if (str.data[i] == buf[0]) {
+      return i;
+    }
+  }
+
   return -1;
 }
 
@@ -172,7 +233,7 @@ extern Maybe_Int parse_isize(String str) {
   if (str.len == 0) {
     return (Maybe_Int){};
   }
-  b8 negative = false;
+  bool negative = false;
   if (str.data[0] == '-') {
     negative = true;
     str.data += 1;
@@ -243,7 +304,7 @@ extern String_Slice string_split(String str, String split, Allocator allocator) 
   return vector_to_slice(String_Slice, splits);
 }
 
-extern b8 string_has_prefix(String str, String prefix) {
+extern bool string_has_prefix(String str, String prefix) {
   if (str.len < prefix.len) {
     return false;
   }

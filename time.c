@@ -77,7 +77,7 @@ internal u64 _time_abs(Timestamp t) {
 
 
 [[nodiscard]]
-internal b8 _time_is_leap_year (isize year){
+internal bool _time_is_leap_year (isize year){
   return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
 }
 
@@ -98,7 +98,7 @@ internal i32 _days_before[13] = {
   31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
 };
 
-internal void _abs_date(u64 abs, b8 full, isize *year, isize *month, isize *day, isize *yday) {
+internal void _abs_date(u64 abs, bool full, isize *year, isize *month, isize *day, isize *yday) {
   isize d = abs / SECONDS_PER_DAY;
 
   // 400 year cycles
@@ -155,7 +155,7 @@ internal void _abs_date(u64 abs, b8 full, isize *year, isize *month, isize *day,
   return;
 }
 
-extern void time_date(Timestamp t, b8 full, isize *year, isize *month, isize *day, isize *yday) {
+extern void time_date(Timestamp t, bool full, isize *year, isize *month, isize *day, isize *yday) {
    _abs_date(_time_abs(t), full, year, month, day, yday);
 }
 

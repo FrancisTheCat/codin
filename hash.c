@@ -34,7 +34,7 @@ extern u32 hash_adler_32(u32 initial, Reader const *reader) {
 internal u32 crc_table[256];
 
 /* Flag: has the table been computed? Initially false. */
-internal b8 crc_table_computed = false;
+internal bool crc_table_computed = false;
 
 /* Make the table for a fast CRC. */
 internal void init_crc_table() {

@@ -10,9 +10,7 @@
 #endif
 //NOLINTEND
 
-#define nil   0
-#define false 0
-#define true  1
+#define nil 0
 
 #define MAX_ALIGN 8
 
@@ -188,10 +186,18 @@ STATIC_ASSERT(size_of(u32) == 4);
 STATIC_ASSERT(size_of(u16) == 2);
 STATIC_ASSERT(size_of(u8)  == 1);
 
-typedef u8  b8;
-typedef u16 b16;
-typedef u32 b32;
-typedef u64 b64;
+#if !defined(__cplusplus)
+  #if !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 202000L)
+    typedef _Bool bool;
+    #define true 1
+    #define false 0
+  #endif
+#endif
+
+typedef bool b8;
+typedef u16  b16;
+typedef u32  b32;
+typedef u64  b64;
 
 STATIC_ASSERT(size_of(b64) == 8);
 STATIC_ASSERT(size_of(b32) == 4);
@@ -215,7 +221,7 @@ typedef double f64;
 STATIC_ASSERT(size_of(f64) == 8);
 STATIC_ASSERT(size_of(f32) == 4);
 
-typedef unsigned char byte;
+typedef u8 byte;
 
 typedef i32 rune;
 
@@ -264,7 +270,7 @@ extern rawptr memset(rawptr data, i32 c, usize n);
 [[nodiscard]]
 extern String format_usize_to_buffer(usize value, Byte_Slice buffer);
 [[nodiscard]]
-extern String format_usize_to_buffer_hex(usize value, Byte_Slice buffer, b8 uppercase);
+extern String format_usize_to_buffer_hex(usize value, Byte_Slice buffer, bool uppercase);
 
 #define slice_array(T, array) ((T) {                                           \
  .data = &array[0],                                                            \

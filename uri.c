@@ -34,7 +34,7 @@ extern Uri_Scheme uri_get_scheme(String uri) {
   return scheme;
 }
 
-extern b8 uri_file_parse(String str, Uri_File *uri) {
+extern bool uri_file_parse(String str, Uri_File *uri) {
   *uri = (Uri_File) {0};
   if (uri_get_scheme(str) != Uri_Scheme_File) {
     return false;
@@ -73,7 +73,7 @@ extern b8 uri_file_parse(String str, Uri_File *uri) {
   return true;
 }
 
-extern b8 uri_data_parse(String str, Uri_Data *uri, Allocator allocator) {
+extern bool uri_data_parse(String str, Uri_Data *uri, Allocator allocator) {
   *uri = (Uri_Data) {0};
   if (uri_get_scheme(str) != Uri_Scheme_Data) {
     return false;
@@ -92,7 +92,7 @@ extern b8 uri_data_parse(String str, Uri_Data *uri, Allocator allocator) {
   Vector(Uri_Data_Attribute) attributes;
   vector_init(&attributes, 0, 8, allocator);
 
-  b8 first = true;
+  bool first = true;
   while (attributes_string.len > 0) {
     isize attribute_len = string_index_byte(attributes_string, ';');
     String attribute_string;

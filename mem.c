@@ -1,19 +1,19 @@
 #include "codin.h"
 
 extern void mem_zero(rawptr data, isize len) {
-  for (int i = 0; i < len; i += 1) {
+  for (isize i = 0; i < len; i += 1) {
     ((byte *)data)[i] = 0;
   }
 }
 
 extern void mem_copy(rawptr dst, rawptr src, isize len) {
-  for (int i = 0; i < len; i += 1) {
+  for (isize i = 0; i < len; i += 1) {
     ((byte *)dst)[i] = ((byte *)src)[i];
   }
 }
 
-extern b8 mem_compare(rawptr a, rawptr b, isize len) {
-  for (int i = 0; i < len; i += 1) {
+extern bool mem_compare(rawptr a, rawptr b, isize len) {
+  for (isize i = 0; i < len; i += 1) {
     if (((byte *)a)[i] != ((byte *)b)[i]) {
       return false;
     }

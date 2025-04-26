@@ -136,7 +136,7 @@ extern Json_Status json_parser_advance(Json_Parser *parser) {
   CASE '-':
   case '0' ... '9': {
     rune  r        = utf8_rune_at(parser->data, parser->current, nil);
-    b8    negative = false;
+    bool  negative = false;
     if (r == '-') {
       negative = true;
       parser->current += 1;
@@ -170,7 +170,7 @@ extern Json_Status json_parser_advance(Json_Parser *parser) {
     }
 
     if (r == 'e' || r == 'E') {
-      b8 exponent_negative = false;
+      bool exponent_negative = false;
       isize exponent = 0;
 
       parser->current += 1;

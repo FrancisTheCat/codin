@@ -1,7 +1,7 @@
 #include "xml.h"
 #include "strings.h"
 
-internal b8 _xml_rune_is_whitespace(rune r) {
+internal bool _xml_rune_is_whitespace(rune r) {
   switch (r) {
   case '\r':
   case '\n':
@@ -137,7 +137,7 @@ extern isize xml_parse_object(String data, XML_Object *out, Allocator allocator)
   return -1;
 }
 
-extern b8 xml_parse_file(String data, XML_Object *out, Allocator allocator) {
+extern bool xml_parse_file(String data, XML_Object *out, Allocator allocator) {
   int current = 0;
   while (_xml_rune_is_whitespace(data.data[current])) {
     current += 1;

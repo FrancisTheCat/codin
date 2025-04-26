@@ -43,7 +43,7 @@ extern String format_usize_to_buffer(usize value, Byte_Slice buffer) {
   };
 }
 
-extern String format_usize_to_buffer_hex(usize value, Byte_Slice buffer, b8 uppercase) {
+extern String format_usize_to_buffer_hex(usize value, Byte_Slice buffer, bool uppercase) {
   isize i = 0;
 
   if (value == 0) {

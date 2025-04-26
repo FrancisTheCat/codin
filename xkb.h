@@ -184,7 +184,7 @@ typedef struct {
   isize          number;
 } XKB_Token;
 
-internal b8 xkb_parse_key_codes(String source, Keymap *out_keymap, Allocator allocator) {
+internal bool xkb_parse_key_codes(String source, Keymap *out_keymap, Allocator allocator) {
   Vector(XKB_Token) tokens;
   vector_init(&tokens, 0, 8, context.temp_allocator);
 

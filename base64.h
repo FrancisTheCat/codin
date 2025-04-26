@@ -3,4 +3,4 @@
 #include "codin.h"
 
 extern String base64_encode(Byte_Slice data, Allocator allocator);
-extern b8     base64_decode(String data, Byte_Slice *out, Allocator allocator);
+extern bool   base64_decode(String data, Byte_Slice *out, Allocator allocator);

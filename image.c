@@ -14,7 +14,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
-extern b8 stb_image_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
+extern bool stb_image_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
   i32 x, y, c;
   image->pixels.data = stbi_load_from_memory(data.data, data.len, &x, &y, &c, 0);
   if (!image->pixels.data) {
@@ -74,7 +74,7 @@ internal u8 paeth_predictor (u8 a, u8 b, u8 c) {
 
 #define CHUNK 16384
 
-internal b8 zlib_inflate(Reader source, Writer dest) {
+internal bool zlib_inflate(Reader source, Writer dest) {
   isize ret;
   usize have;
   z_stream strm;
@@ -132,7 +132,7 @@ internal b8 zlib_inflate(Reader source, Writer dest) {
   return ret == Z_STREAM_END;
 }
 
-// internal b8 zlib_deflate(Reader const *source, Writer const *dest) {
+// internal bool zlib_deflate(Reader const *source, Writer const *dest) {
 //   isize ret, flush;
 //   usize have;
 //   z_stream strm;
@@ -184,7 +184,7 @@ internal b8 zlib_inflate(Reader source, Writer dest) {
 
 #define PNG_HEADER LIT("\x89PNG\x0d\x0a\x1a\x0a")
 
-extern b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
+extern bool png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
   if (!string_equal(PNG_HEADER, (String) {.data = (char *)data.data, .len = min(data.len, 8)})) {
     return false;
   }
@@ -280,11 +280,11 @@ extern b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
   //   Byte_Slice copy = buf; 
   //   Reader reader = buffer_reader(&copy);
   //   Writer writer = null_writer();
-  //   b8 result = my_inflate(&reader, &writer);
+  //   bool result = my_inflate(&reader, &writer);
   //   log_infof(LIT("result: %B"), (isize)result);
   // }
 
-  b8 inflate_ok = zlib_inflate(buffer_reader(&buf), buffer_writer);
+  bool inflate_ok = zlib_inflate(buffer_reader(&buf), buffer_writer);
   if (buf.len != 0 || !inflate_ok) {
     goto fail;
   }
@@ -381,7 +381,7 @@ internal void _png_write_chunk(Writer const *writer, String type, Byte_Slice chu
   write_any(writer, &hash);
 }
 
-extern b8 png_save_writer(Writer const *writer, Image const *image) {
+extern bool png_save_writer(Writer const *writer, Image const *image) {
   if (!write_string(writer, PNG_HEADER).ok) {
     return false;
   }
@@ -527,7 +527,7 @@ extern b8 png_save_writer(Writer const *writer, Image const *image) {
 
   Reader compression_reader = buffer_reader(&uncompressed_slice); 
   Writer compression_writer = writer_from_buffer(&compressed);
-  b8 result = my_deflate(&compression_reader, &compression_writer);
+  bool result = my_deflate(&compression_reader, &compression_writer);
   assert(result);
 
   _png_write_chunk(writer, LIT("IDAT"), (Byte_Slice){.data = compressed.data, .len = compressed.len});
@@ -537,7 +537,7 @@ extern b8 png_save_writer(Writer const *writer, Image const *image) {
   return true;
 }
 
-extern b8 ppm_save_writer(Writer const *writer, Image const *image) {
+extern bool ppm_save_writer(Writer const *writer, Image const *image) {
   if (image->components != 3 || image->pixel_type != PT_u8) {
     return false;
   }
@@ -545,7 +545,7 @@ extern b8 ppm_save_writer(Writer const *writer, Image const *image) {
   return write_bytes(writer, slice_to_bytes(image->pixels)).ok;
 }
 
-extern b8 ppm_load_bytes(Byte_Slice data, Image *image) {
+extern bool ppm_load_bytes(Byte_Slice data, Image *image) {
   if (data.len < 7 || data.data[0] != 'P' || data.data[1] != '6') {
     return false;
   }
@@ -555,7 +555,7 @@ extern b8 ppm_load_bytes(Byte_Slice data, Image *image) {
   isize i = 3;
 
   for (; i < data.len; i += 1) {
-    b8 stop = false;
+    bool stop = false;
     switch (data.data[i]) {
     case '\t':
     case '\n':
@@ -584,7 +584,7 @@ extern b8 ppm_load_bytes(Byte_Slice data, Image *image) {
   image->stride = image->width;
   
   for (; i < data.len; i += 1) {
-    b8 stop = false;
+    bool stop = false;
     switch (data.data[i]) {
     case '\t':
     case '\n':
@@ -609,7 +609,7 @@ extern b8 ppm_load_bytes(Byte_Slice data, Image *image) {
   }
 
   for (; i < data.len; i += 1) {
-    b8 stop = false;
+    bool stop = false;
     switch (data.data[i]) {
     case '\t':
     case '\n':
@@ -661,7 +661,7 @@ internal u8 read_u8(Jpeg_Context *ctx) {
   return value;
 }
 
-extern b8 jpeg_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
+extern bool jpeg_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
   *image = (Image) {0};
 
   if (data.len < 2 + 2 + 2 + 2 + 5 + 2 + 1 + 2 + 2 + 1 + 1) {

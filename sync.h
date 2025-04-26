@@ -33,7 +33,7 @@ internal void mutex_lock(Mutex *m) {
   }
 }
 
-internal b8 mutex_try_lock(Mutex *m) {
+internal bool mutex_try_lock(Mutex *m) {
   _Mutex_State expected = MUTEX_Unlocked;
   atomic_compare_exchange(&m->impl, &expected, MUTEX_Locked);
   return expected == MUTEX_Unlocked;

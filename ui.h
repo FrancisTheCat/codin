@@ -241,8 +241,8 @@ typedef struct {
   Rectangle            rect;
   Rect_Cut_Side        side;
   struct {
-    i32 x, y;
-    b8  buttons[2];
+    i32  x, y;
+    bool buttons[2];
   } mouse;
   UI_Measure_Text_Proc measure_text_proc;
   i32                  text_height;
@@ -308,7 +308,7 @@ internal void ui_context_destroy(UI_Context *ctx) {
   vector_delete(ctx->images);
 }
 
-internal b8 ui_mouse_in_rect(UI_Context *ctx, Rectangle const *rect) {
+internal bool ui_mouse_in_rect(UI_Context *ctx, Rectangle const *rect) {
   if (in_range(ctx->mouse.x, rect->x0, rect->x1)) {
     if (in_range(ctx->mouse.y, rect->y0, rect->y1)) {
       return true;
@@ -388,7 +388,7 @@ internal void ui_reset(UI_Context *ctx) {
   ctx->cursor = UI_Cursor_Default;
 }
 
-internal b8 ui_button(UI_Context *ctx, String text) {
+internal bool ui_button(UI_Context *ctx, String text) {
   i32 width = ctx->measure_text_proc(text);
   UI_Command cmd;
   Rectangle rect = ui_insert_rect(

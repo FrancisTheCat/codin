@@ -24,12 +24,12 @@
 typedef struct {
   isize width;
   isize precision;
-  b8    left_justify;
-  b8    pad_zeroes;
-  b8    is_pointer;
-  b8    is_slice;
+  bool  left_justify;
+  bool  pad_zeroes;
+  bool  is_pointer;
+  bool  is_slice;
   char  verb;
-  b8    complete;
+  bool  complete;
 } _Formatter_Context;
 
 typedef isize (*User_Formatter_Proc)(Writer const *w, va_list va_args);
@@ -45,7 +45,7 @@ extern User_Formatter_Proc register_user_formatter(rune verb, User_Formatter_Pro
     ARG_TYPE ARG,                                                              \
     String   format,                                                           \
     va_list  va_args,                                                          \
-    b8       newline                                                           \
+    bool     newline                                                           \
   );                                                                           \
                                                                                \
   internal RETURN fmt_##PREFIX##printf_va(                                     \
@@ -110,7 +110,7 @@ extern User_Formatter_Proc register_user_formatter(rune verb, User_Formatter_Pro
     return ret;                                                                \
   }                                                                            \
                                                                                \
-  internal RETURN _fmt_##PREFIX##print(ARG_TYPE ARG, String str, b8 newline) { \
+  internal RETURN _fmt_##PREFIX##print(ARG_TYPE ARG, String str, bool newline) {\
     if (newline) {                                                             \
       return fmt_##PREFIX##printfln(ARG, LIT("%S"), str);                      \
     } else {                                                                   \
@@ -152,7 +152,7 @@ FMT_FAMILY(isize,   Fd,             f, f );
   internal RETURN _fmt_##NAME##printf_va(                                      \
     String   format,                                                           \
     va_list  va_args,                                                          \
-    b8       newline                                                           \
+    bool     newline                                                           \
   ) {                                                                          \
     return _fmt_##BASE##printf_va(ARG, format, va_args, newline);              \
   }                                                                            \

@@ -11,22 +11,22 @@ extern Byte_Slice string_to_bytes(String str);
 extern String bytes_to_string(Byte_Slice bytes);
 
 [[nodiscard]]
-extern b8 rune_is_upper(rune r);
+extern bool rune_is_upper(rune r);
 
 [[nodiscard]]
-extern b8 rune_is_lower(rune r);
+extern bool rune_is_lower(rune r);
 
 [[nodiscard]]
-extern b8 rune_is_alpha(rune r);
+extern bool rune_is_alpha(rune r);
 
 [[nodiscard]]
-extern b8 rune_is_numeric(rune r);
+extern bool rune_is_numeric(rune r);
 
 [[nodiscard]]
-extern b8 rune_is_alpha_numeric(rune r);
+extern bool rune_is_alpha_numeric(rune r);
 
 [[nodiscard]]
-extern b8 rune_is_whitespace(rune r);
+extern bool rune_is_whitespace(rune r);
 
 extern Allocator_Error string_delete(String s, Allocator allocator);
 
@@ -54,16 +54,16 @@ extern String string_clone(String s, Allocator allocator);
 extern String strings_concatenate(String a, String b, Allocator allocator);
 
 [[nodiscard]]
-extern b8 cstring_equal(cstring a, cstring b);
+extern bool cstring_equal(cstring a, cstring b);
 
 [[nodiscard]]
-extern b8 string_equal(String a, String b);
+extern bool string_equal(String a, String b);
 
 [[nodiscard]]
-extern b8 string_compare_lexicographic(String a, String b);
+extern bool string_compare_lexicographic(String a, String b);
 
 [[nodiscard]]
-extern b8 cstring_compare_lexicographic(cstring a, cstring b);
+extern bool cstring_compare_lexicographic(cstring a, cstring b);
 
 #define string_range(str, start, end) slice_range(str, start, end)
 
@@ -94,7 +94,7 @@ extern String string_to_lower(String str, Allocator allocator);
 }
 
 [[nodiscard]]
-extern b8 string_has_prefix(String str, String prefix);
+extern bool string_has_prefix(String str, String prefix);
 
 [[nodiscard]]
 extern String string_trim_whitespace(String str);

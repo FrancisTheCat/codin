@@ -153,7 +153,7 @@ internal void parse_material_file(String data, Obj_File *o) {
   });
 }
 
-extern b8 obj_load(String data, Obj_File *o, b8 load_materials, Allocator allocator) {
+extern bool obj_load(String data, Obj_File *o, bool load_materials, Allocator allocator) {
   *o = (Obj_File) {0};
 
   Vector(Vec3)         positions, normals;

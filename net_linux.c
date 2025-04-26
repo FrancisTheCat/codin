@@ -10,7 +10,7 @@ internal u16 htons(u16 x) {
   return x << 8 | (x >> 8);
 }
 
-extern Net_Result_Socket socket_create(u16 port, b8 blocking) {
+extern Net_Result_Socket socket_create(u16 port, bool blocking) {
   Net_Result_Socket result = {0};
   u64 type = SOCK_STREAM;
   if (!blocking) {
@@ -22,8 +22,8 @@ extern Net_Result_Socket socket_create(u16 port, b8 blocking) {
     return result;
   }
 
-  b8 ok;
-  b32 reuse = true;
+  bool ok;
+  b32  reuse = true;
   ok = syscall(SYS_setsockopt, s, SOL_SOCKET, SO_REUSEADDR, &reuse, size_of(reuse)) == 0;
   if (!ok) {
     result.err = NE_Other;

@@ -15,5 +15,5 @@ typedef struct _Xml_Object {
 } XML_Object;
 
 extern isize  xml_parse_object(String data, XML_Object *out, Allocator allocator);
-extern b8     xml_parse_file(String data, XML_Object *out, Allocator allocator);
+extern bool   xml_parse_file(String data, XML_Object *out, Allocator allocator);
 extern String xml_get_property(XML_Object const *xml, String key);

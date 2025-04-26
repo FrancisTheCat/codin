@@ -15,7 +15,7 @@ extern void bit_array_destroy(Bit_Array const *ba) {
   vector_delete(ba->data);
 }
 
-extern b8 bit_array_get(Bit_Array const *ba, isize index) {
+extern bool bit_array_get(Bit_Array const *ba, isize index) {
   isize elem   = index >> 3;
   isize offset = index & 7;
   u8    value  = IDX(ba->data, elem) & (0x80 >> offset);
@@ -38,7 +38,7 @@ extern void bit_array_set_n(Bit_Array const *ba, isize index, u64 value, isize n
   }
 }
 
-extern void bit_array_set(Bit_Array const *ba, isize index, b8 value) {
+extern void bit_array_set(Bit_Array const *ba, isize index, bool value) {
   assert(index >= 0);
   assert(index < ba->len);
 
@@ -55,7 +55,8 @@ extern void bit_array_set(Bit_Array const *ba, isize index, b8 value) {
   }
 }
 
-extern void bit_array_append(Bit_Array *ba, b8 value) {
+extern void bit_array_append(Bit_Array *ba, bool _value) {
+  u8 value = _value;
   if ((ba->len >> 3) >= ba->data.len) {
     vector_append(&ba->data, 0);
   }

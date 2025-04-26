@@ -305,10 +305,10 @@ extern Allocator_Result pool_allocator_proc(
 
 extern Allocator pool_allocator(
   Pool_Allocator *pool,
-  isize block_size,
-  isize chunk_size,
-  b8 growing,
-  Allocator backing_allocator
+  isize           block_size,
+  isize           chunk_size,
+  bool            growing,
+  Allocator       backing_allocator
 ) {
   block_size = max(block_size, sizeof(Pool_Allocation_Header));
 #define DEFAULT_POOL_CHUNK_SIZE 256

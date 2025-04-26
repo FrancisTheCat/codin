@@ -1,8 +1,8 @@
 #include "codin.h"
 
 internal isize parse_int(String *str) {
-  i32 value = 0;
-  b8 negative = false;
+  i32  value    = 0;
+  bool negative = false;
   while (str->len) {
     char c = str->data[0];
     switch (c) {
@@ -21,8 +21,8 @@ internal isize parse_int(String *str) {
 }
 
 internal f64 parse_float(String *str) {
-  f32 value = 0;
-  b8 negative = false;
+  f32  value    = 0;
+  bool negative = false;
   while (str->len) {
     char c = str->data[0];
     switch (c) {

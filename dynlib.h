@@ -18,7 +18,7 @@ Dynlib_Result dynlib_load(String path, Allocator allocator) {
   return result;
 }
 
-b8 dynlib_unload(Dynlib lib) {
+bool dynlib_unload(Dynlib lib) {
   hash_map_delete(lib.symbols);
   return _dynlib_unload(lib.mapping, lib.mapping_size);
 }

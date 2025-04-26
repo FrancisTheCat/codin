@@ -6,11 +6,11 @@ internal String path_to_absolute(String relative, Allocator allocator) {
   unimplemented();
 }
 
-internal b8 path_is_absolute(String path) {
+internal bool path_is_absolute(String path) {
   return path.len && (path.data[0] == '/');
 }
 
-internal b8 path_is_dir(String path) {
+internal bool path_is_dir(String path) {
   return path.len && (path.data[path.len - 1] == '/');
 }
 

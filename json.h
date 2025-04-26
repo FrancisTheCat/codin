@@ -18,7 +18,7 @@ typedef struct {
       f64 number;
     };
     String string;
-    b8     boolean;
+    bool   boolean;
   };
   Json_Value_Kind kind;
 } Json_Value;

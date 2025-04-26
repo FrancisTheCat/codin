@@ -42,7 +42,7 @@ typedef struct {
   isize                   block_size;
   isize                   chunk_size;
   Pool_Allocation_Header *free;
-  b8                      growing;
+  bool                    growing;
   Allocator               backing;
 } Pool_Allocator;
 
@@ -57,7 +57,7 @@ extern Allocator pool_allocator(
   Pool_Allocator *pool,
   isize           block_size,
   isize           chunk_size,
-  b8              growing,
+  bool            growing,
   Allocator       backing_allocator
 );
 

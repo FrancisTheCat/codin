@@ -42,7 +42,7 @@ typedef struct {
   Obj_Texture texture_emissive;
   f32         transparency, ior;
   u8          illumination_model;
-  b8          is_pbr;
+  bool        is_pbr;
 } Obj_Material;
 
 typedef struct {
@@ -55,5 +55,5 @@ typedef struct {
   Slice(Obj_Material_File) material_files;
 } Obj_File;
 
-extern b8   obj_load(String data, Obj_File *o, b8 load_materials, Allocator allocator);
+extern bool obj_load(String data, Obj_File *o, bool load_materials, Allocator allocator);
 extern void obj_destroy(Obj_File const *o, Allocator allocator);

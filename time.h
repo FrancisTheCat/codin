@@ -58,7 +58,7 @@ typedef struct {
 } Time_Value;
 
 extern void time_precise_clock(Timestamp time, isize *hour, isize *min, isize *sec, isize *nanos);
-extern void time_date(Timestamp t, b8 full, isize *year, isize *month, isize *day, isize *yday);
+extern void time_date(Timestamp t, bool full, isize *year, isize *month, isize *day, isize *yday);
 
 extern void time_get_value(Timestamp time, Time_Value *value);
 
@@ -69,6 +69,6 @@ extern void time_sleep(Duration duration);
 
 extern void time_precise_clock(Timestamp time, isize *hour, isize *min, isize *sec, isize *nanos);
 
-extern void time_date(Timestamp t, b8 full, isize *year, isize *month, isize *day, isize *yday);
+extern void time_date(Timestamp t, bool full, isize *year, isize *month, isize *day, isize *yday);
 
 extern Duration time_since(Timestamp t);

@@ -48,7 +48,7 @@ extern String base64_encode(Byte_Slice data, Allocator allocator) {
   return builder_to_string(b);
 }
 
-extern b8 base64_decode(String data, Byte_Slice *out, Allocator allocator) {
+extern bool base64_decode(String data, Byte_Slice *out, Allocator allocator) {
   Bit_Array ba = bit_array_make(0, (data.len + 5) * 6, allocator);
   ba.data.allocator = panic_allocator();
   slice_iter_v(data, c, i, {

@@ -116,9 +116,9 @@ internal isize __format_parse_int(String format, isize *value) {
 
 internal String format_usize_to_buffer_bin(usize x, Byte_Slice buffer) {
   isize i = 0;
-  b8 inner = false;
+  bool inner = false;
   for (usize mask = 1l << ((size_of(usize) * 8) - 1); mask != 0; mask >>= 1) {
-    b8 bit = (mask & x) != 0;
+    bool bit = (mask & x) != 0;
     if (bit) {
       inner = true;
       buffer.data[i] = '1';
@@ -136,7 +136,7 @@ internal isize fmt_file_size_w(const Writer *w, isize size);
 internal isize fmt_location_w(const Writer *w, Source_Code_Location const *location);
 internal isize fmt_time_w(const Writer *w, Timestamp time);
 
-extern isize _fmt_wprintf_va(const Writer *w, String format, va_list va_args, b8 newline) {
+extern isize _fmt_wprintf_va(const Writer *w, String format, va_list va_args, bool newline) {
   _Formatter_Context ctx;
   union {
     b32                  b32;
@@ -482,7 +482,7 @@ extern isize _fmt_wprintf_va(const Writer *w, String format, va_list va_args, b8
   return n;
 }
 
-extern String _fmt_aprintf_va(Allocator allocator, String format, va_list va_args, b8 newline) {
+extern String _fmt_aprintf_va(Allocator allocator, String format, va_list va_args, bool newline) {
   Builder b;
   Writer w;
 
@@ -493,7 +493,7 @@ extern String _fmt_aprintf_va(Allocator allocator, String format, va_list va_arg
   return builder_to_string(b);
 }
 
-extern cstring _fmt_caprintf_va(Allocator allocator, String format, va_list va_args, b8 newline) {
+extern cstring _fmt_caprintf_va(Allocator allocator, String format, va_list va_args, bool newline) {
   Builder b;
   Writer w;
 
@@ -504,20 +504,20 @@ extern cstring _fmt_caprintf_va(Allocator allocator, String format, va_list va_a
   return builder_to_cstring(&b);
 }
 
-extern isize _fmt_sbprintf_va(Builder *b, String format, va_list va_args, b8 newline) {
+extern isize _fmt_sbprintf_va(Builder *b, String format, va_list va_args, bool newline) {
   Writer w;
   w = writer_from_builder(b);
   return _fmt_wprintf_va(&w, format, va_args, newline);
 }
 
-extern String _fmt_bprintf_va(Byte_Slice buffer, String format, va_list va_args, b8 newline) {
+extern String _fmt_bprintf_va(Byte_Slice buffer, String format, va_list va_args, bool newline) {
   Writer w = buffer_writer(&buffer);
   String ret = { .data = (char *)buffer.data };
   ret.len =  _fmt_wprintf_va(&w, format, va_args, newline);
   return ret;
 }
 
-extern isize _fmt_fprintf_va(Fd f, String format, va_list va_args, b8 newline) {
+extern isize _fmt_fprintf_va(Fd f, String format, va_list va_args, bool newline) {
   Writer w = writer_from_handle(f);
   String s = _fmt_tprintf_va(format, va_args, newline);
   return or_else(write_string(&w, s), -1);

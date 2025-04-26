@@ -13,13 +13,13 @@ extern void      bit_array_destroy(Bit_Array const *ba);
 
 extern Byte_Slice bit_array_to_bytes(Bit_Array *ba);
 
-extern b8   bit_array_get(Bit_Array const *ba, isize index);
-extern void bit_array_set(Bit_Array const *ba, isize index, b8 value);
+extern bool bit_array_get(Bit_Array const *ba, isize index);
+extern void bit_array_set(Bit_Array const *ba, isize index, bool value);
 
 extern u64  bit_array_get_n(Bit_Array const *ba, isize index, isize n);
 extern void bit_array_set_n(Bit_Array const *ba, isize index, u64 value, isize n);
 
-extern void bit_array_append  (Bit_Array *ba, b8  value);
+extern void bit_array_append  (Bit_Array *ba, bool value);
 extern void bit_array_append_n(Bit_Array *ba, u64 value, isize n);
 
 extern void bit_array_append_u8 (Bit_Array *ba, u8  value);
@@ -29,7 +29,7 @@ extern void bit_array_append_u64(Bit_Array *ba, u64 value);
 
 #define bit_array_iter(ba, b, i, BLOCK...) {                                   \
   for (isize i = 0; i < (ba).len; i += 1) {                                    \
-    b8 b = bit_array_get(&ba, i);                                              \
+    bool b = bit_array_get(&ba, i);                                              \
     { BLOCK; }                                                                 \
   }                                                                            \
 }                                                                              \

@@ -21,12 +21,12 @@ typedef struct {
   u8         pixel_type;
 } Image;
 
-extern b8 png_load_bytes(Byte_Slice data, Image *image, Allocator allocator);
-extern b8 png_save_writer(Writer const *writer, Image const *image);
+extern bool png_load_bytes(Byte_Slice data, Image *image, Allocator allocator);
+extern bool png_save_writer(Writer const *writer, Image const *image);
 
-extern b8 ppm_save_writer(Writer const *writer, Image const *image);
-extern b8 ppm_load_bytes(Byte_Slice data, Image *image);
+extern bool ppm_save_writer(Writer const *writer, Image const *image);
+extern bool ppm_load_bytes(Byte_Slice data, Image *image);
 
 extern void image_clone_to_rgba8(Image const *in, Image *out, Allocator allocator);
 
-extern b8 stb_image_load_bytes(Byte_Slice data, Image *image, Allocator allocator);
+extern bool stb_image_load_bytes(Byte_Slice data, Image *image, Allocator allocator);

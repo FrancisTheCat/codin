@@ -93,8 +93,8 @@ typedef struct SpallPadSkipEvent {
 typedef struct SpallProfile SpallProfile;
 
 // Important!: If you define your own callbacks, mark them SPALL_NOINSTRUMENT!
-typedef b8 (*SpallWriteCallback)(SpallProfile *self, const void *data, isize length);
-typedef b8 (*SpallFlushCallback)(SpallProfile *self);
+typedef bool (*SpallWriteCallback)(SpallProfile *self, const void *data, isize length);
+typedef bool (*SpallFlushCallback)(SpallProfile *self);
 typedef void (*SpallCloseCallback)(SpallProfile *self);
 
 struct SpallProfile {
@@ -130,7 +130,7 @@ SPALL_FN SPALL_FORCEINLINE void spall__buffer_profile(SpallProfile *ctx, SpallBu
     #define SPALL_BUFFER_PROFILE_END(name)
 #endif
 
-SPALL_FN SPALL_FORCEINLINE b8 spall__buffer_flush(SpallProfile *ctx, SpallBuffer *wb) {
+SPALL_FN SPALL_FORCEINLINE bool spall__buffer_flush(SpallProfile *ctx, SpallBuffer *wb) {
     // precon: wb
     // precon: wb->data
     // precon: wb->head <= wb->length
@@ -145,7 +145,7 @@ SPALL_FN SPALL_FORCEINLINE b8 spall__buffer_flush(SpallProfile *ctx, SpallBuffer
     return true;
 }
 
-SPALL_FN SPALL_FORCEINLINE b8 spall__buffer_write(SpallProfile *ctx, SpallBuffer *wb, void *p, isize n) {
+SPALL_FN SPALL_FORCEINLINE bool spall__buffer_write(SpallProfile *ctx, SpallBuffer *wb, void *p, isize n) {
     // precon: !wb || wb->head < wb->length
     // precon: !ctx || ctx->write
     if (!wb) return ctx->write && ctx->write(ctx, p, n);
@@ -161,23 +161,23 @@ SPALL_FN SPALL_FORCEINLINE b8 spall__buffer_write(SpallProfile *ctx, SpallBuffer
     return true;
 }
 
-SPALL_FN b8 spall_buffer_flush(SpallProfile *ctx, SpallBuffer *wb) {
+SPALL_FN bool spall_buffer_flush(SpallProfile *ctx, SpallBuffer *wb) {
     if (!spall__buffer_flush(ctx, wb)) return false;
     return true;
 }
 
-SPALL_FN b8 spall_buffer_init(SpallProfile *ctx, SpallBuffer *wb) {
+SPALL_FN bool spall_buffer_init(SpallProfile *ctx, SpallBuffer *wb) {
     if (!spall_buffer_flush(nil, wb)) return false;
     wb->ctx = ctx;
     return true;
 }
-SPALL_FN b8 spall_buffer_quit(SpallProfile *ctx, SpallBuffer *wb) {
+SPALL_FN bool spall_buffer_quit(SpallProfile *ctx, SpallBuffer *wb) {
     if (!spall_buffer_flush(ctx, wb)) return false;
     wb->ctx = nil;
     return true;
 }
 
-SPALL_FN b8 spall_buffer_abort(SpallBuffer *wb) {
+SPALL_FN bool spall_buffer_abort(SpallBuffer *wb) {
     if (!wb) return false;
     wb->ctx = nil;
     if (!spall__buffer_flush(nil, wb)) return false;
@@ -264,12 +264,12 @@ SPALL_FN SpallProfile spall_init_callbacks(f64 timestamp_unit,
     return ctx;
 }
 
-SPALL_FN b8 spall_flush(SpallProfile *ctx) {
+SPALL_FN bool spall_flush(SpallProfile *ctx) {
     if (!ctx->flush || !ctx->flush(ctx)) return false;
     return true;
 }
 
-SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_begin_args(SpallProfile *ctx, SpallBuffer *wb, String name, String args, f64 when, u32 tid, u32 pid) {
+SPALL_FN SPALL_FORCEINLINE bool spall_buffer_begin_args(SpallProfile *ctx, SpallBuffer *wb, String name, String args, f64 when, u32 tid, u32 pid) {
 
     if ((wb->head + sizeof(SpallBeginEventMax)) > wb->length) {
         if (!spall__buffer_flush(ctx, wb)) {
@@ -282,15 +282,15 @@ SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_begin_args(SpallProfile *ctx, SpallBu
     return true;
 }
 
-SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_begin_ex(SpallProfile *ctx, SpallBuffer *wb, String name, f64 when, u32 tid, u32 pid) {
+SPALL_FN SPALL_FORCEINLINE bool spall_buffer_begin_ex(SpallProfile *ctx, SpallBuffer *wb, String name, f64 when, u32 tid, u32 pid) {
     return spall_buffer_begin_args(ctx, wb, name, LIT(""), when, tid, pid);
 }
 
-SPALL_FN b8 spall_buffer_begin(SpallProfile *ctx, SpallBuffer *wb, String name, f64 when) {
+SPALL_FN bool spall_buffer_begin(SpallProfile *ctx, SpallBuffer *wb, String name, f64 when) {
     return spall_buffer_begin_args(ctx, wb, name, LIT(""), when, 0, 0);
 }
 
-SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_end_ex(SpallProfile *ctx, SpallBuffer *wb, f64 when, u32 tid, u32 pid) {
+SPALL_FN SPALL_FORCEINLINE bool spall_buffer_end_ex(SpallProfile *ctx, SpallBuffer *wb, f64 when, u32 tid, u32 pid) {
     if ((wb->head + sizeof(SpallEndEvent)) > wb->length) {
         if (!spall__buffer_flush(ctx, wb)) {
             return false;
@@ -302,7 +302,7 @@ SPALL_FN SPALL_FORCEINLINE b8 spall_buffer_end_ex(SpallProfile *ctx, SpallBuffer
     return true;
 }
 
-SPALL_FN b8 spall_buffer_end(SpallProfile *ctx, SpallBuffer *wb, f64 when) { return spall_buffer_end_ex(ctx, wb, when, 0, 0); }
+SPALL_FN bool spall_buffer_end(SpallProfile *ctx, SpallBuffer *wb, f64 when) { return spall_buffer_end_ex(ctx, wb, when, 0, 0); }
 
 SPALL_FN SPALL_FORCEINLINE void spall__buffer_profile(SpallProfile *ctx, SpallBuffer *wb, f64 spall_time_begin, f64 spall_time_end, String name) {
     // precon: ctx

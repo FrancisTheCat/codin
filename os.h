@@ -44,10 +44,10 @@ typedef struct {
   Timestamp acces_time;
   Timestamp creation_time;
   Timestamp modification_time;
-  b8        is_dir;
-  b8        readable;
-  b8        writeable;
-  b8        executable;
+  bool      is_dir;
+  bool      readable;
+  bool      writeable;
+  bool      executable;
 } File_Info;
 
 typedef enum {
@@ -88,7 +88,7 @@ extern OS_Error file_remove_dir(String path);
 extern OS_Error file_remove_dir_at(Fd dir, String path);
 
 [[nodiscard]]
-extern b8 file_exists(String path);
+extern bool file_exists(String path);
 
 [[nodiscard]]
 extern OS_Result_Dir directory_read_fd(Fd fd, Allocator allocator);
@@ -131,7 +131,7 @@ extern Maybe_Int file_reader_proc(rawptr handle, Byte_Slice buf);
 
 [[nodiscard]]
 extern rawptr os_pages_allocate(isize n);
-extern b8     os_pages_deallocate(rawptr p, isize n);
+extern bool   os_pages_deallocate(rawptr p, isize n);
 
 extern void processor_yield();
 

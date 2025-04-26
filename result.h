@@ -5,7 +5,7 @@
 #define Maybe(T)                                                               \
   struct {                                                                     \
     T value;                                                                   \
-    b8 ok;                                                                     \
+    bool ok;                                                                   \
   }
 
 #define or_else(_maybe, other)                                                 \

@@ -220,10 +220,10 @@ internal QR_Error_Correction_Info qr__error_correction_table[] = {
   [40 * enum_len(QR_Error_Correction) + QR_Error_Correction_H] = { 1276, 30, 20,  15, 61,  16 },
 };
 
-internal b8 qr__luts_generated = false;
-internal u8 qr__galois_power_2_lut    [256] = {0};
-internal u8 qr__galois_power_2_lut_rev[256] = {0};
-internal u8 qr__bit_order_swap_lut    [256] = {0};
+internal bool qr__luts_generated = false;
+internal u8   qr__galois_power_2_lut    [256] = {0};
+internal u8   qr__galois_power_2_lut_rev[256] = {0};
+internal u8   qr__bit_order_swap_lut    [256] = {0};
 
 internal void qr__generate_lut() {
   for_range(i, 0, 255) {
@@ -565,7 +565,7 @@ internal void qr__place_fixed_patterns(Image const *image, isize version, QR_Err
         break;
       }
 
-      b8 skip = false;
+      bool skip = false;
       for_range(_y, y - 2, y + 3) {
         for_range(_x, x - 2, x + 3) {
           if (IDX(image->pixels, _x + _y * image->width) & QR__FIXED_BIT) {
@@ -610,23 +610,23 @@ internal void qr__place_format_and_version_info(
   u64 format_string = qr__format_strings[level * 8 + mask];
 
   for_range(i, 0, 6) {
-    b8 b = (format_string & (1l << (14 - i))) != 0;
+    bool b = (format_string & (1l << (14 - i))) != 0;
     IDX(image->pixels, 8 * image->width + i) = !b | QR__FIXED_BIT;
     IDX(image->pixels, 8 + image->width * (image->width - i - 1)) = !b | QR__FIXED_BIT;
   }
 
-  b8 bit_6 = (format_string & (1l << (14 - 6))) != 0;
+  bool bit_6 = (format_string & (1l << (14 - 6))) != 0;
   IDX(image->pixels, 8 * image->width + 7) = !bit_6 | QR__FIXED_BIT;
   IDX(image->pixels, 8 + image->width * (image->width - 6 - 1)) = !bit_6 | QR__FIXED_BIT;
 
   for_range(i, 7, 9) {
-    b8 b = (format_string & (1l << (14 - i))) != 0;
+    bool b = (format_string & (1l << (14 - i))) != 0;
     IDX(image->pixels, 8 + image->width * (15 - i)) = !b | QR__FIXED_BIT;
     IDX(image->pixels, 8 * image->width + i - 7 + image->width - 8) = !b | QR__FIXED_BIT;
   }
 
   for_range(i, 9, 15) {
-    b8 b = (format_string & (1l << (14 - i))) != 0;
+    bool b = (format_string & (1l << (14 - i))) != 0;
     IDX(image->pixels, 8 + image->width * (14 - i)) = !b | QR__FIXED_BIT;
     IDX(image->pixels, 8 * image->width + i - 9 + image->width - 6) = !b | QR__FIXED_BIT;
   }
@@ -640,13 +640,13 @@ internal void qr__place_format_and_version_info(
   assert(version_info_string);
 
   for_range(i, 0, 18) {
-    b8 bit = (version_info_string >> i) & 1;
+    bool bit = (version_info_string >> i) & 1;
     IDX(image->pixels, i / 3 + image->width * (i % 3 + image->height - 11)) = !bit | QR__FIXED_BIT;
     IDX(image->pixels, i % 3 + image->width - 11 + image->width * (i / 3))  = !bit | QR__FIXED_BIT;
   }
 }
 
-internal b8 qr__mask(isize mask, isize row, isize column) {
+internal bool qr__mask(isize mask, isize row, isize column) {
   switch (mask) {
   CASE 0:
     return !((column + row) & 1);
@@ -672,9 +672,9 @@ internal void qr__place_data_bit(
   Image *image,
   isize *cursor_x,
   isize *cursor_y,
-  b8    *down,
-  b8    *left,
-  b8     value,
+  bool    *down,
+  bool    *left,
+  bool     value,
   isize  mask
 ) {
   if (*cursor_x == 6) {
@@ -764,15 +764,15 @@ internal void qr__place_data_bits(
 ) {
   isize cursor_x = image->width  - 1;
   isize cursor_y = image->height - 1;
-  b8    left     = false;
-  b8    down     = false;
+  bool    left     = false;
+  bool    down     = false;
 
   for_range(dw, 0, max(info->data_words_per_block_group1, info->data_words_per_block_group2)) {
     if (dw < info->data_words_per_block_group1) {
       for_range(block, 0, info->blocks_group1) {
         u8 d = IDX(data, dw + info->data_words_per_block_group1 * block);
         for_range(j, 0, 8) {
-          b8 b = d & (0x80 >> j);
+          bool b = d & (0x80 >> j);
           qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
         }
       }
@@ -782,7 +782,7 @@ internal void qr__place_data_bits(
       for_range(block, 0, info->blocks_group2) {
         u8 d = IDX(data, dw + info->data_words_per_block_group2 * block + info->blocks_group1 * info->data_words_per_block_group1);
         for_range(j, 0, 8) {
-          b8 b = d & (0x80 >> j);
+          bool b = d & (0x80 >> j);
           qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
         }
       }
@@ -793,7 +793,7 @@ internal void qr__place_data_bits(
     for_range(block, 0, info->blocks_group1 + info->blocks_group2) {
       u8 d = IDX(ecs, ew + block * info->error_words_per_block);
       for_range(j, 0, 8) {
-        b8 b = d & (0x80 >> j);
+        bool b = d & (0x80 >> j);
         qr__place_data_bit(image, &cursor_x, &cursor_y, &down, &left, !b, mask);
       }
     }
@@ -954,7 +954,7 @@ internal void qr__change_mask(Image const *image, isize old_mask, isize new_mask
 
 #define QR_MASK_AUTOMATIC -1
 
-internal b8 qr_code_generate_image(
+internal bool qr_code_generate_image(
   Byte_Slice          data,
   Image              *image,
   QR_Error_Correction level,

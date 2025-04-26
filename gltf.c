@@ -56,7 +56,7 @@ internal isize json_n_array_elems(Json_Parser const *parser) {
 #define JSON_VALUE_integer Json_Value_Number
 #define JSON_VALUE_boolean Json_Value_Bool
 
-internal b8 gltf_parse_asset(Gltf_File *gltf, Json_Parser *parser) {
+internal bool gltf_parse_asset(Gltf_File *gltf, Json_Parser *parser) {
   if (parser->value.kind != Json_Value_Object) {
     return false;
   }
@@ -75,7 +75,7 @@ internal b8 gltf_parse_asset(Gltf_File *gltf, Json_Parser *parser) {
   return status == Json_Status_End;
 }
 
-internal b8 gltf_parse_scenes(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_scenes(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -116,7 +116,7 @@ internal b8 gltf_parse_scenes(Gltf_File *gltf, Json_Parser *parser, Allocator al
   return status == Json_Status_End;
 }
 
-internal b8 gltf_parse_string_slice(
+internal bool gltf_parse_string_slice(
   Gltf_File    *gltf,
   Json_Parser  *parser,
   String_Slice *s,
@@ -142,7 +142,7 @@ internal b8 gltf_parse_string_slice(
   return true;
 }
 
-internal b8 gltf_parse_float_slice(Json_Parser *parser, f32 *data, isize count) {
+internal bool gltf_parse_float_slice(Json_Parser *parser, f32 *data, isize count) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -161,7 +161,7 @@ internal b8 gltf_parse_float_slice(Json_Parser *parser, f32 *data, isize count) 
   return true;
 }
 
-internal b8 gltf_parse_nodes(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_nodes(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -182,10 +182,10 @@ internal b8 gltf_parse_nodes(Gltf_File *gltf, Json_Parser *parser, Allocator all
       .camera   = -1,
       .skin     = -1,
     };
-    Vec3 translation = {0};
-    Vec3 scale       = vec3(1, 1, 1);
-    Vec4 rotation    = vec4(0, 0, 0, 1);
-    b8   explicit_matrix = false;
+    Vec3 translation     = {0};
+    Vec3 scale           = vec3(1, 1, 1);
+    Vec4 rotation        = vec4(0, 0, 0, 1);
+    bool explicit_matrix = false;
     JSON_PARSE_BLOCK(status, parser) {
       STRING_SWITCH(parser->name)
       JSON_MATCH("name",   node->name,   string);
@@ -253,7 +253,7 @@ internal b8 gltf_parse_nodes(Gltf_File *gltf, Json_Parser *parser, Allocator all
   return status == Json_Status_End;
 }
 
-internal b8 gltf_parse_texture(Gltf_Texture_Info *texture, Json_Parser *parser) {
+internal bool gltf_parse_texture(Gltf_Texture_Info *texture, Json_Parser *parser) {
   if (parser->value.kind != Json_Value_Object) {
     return false;
   }
@@ -270,7 +270,7 @@ internal b8 gltf_parse_texture(Gltf_Texture_Info *texture, Json_Parser *parser) 
   return true;
 }
 
-internal b8 gltf_parse_pbr(Gltf_Material *mat, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_pbr(Gltf_Material *mat, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Object) {
     return false;
   }
@@ -312,7 +312,7 @@ internal b8 gltf_parse_pbr(Gltf_Material *mat, Json_Parser *parser, Allocator al
   return status == Json_Status_End;
 }
 
-internal b8 gltf_parse_materials(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_materials(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -497,7 +497,7 @@ internal b8 gltf_parse_materials(Gltf_File *gltf, Json_Parser *parser, Allocator
   return status == Json_Status_End;
 }
 
-internal b8 gltf_parse_accessors(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_accessors(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -543,7 +543,7 @@ internal b8 gltf_parse_accessors(Gltf_File *gltf, Json_Parser *parser, Allocator
           return false;
         }
       STRING_CASE_C("type")
-        b8 found = false;
+        bool found = false;
         for_range(i, 0, count_of(gltf_accessor_type_strings)) {
           if (string_equal(parser->value.string, gltf_accessor_type_strings[i])) {
             accessor.type = i;
@@ -567,7 +567,7 @@ internal b8 gltf_parse_accessors(Gltf_File *gltf, Json_Parser *parser, Allocator
   return true;
 }
 
-internal b8 gltf_parse_buffer_views(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_buffer_views(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -603,7 +603,7 @@ internal b8 gltf_parse_buffer_views(Gltf_File *gltf, Json_Parser *parser, Alloca
   return true;
 }
 
-internal b8 gltf_parse_buffers(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_buffers(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -637,7 +637,7 @@ internal b8 gltf_parse_buffers(Gltf_File *gltf, Json_Parser *parser, Allocator a
   return true;
 }
 
-internal b8 gltf_parse_primitive(Json_Parser *parser, Gltf_Primitive *primitive, Allocator allocator) {
+internal bool gltf_parse_primitive(Json_Parser *parser, Gltf_Primitive *primitive, Allocator allocator) {
   if (parser->value.kind != Json_Value_Object) {
     return false;
   }
@@ -673,7 +673,7 @@ internal b8 gltf_parse_primitive(Json_Parser *parser, Gltf_Primitive *primitive,
         Gltf_Attribute attribute = {
           .accessor = parser->value.integer,
         };
-        const static struct { String name; b8 numbered; } attribute_strings[] = {
+        const static struct { String name; bool numbered; } attribute_strings[] = {
           [Gltf_Attribute_Type_Position]  = {
             .name = LIT("POSITION"),
           },
@@ -700,7 +700,7 @@ internal b8 gltf_parse_primitive(Json_Parser *parser, Gltf_Primitive *primitive,
             .numbered = true,
           },
         };
-        b8 found = false;
+        bool found = false;
         for_range(i, 0, count_of(attribute_strings)) {
           if (attribute_strings[i].numbered) {
             if (string_has_prefix(name, attribute_strings[i].name)) {
@@ -737,7 +737,7 @@ internal b8 gltf_parse_primitive(Json_Parser *parser, Gltf_Primitive *primitive,
   return true;
 }
 
-internal b8 gltf_parse_meshes(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_meshes(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -803,7 +803,7 @@ internal b8 gltf_parse_meshes(Gltf_File *gltf, Json_Parser *parser, Allocator al
   return true;
 }
 
-internal b8 gltf_parse_cameras(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_cameras(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -863,7 +863,7 @@ internal b8 gltf_parse_cameras(Gltf_File *gltf, Json_Parser *parser, Allocator a
   return true;
 }
 
-internal b8 gltf_parse_samplers(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_samplers(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -913,7 +913,7 @@ internal b8 gltf_parse_samplers(Gltf_File *gltf, Json_Parser *parser, Allocator 
   return true;
 }
 
-internal b8 gltf_parse_textures(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_textures(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -945,7 +945,7 @@ internal b8 gltf_parse_textures(Gltf_File *gltf, Json_Parser *parser, Allocator 
   return true;
 }
 
-internal b8 gltf_parse_images(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
+internal bool gltf_parse_images(Gltf_File *gltf, Json_Parser *parser, Allocator allocator) {
   if (parser->value.kind != Json_Value_Array) {
     return false;
   }
@@ -1008,7 +1008,7 @@ extern void gltf_file_destroy(Gltf_File *gltf, Allocator allocator) {
   slice_delete(gltf->extensions_required, allocator);
 }
 
-extern b8 gltf_parse_file(String data, Gltf_File *gltf, Allocator allocator) {
+extern bool gltf_parse_file(String data, Gltf_File *gltf, Allocator allocator) {
   Json_Parser parser = {0};
   Json_Status status = json_parser_init(&parser, data, allocator);
 
@@ -1102,7 +1102,7 @@ typedef enum {
   Glb_Chunk_Type_Binary,
 } Glb_Chunk_Type;
 
-extern b8 gltf_parse_glb(Byte_Slice data, String path, Gltf_File *file, Allocator allocator) {
+extern bool gltf_parse_glb(Byte_Slice data, String path, Gltf_File *file, Allocator allocator) {
   file->path = path;
 
   Glb_File_Header file_header;
@@ -1137,7 +1137,7 @@ extern b8 gltf_parse_glb(Byte_Slice data, String path, Gltf_File *file, Allocato
     .len  = chunk_header.length,
   };
 
-  b8 json_ok = gltf_parse_file(json_data, file, allocator);
+  bool json_ok = gltf_parse_file(json_data, file, allocator);
   if (!json_ok) {
     return false;
   }
@@ -1167,7 +1167,7 @@ extern b8 gltf_parse_glb(Byte_Slice data, String path, Gltf_File *file, Allocato
   return true;
 }
 
-extern b8 gltf_parse(Byte_Slice data, String path, Gltf_File *gltf, Allocator allocator) {
+extern bool gltf_parse(Byte_Slice data, String path, Gltf_File *gltf, Allocator allocator) {
   if (data.len < 4) {
     return false;
   }
@@ -1217,10 +1217,10 @@ GLTF_ACCESSOR_READ(i8);
 GLTF_ACCESSOR_READ(i16);
 GLTF_ACCESSOR_READ(f32);
 
-internal b8 load_uri_data(String path, String uri, Byte_Slice *data, Allocator allocator) {
+internal bool load_uri_data(String path, String uri, Byte_Slice *data, Allocator allocator) {
   Uri_Scheme scheme = uri_get_scheme(uri);
 
-  b8 uri_ok;
+  bool uri_ok;
 
   String file_path;
   switch (scheme) {
@@ -1258,7 +1258,7 @@ internal b8 load_uri_data(String path, String uri, Byte_Slice *data, Allocator a
   return true;
 }
 
-extern b8 gltf_load_buffers(String path, Gltf_File *file, Allocator allocator) {
+extern bool gltf_load_buffers(String path, Gltf_File *file, Allocator allocator) {
   slice_iter(file->buffers, buffer, i, {
     if (buffer->uri.len == 0 && i == 0 && file->glb_data.len != 0) {
       buffer->data = file->glb_data;
@@ -1368,7 +1368,7 @@ internal void node_to_triangles(
   });
 }
 
-extern b8 gltf_to_triangles(Gltf_File const *file, Gltf_Triangle_Vector *triangles) {
+extern bool gltf_to_triangles(Gltf_File const *file, Gltf_Triangle_Vector *triangles) {
   Gltf_Scene const *scene = &IDX(file->scenes, file->scene);
   slice_iter_v(scene->nodes, node_index, i, {
     node_to_triangles(file, triangles, &IDX(file->nodes, node_index), MATRIX_4X4_IDENTITY);

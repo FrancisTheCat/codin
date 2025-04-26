@@ -3,7 +3,7 @@
 #include "codin.h"
 #include "fmt.h"
 
-typedef b8 (*Test_Procedure)();
+typedef bool (*Test_Procedure)();
 
 typedef struct {
   Test_Procedure proc;

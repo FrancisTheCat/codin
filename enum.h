@@ -36,7 +36,7 @@
 
 #define ENUM_IS_VALID_PROC_DECL(T, v)                                          \
   [[nodiscard]]                                                                \
-  internal b8 enum_is_valid_proc(T)(T v)
+  internal bool enum_is_valid_proc(T)(T v)
 
 #define ENUM_TO_STRING_PROC_DECL(T, v)                                         \
   [[nodiscard]]                                                                \
