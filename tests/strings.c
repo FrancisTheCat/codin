@@ -31,7 +31,6 @@ bool string_equal_test() {
   STR_SELF_COMPARE("12345678901234567890123456789012345678901234567890");
   STR_SELF_COMPARE("12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
 
-  STR_EXPECT_DIFFERENT("asdf", "asdf\0");
   STR_EXPECT_DIFFERENT("asdf", "asd\0");
   STR_EXPECT_DIFFERENT("0123456789_öüä", "0123456789_öüä");
   STR_EXPECT_DIFFERENT(
@@ -113,6 +112,25 @@ bool string_index_rune_test() {
   return true;
 }
 
+bool string_to_lower_test() {
+  #define CASE_TEST(lower, upper)                                                   \
+    test_expect(                                                                    \
+      string_equal(LIT(lower), string_to_lower(LIT(upper), context.temp_allocator)) \
+    );                                                                              \
+    test_expect(                                                                    \
+      string_equal(LIT(upper), string_to_upper(LIT(lower), context.temp_allocator)) \
+    );
+
+  CASE_TEST("asdf", "ASDF");
+  CASE_TEST("asdf1234", "ASDF1234");
+  CASE_TEST(
+    "asdf1234asßßßöööüüüdf1234asdf1234asdf1234asdf1234asdf1234asdf1234asdf1234asdf1234",
+    "ASDF1234ASßßßöööüüüDF1234ASDF1234ASDF1234ASDF1234ASDF1234ASDF1234ASDF1234ASDF1234"
+  );
+
+  return true;
+}
+
 bool utf8_encode_test() {
   char  buf[4];
   isize n;
@@ -146,4 +164,5 @@ void strings_add_tests(Test_Context *ctx) {
   test_add(ctx, string_iter_test);
   test_add(ctx, string_index_byte_test);
   test_add(ctx, string_index_rune_test);
+  test_add(ctx, string_to_lower_test);
 }

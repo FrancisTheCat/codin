@@ -176,7 +176,7 @@ extern bool string_equal(String a, String b) {
 
   isize i;
   // align for performance
-  for (i = 0; ((uintptr)a.data + i) % 16; i += 1) {
+  for (i = 0; (((uintptr)a.data + i) % 16 != 0) && i < a.len; i += 1) {
     if (a.data[i] != b.data[i]) {
       return false;
     }
@@ -219,7 +219,7 @@ extern bool cstring_compare_lexicographic(cstring a, cstring b) {
 
 extern isize string_index_byte(String str, byte b) {
   isize i;
-  for (i = 0; ((uintptr)str.data + i) % 16; i += 1) {
+  for (i = 0; (((uintptr)str.data + i) % 16 != 0) && i < str.len; i += 1) {
     if (str.data[i] == b) {
       return i;
     }
@@ -253,24 +253,24 @@ extern isize string_index_rune(String str, rune r) {
   isize n = utf8_rune_encode(r, buf);
 
   #define CHECK_REMAINING(offset)               \
-      if ((offset) + n > str.len) {             \
-        return -1;                              \
-      }                                         \
+    if ((offset) + n > str.len) {               \
+      return -1;                                \
+    }                                           \
                                                 \
-      bool match = true;                        \
-      for (isize j = 1; j < n; j += 1) {        \
-        if (str.data[(offset) + j] != buf[j]) { \
-          match = false;                        \
-          break;                                \
-        }                                       \
+    bool match = true;                          \
+    for (isize j = 1; j < n; j += 1) {          \
+      if (str.data[(offset) + j] != buf[j]) {   \
+        match = false;                          \
+        break;                                  \
       }                                         \
+    }                                           \
                                                 \
-      if (match) {                              \
-        return (offset);                        \
-      }                                         \
+    if (match) {                                \
+      return (offset);                          \
+    }                                           \
 
   isize i;
-  for (i = 0; ((uintptr)str.data + i) % 16; i += 1) {
+  for (i = 0; (((uintptr)str.data + i) % 16 != 0) && i < str.len; i += 1) {
     if (str.data[i] == buf[0]) {
       CHECK_REMAINING(i);
       i += n - 1;
@@ -348,12 +348,97 @@ extern isize string_index(String str, String substr) {
 
 extern String string_to_lower(String str, Allocator allocator) {
   Slice(char) out = slice_make(type_of(out), str.len, allocator);
-  slice_iter(out, c, i, {
-     *c = str.data[i];
-     if (rune_is_upper(*c)) {
-       *c += 'a' - 'A';
-     }
-   })
+
+  isize i;
+  for (i = 0; ((uintptr)&str.data[i] % 16 != 0) && i < str.len; i += 1) {
+    // ignoring utf8 is fine here, at least as long as we only support ASCII
+    char  v =  str.data[i];
+    char *c = &out.data[i];
+    if ('A' <= v && v <= 'Z') {
+      *c = v + 'a' - 'A';
+    } else {
+      *c = v;
+    }
+  }
+
+  __m128i vec_a = _mm_set1_epi8('A' -  1 );
+  __m128i vec_z = _mm_set1_epi8('Z' +  1 );
+  __m128i shift = _mm_set1_epi8('a' - 'A');
+  __m128i ones  = _mm_set1_epi8(0xFF);
+
+  for (; i < (str.len & ~15ul); i += 16) {
+    __m128i v        = _mm_load_si128((__m128i *)&str.data[i]);
+    __m128i cmp_a    = _mm_cmpgt_epi8(v, vec_a); // ( v  > 'A' - 1)
+    __m128i cmp_z    = _mm_cmpgt_epi8(vec_z, v); // ('Z' >  v  + 1)
+
+    __m128i mask     = _mm_and_si128(cmp_a, cmp_z);
+    __m128i inv_mask = _mm_andnot_si128(mask, ones);
+
+    __m128i lower    = _mm_and_si128(_mm_add_epi8(v, shift), mask);
+    __m128i upper    = _mm_and_si128(v, inv_mask);
+
+    __m128i result   = _mm_or_si128(upper, lower);
+    _mm_storeu_si128((__m128i *)&out.data[i], result);
+  }
+
+  for (; i < str.len; i += 1) {
+    char  v =  str.data[i];
+    char *c = &out.data[i];
+    if ('A' <= v && v <= 'Z') {
+      *c = v + 'a' - 'A';
+    } else {
+      *c = v;
+    }
+  }
+
+  return transmute(String, out);
+}
+
+extern String string_to_upper(String str, Allocator allocator) {
+  Slice(char) out = slice_make(type_of(out), str.len, allocator);
+
+  isize i;
+  for (i = 0; ((uintptr)&str.data[i] % 16 != 0) && i < str.len; i += 1) {
+    // ignoring utf8 is fine here, at least as long as we only support ASCII
+    char  v =  str.data[i];
+    char *c = &out.data[i];
+    if ('a' <= v && v <= 'z') {
+      *c = v + 'A' - 'a';
+    } else {
+      *c = v;
+    }
+  }
+
+  __m128i vec_a = _mm_set1_epi8('a' -  1 );
+  __m128i vec_z = _mm_set1_epi8('z' +  1 );
+  __m128i shift = _mm_set1_epi8('A' - 'a');
+  __m128i ones  = _mm_set1_epi8(0xFF);
+
+  for (; i < (str.len & ~15ul); i += 16) {
+    __m128i v        = _mm_load_si128((__m128i *)&str.data[i]);
+    __m128i cmp_a    = _mm_cmpgt_epi8(v, vec_a); // ( v  > 'a' - 1)
+    __m128i cmp_z    = _mm_cmpgt_epi8(vec_z, v); // ('z' >  v  + 1)
+
+    __m128i mask     = _mm_and_si128(cmp_a, cmp_z);
+    __m128i inv_mask = _mm_andnot_si128(mask, ones);
+
+    __m128i upper    = _mm_and_si128(_mm_add_epi8(v, shift), mask);
+    __m128i lower    = _mm_and_si128(v, inv_mask);
+
+    __m128i result   = _mm_or_si128(upper, lower);
+    _mm_storeu_si128((__m128i *)&out.data[i], result);
+  }
+
+  for (; i < str.len; i += 1) {
+    char  v =  str.data[i];
+    char *c = &out.data[i];
+    if ('a' <= v && v <= 'z') {
+      *c = v + 'A' - 'a';
+    } else {
+      *c = v;
+    }
+  }
+
   return transmute(String, out);
 }
 
@@ -407,7 +492,8 @@ extern isize builder_write_bytes(Builder *b, Byte_Slice data) {
 }
 
 extern isize builder_write_byte(Builder *b, byte data) {
-  return builder_write_bytes(b, (Byte_Slice) { .data = &data, .len = 1 });
+  vector_append(b, data);
+  return 1;
 }
 
 extern isize builder_write_string(Builder *b, String data) {

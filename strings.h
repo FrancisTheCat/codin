@@ -80,6 +80,8 @@ extern isize string_index(String str, String substr);
 
 [[nodiscard]]
 extern String string_to_lower(String str, Allocator allocator);
+[[nodiscard]]
+extern String string_to_upper(String str, Allocator allocator);
 
 #define string_iter(string, elem, i, BLOCK...) {                               \
   isize  _string_iter_n      = 0;                                              \
