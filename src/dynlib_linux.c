@@ -1,19 +1,26 @@
 #include "codin.h"
 
-bool _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
+#include "dynlib.h"
+#include "os.h"
+#include "runtime_linux.h"
+#include "strings.h"
+
+extern Dynlib_Result dynlib_load(String path, Allocator allocator) {
+  Dynlib_Result result = {0};
+  Dynlib *lib = &result.value;
   Fd fd = or_do_err(file_open(path, FP_Read), _err, {
-    return false;
+    return result;
   });
   File_Info info;
   OS_Error err = file_stat(fd, &info);
   if (err) {
     file_close(fd);
-    return false;
+    return result;
   }
   lib->mapping = (rawptr)syscall(SYS_mmap, nil, info.size, PROT_READ, MAP_PRIVATE | MAP_FILE, fd, 0);
   if (!lib->mapping) {
     file_close(fd);
-    return false;
+    return result;
   }
 
   typedef struct {
@@ -48,16 +55,16 @@ bool _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
 
   if (info.size < size_of(Elf64_Ehdr)) {
     file_close(fd);
-    return false;
+    return result;
   }
   Elf64_Ehdr *ehdr = (Elf64_Ehdr *)lib->mapping;
   if (!string_equal((String){.data = (char const *)ehdr->e_ident, .len = 4}, LIT("\x7F" "ELF"))) {
     file_close(fd);
-    return false;
+    return result;
   }
   if (ehdr->e_type != 3) {
     file_close(fd);
-    return false;
+    return result;
   }
 
   typedef enum {
@@ -250,60 +257,8 @@ bool _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
 
   vector_iter(sections, section, i, {
     mapping_size = max(mapping_size, !!(section->flags & SHF_ALLOC) * (section->address + section->size));
-
-    fmt_printf(
-      LIT("Index: %2x, Offset: %4x, Addr: %4x, Size: %4x, Flags: %03b, Name: '%s', flags: ["),
-      i,
-      section->offset,
-      section->address,
-      section->size,
-      section->flags & 0x7,
-      &section_string_table.data[section->name]
-    );
-
-    if (section->flags & SHF_WRITE) {
-      fmt_print(LIT("'SHF_WRITE', "));
-    }
-    if (section->flags & SHF_ALLOC) {
-      fmt_print(LIT("'SHF_ALLOC', "));
-    }
-    if (section->flags & SHF_EXECINSTR) {
-      fmt_print(LIT("'SHF_EXECINSTR', "));
-    }
-    if (section->flags & SHF_MERGE) {
-      fmt_print(LIT("'SHF_MERGE', "));
-    }
-    if (section->flags & SHF_STRINGS) {
-      fmt_print(LIT("'SHF_STRINGS', "));
-    }
-    if (section->flags & SHF_INFO_LINK) {
-      fmt_print(LIT("'SHF_INFO_LINK', "));
-    }
-    if (section->flags & SHF_LINK_ORDER) {
-      fmt_print(LIT("'SHF_LINK_ORDER', "));
-    }
-    if (section->flags & SHF_OS_NONCONFORMING) {
-      fmt_print(LIT("'SHF_OS_NONCONFORMING', "));
-    }
-    if (section->flags & SHF_GROUP) {
-      fmt_print(LIT("'SHF_GROUP', "));
-    }
-    if (section->flags & SHF_TLS) {
-      fmt_print(LIT("'SHF_TLS', "));
-    }
-    if (section->flags & SHF_COMPRESSED) {
-      fmt_print(LIT("'SHF_COMPRESSED', "));
-    }
-    if (section->flags & SHF_GNU_RETAIN) {
-      fmt_print(LIT("'SHF_GNU_RETAIN', "));
-    }
-    if (section->flags & SHF_EXCLUDE) {
-      fmt_print(LIT("'SHF_EXCLUDE', "));
-    }
-    fmt_println(LIT("]"));
   });
 
-  log_infof(LIT("Required mapping: %x"), mapping_size);
   lib->mapping_size = mapping_size;
 
   Slice(struct {
@@ -349,16 +304,8 @@ bool _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
 
   file_close(fd);
 
-  fmt_printfln(LIT("relas.len: %d"), relas.len);
   for (isize _i = 0; _i < (relas).len; _i++) {
     Elf64_Rela *rela = &(relas).data[_i];
-    fmt_printfln(
-      LIT("\tRela: {offset: %x, sym: %x, type: %x, addend: %x}"),
-      rela->r_offset,
-      (isize)rela->r_sym,
-      (isize)rela->r_type,
-      rela->r_addend
-    );
 
     typedef enum {
       R_X86_64_NONE            = 0,  /* No reloc */
@@ -437,33 +384,17 @@ bool _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
       *(u16 *)((uintptr)lib->mapping + rela->r_offset) = rela->r_sym + (u16)rela->r_addend;
       break;
     default:
-      log_warnf(LIT("Unknown relocation type: 0x%x"), rela->r_type);
       break;
     }
   }
 
-  fmt_printfln(LIT("rels.len: %d"), rels.len);
-  vector_iter(rels, rel, _i, {
-    fmt_printfln(LIT("\tRel: {offset: %x, info: %x}"), rel->r_offset, rel->r_info);
-  })
-
-  hash_map_init(&lib->symbols, 1024, string_equal, string_hash, allocator);
+  hash_map_init(&lib->symbols, symbols.len * 2, string_equal, string_hash, allocator);
   
   #define ELF64_ST_BIND(val)        (((unsigned char) (val)) >> 4)
   #define ELF64_ST_TYPE(val)        ((val) & 0xf)
   #define ELF64_ST_INFO(bind, type) (((bind) << 4) + ((type) & 0xf))
 
-  fmt_printfln(LIT("symbols.len: %d"), symbols.len);
   vector_iter(symbols, sym, _i, {
-    fmt_printfln(
-      LIT("\tSym: {name: '%s', type: %x, bind: %x, value: %x, size: %x, shndx: %x}"),
-      (cstring)&string_table.data[sym->st_name],
-      (isize)ELF64_ST_TYPE(sym->st_info),
-      (isize)ELF64_ST_BIND(sym->st_info),
-      (isize)sym->st_value,
-      (isize)sym->st_size,
-      (isize)sym->st_shndx
-    );
     if (((isize)sym->st_info & 0xf) == 2 || ((isize)sym->st_info & 0xf) == 1 || true) {
       hash_map_insert(
         &lib->symbols,
@@ -473,13 +404,13 @@ bool _dynlib_load(String path, Allocator allocator, Dynlib *lib) {
     }
   })
 
-  return true;
+  result.ok = true;
+  return result;
 }
 
-bool _dynlib_unload(rawptr mapping, isize size) {
-  (void)mapping;
-  (void)size;
-
+extern bool dynlib_unload(Dynlib const *lib) {
+  (void)lib;
   unimplemented();
   // return syscall(SYS_munmap, mapping, size) == 0;
 }
+

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 #define sort_slice(_slice)                                                     \

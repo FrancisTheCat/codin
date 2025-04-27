@@ -1,3 +1,5 @@
+#pragma once
+
 #define Ring_Buffer(T, N)                                                      \
   struct {                                                                     \
     T data[N];                                                                 \

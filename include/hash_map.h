@@ -4,6 +4,8 @@
 // values. The tombstone 1 value is neccessary that colliding entries that were behind a now    
 // removed entry dont get lost. (hashes returned by user hash functions that violate this      
 // requirement will be fixed automatically by adding 2 to avoid bugs)
+#pragma once
+
 #include "codin.h"
 
 #define INITIAL_HASH_SEED 0xcbf29ce484222325

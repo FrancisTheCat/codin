@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 internal String path_to_absolute(String relative, Allocator allocator) {

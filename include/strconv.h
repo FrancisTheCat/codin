@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 internal isize parse_int(String *str) {

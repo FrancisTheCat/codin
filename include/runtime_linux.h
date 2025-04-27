@@ -1,3 +1,5 @@
+#pragma once
+
 #include "syscalls_linux_amd64.h"
 #include "codin.h"
 #include "os.h"

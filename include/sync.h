@@ -1,3 +1,5 @@
+#pragma once
+
 #include "codin.h"
 
 #define atomic_compare_exchange(a, expected, value) __extension__ ({                            \
