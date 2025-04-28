@@ -2,7 +2,7 @@
 
 #include "strings.h"
 
-#include "immintrin.h"
+#include "simd.h"
 
 extern Byte_Slice string_to_bytes(String str) {
   return (Byte_Slice) {
@@ -67,10 +67,10 @@ extern isize cstring_len(cstring s) {
     s   += 1;
   }
 
-  __m128i zeroes = _mm_setzero_si128();
+  i8x16 zeroes = I8X16_ZERO;
   loop {
-    __m128i data = _mm_load_si128((__m128i *)s);
-    __m128i cmp  = _mm_cmpeq_epi8(data, zeroes);
+    i8x16 data   = i8x16_load(s);
+    i8x16 cmp    = _mm_cmpeq_epi8(data, zeroes);
     u32     mask = _mm_movemask_epi8(cmp);
     if (mask) {
       return len + __builtin_ctz(mask);
@@ -86,9 +86,6 @@ extern Allocator_Error cstring_delete(cstring s, Allocator allocator) {
 }
 
 extern String cstring_to_string(cstring c) {
-  if (!c) {
-    return (String){0};
-  }
   return (String) {
     .data = c,
     .len  = cstring_len(c),
@@ -145,10 +142,10 @@ extern bool string_equal(String a, String b) {
   }
 
   for (; i + 16 < a.len; i += 16) {
-    __m128i data_a = _mm_loadu_si128((__m128i *)&a.data[i]);
-    __m128i data_b = _mm_loadu_si128((__m128i *)&b.data[i]);
-    __m128i cmp    = _mm_cmpeq_epi8(data_a, data_b);
-    u32     mask   = _mm_movemask_epi8(cmp);
+    i8x16 data_a = i8x16_load(&a.data[i]);
+    i8x16 data_b = i8x16_load_unaligned(&b.data[i]);
+    i8x16 cmp    = _mm_cmpeq_epi8(data_a, data_b);
+    u32     mask = _mm_movemask_epi8(cmp);
     if (mask != 0xFFFF) {
       return false;
     }
@@ -187,11 +184,11 @@ extern isize string_index_byte(String str, byte b) {
     }
   }
 
-  __m128i comparator = _mm_set1_epi8(b);
+  i8x16 comparator = i8x16_broadcast(b);
   for (; i + 16 < str.len; i += 16) {
-    __m128i data = _mm_load_si128((__m128i *)&str.data[i]);
-    __m128i cmp  = _mm_cmpeq_epi8(data, comparator);
-    u32     mask = _mm_movemask_epi8(cmp);
+    i8x16 data = i8x16_load(&str.data[i]);
+    i8x16 cmp  = _mm_cmpeq_epi8(data, comparator);
+    u32   mask = _mm_movemask_epi8(cmp);
     if (mask != 0) {
       return i + __builtin_ctz(mask);
     }
@@ -239,11 +236,11 @@ extern isize string_index_rune(String str, rune r) {
     }
   }
 
-  __m128i comparator = _mm_set1_epi8(buf[0]);
+  i8x16 comparator = i8x16_broadcast(buf[0]);
   for (; i + 16 < str.len; i += 16) {
-    __m128i data = _mm_load_si128((__m128i *)&str.data[i]);
-    __m128i cmp  = _mm_cmpeq_epi8(data, comparator);
-    u32     mask = _mm_movemask_epi8(cmp);
+    i8x16 data = i8x16_load(&str.data[i]);
+    i8x16 cmp  = _mm_cmpeq_epi8(data, comparator);
+    u32   mask = _mm_movemask_epi8(cmp);
     while (mask != 0) {
       isize offset = i + __builtin_ctz(mask);
       CHECK_REMAINING(offset);
@@ -323,24 +320,24 @@ extern String string_to_lower(String str, Allocator allocator) {
     }
   }
 
-  __m128i vec_a = _mm_set1_epi8('A' -  1 );
-  __m128i vec_z = _mm_set1_epi8('Z' +  1 );
-  __m128i shift = _mm_set1_epi8('a' - 'A');
-  __m128i ones  = _mm_set1_epi8(0xFF);
+  i8x16 vec_a = i8x16_broadcast('A' -  1 );
+  i8x16 vec_z = i8x16_broadcast('Z' +  1 );
+  i8x16 shift = i8x16_broadcast('a' - 'A');
+  i8x16 ones  = i8x16_broadcast(0xFF);
 
   for (; i + 16 < str.len; i += 16) {
-    __m128i v        = _mm_load_si128((__m128i *)&str.data[i]);
-    __m128i cmp_a    = _mm_cmpgt_epi8(v, vec_a); // ( v  > 'A' - 1)
-    __m128i cmp_z    = _mm_cmpgt_epi8(vec_z, v); // ('Z' >  v  + 1)
+    i8x16 v        = i8x16_load(&str.data[i]);
+    i8x16 cmp_a    = _mm_cmpgt_epi8(v, vec_a); // ( v  > 'A' - 1)
+    i8x16 cmp_z    = _mm_cmpgt_epi8(vec_z, v); // ('Z' >  v  + 1)
 
-    __m128i mask     = _mm_and_si128(cmp_a, cmp_z);
-    __m128i inv_mask = _mm_andnot_si128(mask, ones);
+    i8x16 mask     = _mm_and_si128(cmp_a, cmp_z);
+    i8x16 inv_mask = _mm_andnot_si128(mask, ones);
 
-    __m128i lower    = _mm_and_si128(_mm_add_epi8(v, shift), mask);
-    __m128i upper    = _mm_and_si128(v, inv_mask);
+    i8x16 lower    = _mm_and_si128(_mm_add_epi8(v, shift), mask);
+    i8x16 upper    = _mm_and_si128(v, inv_mask);
 
-    __m128i result   = _mm_or_si128(upper, lower);
-    _mm_storeu_si128((__m128i *)&out.data[i], result);
+    i8x16 result   = _mm_or_si128(upper, lower);
+    i8x16_store_unaligned(&out.data[i], result);
   }
 
   for (; i < str.len; i += 1) {
@@ -371,24 +368,24 @@ extern String string_to_upper(String str, Allocator allocator) {
     }
   }
 
-  __m128i vec_a = _mm_set1_epi8('a' -  1 );
-  __m128i vec_z = _mm_set1_epi8('z' +  1 );
-  __m128i shift = _mm_set1_epi8('A' - 'a');
-  __m128i ones  = _mm_set1_epi8(0xFF);
+  i8x16 vec_a = i8x16_broadcast('a' -  1 );
+  i8x16 vec_z = i8x16_broadcast('z' +  1 );
+  i8x16 shift = i8x16_broadcast('A' - 'a');
+  i8x16 ones  = i8x16_broadcast(0xFF);
 
   for (; i + 16 < str.len; i += 16) {
-    __m128i v        = _mm_load_si128((__m128i *)&str.data[i]);
-    __m128i cmp_a    = _mm_cmpgt_epi8(v, vec_a); // ( v  > 'a' - 1)
-    __m128i cmp_z    = _mm_cmpgt_epi8(vec_z, v); // ('z' >  v  + 1)
+    i8x16 v        = i8x16_load((i8x16 *)&str.data[i]);
+    i8x16 cmp_a    = _mm_cmpgt_epi8(v, vec_a); // ( v  > 'a' - 1)
+    i8x16 cmp_z    = _mm_cmpgt_epi8(vec_z, v); // ('z' >  v  + 1)
 
-    __m128i mask     = _mm_and_si128(cmp_a, cmp_z);
-    __m128i inv_mask = _mm_andnot_si128(mask, ones);
+    i8x16 mask     = _mm_and_si128(cmp_a, cmp_z);
+    i8x16 inv_mask = _mm_andnot_si128(mask, ones);
 
-    __m128i upper    = _mm_and_si128(_mm_add_epi8(v, shift), mask);
-    __m128i lower    = _mm_and_si128(v, inv_mask);
+    i8x16 upper    = _mm_and_si128(_mm_add_epi8(v, shift), mask);
+    i8x16 lower    = _mm_and_si128(v, inv_mask);
 
-    __m128i result   = _mm_or_si128(upper, lower);
-    _mm_storeu_si128((__m128i *)&out.data[i], result);
+    i8x16 result   = _mm_or_si128(upper, lower);
+    i8x16_store_unaligned(&out.data[i], result);
   }
 
   for (; i < str.len; i += 1) {
