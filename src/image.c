@@ -16,10 +16,13 @@
 
 extern bool stb_image_load_bytes(Byte_Slice data, Image *image, Allocator allocator) {
   i32 x, y, c;
-  image->pixels.data = stbi_load_from_memory(data.data, data.len, &x, &y, &c, 0);
-  if (!image->pixels.data) {
+  u8 *ret = stbi_load_from_memory(data.data, data.len, &x, &y, &c, 0);
+  if (!ret) {
     return false;
   }
+  slice_init(&image->pixels, x * y * c, allocator);
+  mem_copy(image->pixels.data, ret, image->pixels.len);
+  stbi_image_free(ret);
 
   image->width      = x;
   image->stride     = x;
