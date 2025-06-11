@@ -1329,8 +1329,28 @@ internal void node_to_triangles(
         Gltf_Accessor const *indices = &IDX(file->accessors, primitive.indices);
 
         for_range(i, 0, indices->count / 3) {
-          u16 index_buf[3];
-          gltf_accessor_read_u16s(file, indices, (i * 3), 3, &index_buf[0]);
+          u32 index_buf[3];
+          switch (indices->component_type) {
+          case Gltf_Component_Type_Unsigned_Byte:
+            u8 index_buf_u8[3];
+            gltf_accessor_read_u8s(file, indices, (i * 3), 3, &index_buf_u8[0]);
+            index_buf[0] = index_buf_u8[0];
+            index_buf[1] = index_buf_u8[1];
+            index_buf[2] = index_buf_u8[2];
+            break;
+          case Gltf_Component_Type_Unsigned_Short:
+            u16 index_buf_u16[3];
+            gltf_accessor_read_u16s(file, indices, (i * 3), 3, &index_buf_u16[0]);
+            index_buf[0] = index_buf_u16[0];
+            index_buf[1] = index_buf_u16[1];
+            index_buf[2] = index_buf_u16[2];
+            break;
+          case Gltf_Component_Type_Unsigned_Int:
+            gltf_accessor_read_u32s(file, indices, (i * 3), 3, &index_buf[0]);
+            break;
+          default:
+            continue;
+          }
 
           for_range(vi, 0, 3) {
             Gltf_Vertex *v = &triangle.vertices[vi];
