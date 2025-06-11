@@ -126,7 +126,7 @@ typedef __builtin_va_list va_list;
   })
 #define loop while (1)
 
-#define alloca(size) __builtin_alloca(size)
+#define alloca(size) memset(__builtin_alloca(size), 0, size)
 
 #define endianness_swap(x) _endianness_swap(x, __COUNTER__)
 #define _endianness_swap(_x, COUNTER)                                          \

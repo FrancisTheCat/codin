@@ -16,7 +16,7 @@ typedef Vector(byte) Byte_Buffer;
 // NOLINTBEGIN
 #define vector_init(_vector, length, capacity, ally)                           \
   {                                                                            \
-    assert((length) < (capacity));                                             \
+    assert((length) <= (capacity));                                            \
     type_of(*_vector) *vector = _vector;                                       \
     vector->len = length;                                                      \
     vector->cap = capacity;                                                    \

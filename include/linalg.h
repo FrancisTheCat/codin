@@ -127,6 +127,20 @@ typedef Vec3 Color3;
     return x;                                                                  \
   }                                                                            \
                                                                                \
+  internal Vec##D vec##D##_min(Vec##D a, Vec##D b) {                           \
+    for_range(i, 0, D) {                                                       \
+      a.data[i] = min(a.data[i], b.data[i]);                                   \
+    }                                                                          \
+    return a;                                                                  \
+  }                                                                            \
+                                                                               \
+  internal Vec##D vec##D##_max(Vec##D a, Vec##D b) {                           \
+    for_range(i, 0, D) {                                                       \
+      a.data[i] = max(a.data[i], b.data[i]);                                   \
+    }                                                                          \
+    return a;                                                                  \
+  }                                                                            \
+                                                                               \
   internal Vec##D vec##D##_broadcast(f32 a) {                                  \
     Vec##D v;                                                                  \
     for_range(i, 0, D) {                                                       \
