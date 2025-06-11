@@ -425,6 +425,13 @@ extern bool string_has_prefix(String str, String prefix) {
   return string_equal(slice_range(str, 0, prefix.len), prefix);
 }
 
+extern bool string_has_suffix(String str, String suffix) {
+  if (str.len < suffix.len) {
+    return false;
+  }
+  return string_equal(slice_start(str, str.len - suffix.len), suffix);
+}
+
 extern String string_trim_whitespace(String str) {
   return string_trim_whitespace_end(string_trim_whitespace_start(str));
 }

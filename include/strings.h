@@ -95,6 +95,8 @@ extern String string_to_upper(String str, Allocator allocator);
 
 [[nodiscard]]
 extern bool string_has_prefix(String str, String prefix);
+[[nodiscard]]
+extern bool string_has_suffix(String str, String suffix);
 
 [[nodiscard]]
 extern String string_trim_whitespace(String str);
